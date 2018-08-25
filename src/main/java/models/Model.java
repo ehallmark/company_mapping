@@ -4,12 +4,9 @@ import database.Database;
 import lombok.Getter;
 import lombok.NonNull;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public abstract class Model {
-
     @Getter
     private final String tableName;
     @Getter
@@ -17,11 +14,15 @@ public abstract class Model {
     @Getter
     protected Map<String,Object> data;
     @Getter
-    protected List<Model> associatons;
     protected final Set<String> availableAttributes;
-    protected Model(@NonNull Set<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data) {
+    @Getter
+    protected List<Association> associationsMeta;
+    @Getter
+    protected Map<Association,List<Model>> associations;
+    protected Model(@NonNull List<Association> associationsMeta, @NonNull Set<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data) {
         this.tableName = tableName;
         this.data = data;
+        this.associationsMeta = associationsMeta;
         this.id = id;
         this.availableAttributes=availableAttributes;
         if(id != null && data == null) {
@@ -44,7 +45,41 @@ public abstract class Model {
     }
 
     public void loadAssociations() {
-        // TODO this method needs to set the List<Model> associations list
+        if(!existsInDatabase()) {
+            throw new RuntimeException("Cannot load associations if the model does not yet exist in the database.");
+        }
+        if(data==null) {
+            loadAttributesFromDatabase();
+        }
+        this.associations = new HashMap<>();
+        for(Association association : associationsMeta) {
+            try {
+                if (association.getType().equals(Association.Type.OneToMany)) {
+                    List<Model> children = Database.loadOneToManyAssociation(association.getModel(), this, association.getChildTableName(), association.getParentIdField());
+                    data.put(association.getModel().toString(), children);
+                    associations.put(association, children);
+                } else if (association.getType().equals(Association.Type.ManyToOne)) {
+                    Model parent = Database.loadManyToOneAssociation(association.getModel(), this, association.getChildTableName(), association.getParentIdField());
+                    if(parent!=null) {
+                        data.put(association.getModel().toString(), parent);
+                        associations.put(association, Collections.singletonList(parent));
+                    }
+                } else if (association.getType().equals(Association.Type.OneToOne)) {
+                    if(association.getChildIdField()==null) {
+
+                    } else {
+
+                    }
+                    throw new RuntimeException("One to one associations are not yet implemented.");
+                } else if (association.getType().equals(Association.Type.ManyToMany)) {
+                    List<Model> children = Database.loadManyToManyAssociation(association.getModel(), this, association.getChildTableName(), association.getParentIdField(), association.getChildIdField());
+                    data.put(association.getModel().toString(), children);
+                    associations.put(association, children);
+                }
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public void loadAttributesFromDatabase() {
@@ -102,15 +137,19 @@ public abstract class Model {
         }
         if(cascade) {
             loadAssociations();
-            for(Model association : associatons) {
-                association.deleteFromDatabase(cascade);
+            for(Map.Entry<Association,List<Model>> entry : associations.entrySet()) {
+                if(entry.getKey().isDependent()) {
+                    for(Model association : entry.getValue()) {
+                        association.deleteFromDatabase(cascade);
+                    }
+                }
             }
         }
         try {
             Database.delete(tableName, id);
         } catch(Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("Error inserting record into database: "+e.getMessage());
+            throw new RuntimeException("Error deleting record from database: "+e.getMessage());
         }
     }
 }

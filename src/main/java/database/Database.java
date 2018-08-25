@@ -1,6 +1,7 @@
 package database;
 
 import lombok.NonNull;
+import models.*;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -51,6 +52,116 @@ public class Database {
         ps.close();
         conn.commit();
         return id;
+    }
+
+    public static synchronized List<Model> loadOneToManyAssociation(@NonNull Association.Model associationType, @NonNull Model baseModel, @NonNull String associationTableName, @NonNull String parentIdField) throws SQLException {
+        if(!baseModel.existsInDatabase()) {
+            System.out.println("Trying to load association of model that does not exist in the database.");
+        }
+        PreparedStatement ps = conn.prepareStatement("select id from "+associationTableName+" where "+parentIdField+"=?");
+        ps.setObject(1, baseModel.getId());
+        ResultSet rs = ps.executeQuery();
+        List<Model> models = new ArrayList<>();
+        while(rs.next()) {
+            final int id = rs.getInt(1);
+            switch(associationType) {
+                case Company: {
+                    models.add(new Company(id, null));
+                    break;
+                }
+                case Revenue: {
+                    models.add(new Revenue(id, null));
+                    break;
+                }
+                case Market: {
+                    models.add(new Market(id, null));
+                    break;
+                }
+                case Product: {
+                    models.add(new Product(id, null));
+                    break;
+                }
+                case Segment: {
+                    models.add(new Segment(id, null));
+                    break;
+                }
+            }
+        }
+        rs.close();
+        ps.close();
+        return models;
+    }
+
+    public static synchronized List<Model> loadManyToManyAssociation(@NonNull Association.Model associationType, @NonNull Model baseModel, @NonNull String joinTableName, @NonNull String parentIdField, @NonNull String childIdField) throws SQLException {
+        if(!baseModel.existsInDatabase()) {
+            System.out.println("Trying to load association of model that does not exist in the database.");
+        }
+        PreparedStatement ps = conn.prepareStatement("select "+childIdField+" from "+joinTableName+" where "+parentIdField+"=?");
+        ps.setObject(1, baseModel.getId());
+        ResultSet rs = ps.executeQuery();
+        List<Model> models = new ArrayList<>();
+        while(rs.next()) {
+            final int id = rs.getInt(1);
+            switch(associationType) {
+                case Company: {
+                    models.add(new Company(id, null));
+                    break;
+                }
+                case Revenue: {
+                    models.add(new Revenue(id, null));
+                    break;
+                }
+                case Market: {
+                    models.add(new Market(id, null));
+                    break;
+                }
+                case Product: {
+                    models.add(new Product(id, null));
+                    break;
+                }
+                case Segment: {
+                    models.add(new Segment(id, null));
+                    break;
+                }
+            }
+        }
+        rs.close();
+        ps.close();
+        return models;
+    }
+
+    public static synchronized Model loadManyToOneAssociation(@NonNull Association.Model associationType, @NonNull Model baseModel, @NonNull String associationTableName, @NonNull String parentIdField) throws SQLException {
+        if(!baseModel.existsInDatabase()) {
+            System.out.println("Trying to load association of model that does not exist in the database.");
+        }
+        Integer parentId = (Integer)baseModel.getData().get(parentIdField);
+        if(parentId==null) {
+            return null;
+        }
+        Model model = null;
+        switch(associationType) {
+            case Company: {
+                model = new Company(parentId, null);
+                break;
+            }
+            case Revenue: {
+                model = new Revenue(parentId, null);
+                break;
+            }
+            case Market: {
+                model = new Market(parentId, null);
+                break;
+            }
+            case Product: {
+                model = new Product(parentId, null);
+                break;
+            }
+            case Segment: {
+                model = new Segment(parentId, null);
+                break;
+            }
+        }
+        return model;
     }
 
     public static synchronized void update(@NonNull String tableName, int id, Map<String,Object> data) throws SQLException {
