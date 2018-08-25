@@ -69,6 +69,7 @@ var onShowResourceFunction = function($topElem) {
         var id = $form.attr('data-id');
         var listRef = $form.attr('data-list-ref');
         var formData = $form.serialize();
+        var prepend = $form.attr('data-prepend');
         $.ajax({
             url: '/new/'+associationId,
             dataType: 'json',
@@ -82,7 +83,11 @@ var onShowResourceFunction = function($topElem) {
                     data: formData,
                     type: 'POST',
                     success: function(showData) {
-                        $(listRef).prepend(showData.template);
+                        if(prepend==='prepend') {
+                            $(listRef).prepend(showData.template);
+                        } else {
+                            $(listRef).html(showData.template);
+                        }
                         $form.find('input.form-control').val(null);
                         onShowResourceFunction($(listRef));
                         $('.resource-new-link').filter(':visible').each(function() {
@@ -93,12 +98,30 @@ var onShowResourceFunction = function($topElem) {
 
             }
         });
+
         return false;
+    });
+
+    $topElem.find('.multiselect-ajax').select2({
+        closeOnSelect: true,
+        ajax: {
+            url: function() { return $(this).attr("data-url"); },
+            dataType: "json",
+            delay: 100,
+            data: function(params) {
+                var query = {
+                    search: params.term,
+                    page: params.page || 1
+                };
+                return query;
+            }
+        }
     });
 
     $topElem.find('.resource-show-link').click(showResourceByClickFunction);
 
     $('#results .nav.nav-tabs .nav-link').filter(':first').trigger('click');
+
 };
 
 

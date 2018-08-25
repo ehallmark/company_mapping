@@ -213,10 +213,16 @@ public class Database {
         return data;
     }
 
-
     public static synchronized List<Model> selectAll(@NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes) throws SQLException {
+        return selectAll(model, tableName, attributes, null);
+    }
+
+    public static synchronized List<Model> selectAll(@NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, String searchName) throws SQLException {
         List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
-        PreparedStatement ps = conn.prepareStatement("select id,"+String.join(",", attrList)+" from "+tableName+"");
+        PreparedStatement ps = conn.prepareStatement("select id,"+String.join(",", attrList)+" from "+tableName+"" + (searchName==null?"" : ( " where lower(name) like '%'||?||'%' order by lower(name)")));
+        if(searchName!=null) {
+            ps.setString(1, searchName);
+        }
         ResultSet rs = ps.executeQuery();
         List<Model> models = new ArrayList<>();
         while(rs.next()) {

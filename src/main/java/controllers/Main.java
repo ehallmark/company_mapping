@@ -13,6 +13,9 @@ import java.io.OutputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static j2html.TagCreator.*;
 import static spark.Spark.*;
@@ -30,6 +33,37 @@ public class Main {
             return null;
         }
         return loadModel(type, id);
+    }
+
+    private static Model getModelByType(Association.Model type) {
+        Model model;
+        switch(type) {
+            case Market: {
+                model = new Market(null, null);
+                break;
+            }
+            case Segment: {
+                model = new Segment(null, null);
+                break;
+            }
+            case Revenue: {
+                model = new Revenue(null, null);
+                break;
+            }
+            case Product: {
+                model = new Product(null, null);
+                break;
+            }
+            case Company: {
+                model = new Company(null, null);
+                break;
+            }
+            default: {
+                model = null;
+                break;
+            }
+        }
+        return model;
     }
 
     private static Model loadModel(Association.Model type, Integer id) {
@@ -66,6 +100,44 @@ public class Main {
         return model;
     }
 
+
+    private static Object handleAjaxRequest(Request req, Function<String,List<String>> resultsSearchFunction, Function<String,String> labelFunction, Function<String,String> htmlResultFunction) {
+        int PER_PAGE = 30;
+        String search = req.queryParams("search");
+        int page = Integer.valueOf(req.queryParamOrDefault("page", "1"));
+
+        System.out.println("Search: " + search);
+        System.out.println("Page: " + page);
+
+        List<String> allResults = resultsSearchFunction.apply(search);
+
+        int start = (page - 1) * PER_PAGE;
+        int end = start + PER_PAGE;
+
+        List<Map<String, Object>> results;
+        if (start >= allResults.size()) {
+            results = Collections.emptyList();
+        } else {
+            results = allResults.subList(start, Math.min(allResults.size(), end)).stream().map(result -> {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", result);
+                String html = htmlResultFunction == null ? null : htmlResultFunction.apply(result);
+                if(result!=null) {
+                    map.put("html_result", html);
+                }
+                map.put("text", labelFunction.apply(result));
+                return map;
+            }).collect(Collectors.toList());
+        }
+
+        Map<String, Boolean> pagination = new HashMap<>();
+        pagination.put("more", end < allResults.size());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("results", results);
+        response.put("pagination", pagination);
+        return new Gson().toJson(response);
+    }
 
     public static void main(String[] args) throws Exception {
         staticFiles.externalLocation(new File("public").getAbsolutePath());
@@ -130,6 +202,38 @@ public class Main {
                             )
                     )
             ).render();
+        });
+
+
+        get("/ajax/resources/:resource/:from_resource/:from_id", (req, res)->{
+            String resource = req.params("resource");
+            String fromResource = req.params("resource");
+            int fromId;
+            Association.Model fromType;
+            Association.Model type;
+            try {
+                type = Association.Model.valueOf(resource);
+                fromType = Association.Model.valueOf(fromResource);
+                fromId = Integer.valueOf(req.params("from_id"));
+            } catch(Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+            Model model = getModelByType(type);
+            Function<String,List<String>> resultsSearchFunction = search -> {
+                try {
+                    if(search!=null&&search.trim().length()==0) {
+                        search = null;
+                    }
+                    return Database.selectAll(type, model.getTableName(), Collections.singletonList(Constants.NAME), search).stream().filter(m->(!fromType.equals(type))||(!m.getId().equals(fromId))).map(m->(String)m.getData().get(Constants.NAME)).collect(Collectors.toList());
+                } catch(Exception e) {
+                    e.printStackTrace();
+                    return Collections.emptyList();
+                }
+            };
+            Function<String,String> displayFunction = result ->  result;
+            Function<String,String> htmlFunction = null; //result -> "<span>"+ (result+" ("+titlePartMap.getOrDefault(result,"")+")").replace(" ()","") + "</span>";
+            return handleAjaxRequest(req, resultsSearchFunction, displayFunction, htmlFunction);
         });
 
         // Host my own image asset!
@@ -237,33 +341,7 @@ public class Main {
                 e.printStackTrace();
                 return null;
             }
-            Model model;
-            switch(type) {
-                case Market: {
-                    model = new Market(null, null);
-                    break;
-                }
-                case Segment: {
-                    model = new Segment(null, null);
-                    break;
-                }
-                case Revenue: {
-                    model = new Revenue(null, null);
-                    break;
-                }
-                case Product: {
-                    model = new Product(null, null);
-                    break;
-                }
-                case Company: {
-                    model = new Company(null, null);
-                    break;
-                }
-                default: {
-                    model = null;
-                    break;
-                }
-            }
+            Model model = getModelByType(type);
             return new Gson().toJson(
                     Database.selectAll(type, model.getTableName(), model.getAvailableAttributes())
             );
@@ -298,4 +376,7 @@ public class Main {
         });
 
     }
+
+
+
 }

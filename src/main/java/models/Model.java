@@ -61,6 +61,12 @@ public abstract class Model implements Serializable {
         // find association
         for(Association association : associationsMeta) {
             if(association.getAssociationName().equals(associationName)) {
+                    if(association.getModel().toString().equals(this.getClass().getSimpleName())) {
+                        // same model, make sure there are no self references
+                        if(otherModel.getId().equals(id)) {
+                            throw new RuntimeException("Unable to assign association to itself.");
+                        }
+                    }
                     switch (association.getType()) {
                         case OneToMany: {
                             // need to set parent id of association
@@ -142,18 +148,49 @@ public abstract class Model implements Serializable {
                                         models = Collections.emptyList();
                                     }
                                     String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-");
-
-                                    return div().attr("role", "tabpanel").withId(assocId).withClass("col-12 tab-pane fade").with(
-                                            div().with(a("(New)").withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
-                                                    form().attr("data-list-ref","#"+listRef).attr("data-association", association.getModel().toString())
-                                                            .attr("data-resource", this.getClass().getSimpleName())
-                                                            .attr("data-id", id.toString()).withClass("association").with(
+                                    Association.Type type = association.getType();
+                                    String prepend = "false";
+                                    String createText = "(New)";
+                                    switch(type) {
+                                        case OneToMany: {
+                                            prepend = "prepend";
+                                            break;
+                                        }
+                                        case ManyToOne: {
+                                            prepend = "false";
+                                            createText = "(Update)";
+                                            break;
+                                        }
+                                        case ManyToMany: {
+                                            prepend = "prepend";
+                                            break;
+                                        }
+                                        case OneToOne: {
+                                            // not implemented
+                                            break;
+                                        }
+                                    }
+                                    ContainerTag panel = div().with(a(createText).withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
+                                            form().attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-association", association.getModel().toString())
+                                                    .attr("data-resource", this.getClass().getSimpleName())
+                                                    .attr("data-id", id.toString()).withClass("association").with(
+                                                    input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
+                                                    label("Name:").with(
+                                                            input().withType("text").withClass("form-control").withName(Constants.NAME)
+                                                    ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+                                            ),form().attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
+                                                    .attr("data-resource", this.getClass().getSimpleName())
+                                                    .with(
                                                             input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
-                                                            label("Name:").with(
-                                                                    input().withType("text").withClass("form-control").withName(Constants.NAME)
-                                                            ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+                                                            label(association.getAssociationName()+" Name:").with(
+                                                                    select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName("id")
+                                                                    .attr("data-url", "/ajax/resources/"+association.getModel()+"/"+this.getClass().getSimpleName()+"/"+id)
+                                                            ), br(), button("Assign").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+
                                                     )
-                                            )),br(),
+                                    ));
+                                    return div().attr("role", "tabpanel").withId(assocId).withClass("col-12 tab-pane fade").with(
+                                            panel, br(),
                                             div().withId(listRef).with(models.stream().map(model->{
                                                 return model.getLink();
                                             }).collect(Collectors.toList()))

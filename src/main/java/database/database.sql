@@ -4,7 +4,7 @@
 drop table products;
 create table products (
     id serial primary key,
-    name text,
+    name text not null,
     notes text,
     company_id integer,
     market_id integer,
@@ -21,7 +21,7 @@ create index products_name_idx on products (name);
 drop table segments;
 create table segments (
     id serial primary key,
-    name text,
+    name text not null,
     notes text,
     parent_segment_id integer,
     company_id integer,
@@ -37,7 +37,7 @@ drop table revenues;
 create table revenues (
     id serial primary key,
     value double precision,
-    name text,
+    name text not null,
     product_id integer,
     segment_id integer,
     market_id integer,
@@ -58,7 +58,7 @@ create index revenues_name_idx on revenues (name);
 drop table markets;
 create table markets (
     id serial primary key,
-    name text,
+    name text not null,
     parent_market_id integer,
     notes text,
     updated_at timestamp not null default now(),
@@ -72,7 +72,7 @@ create index markets_parent_market_id_idx on markets (parent_market_id);
 drop table companies;
 create table companies (
     id serial primary key,
-    name text,
+    name text not null,
     notes text,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now()
