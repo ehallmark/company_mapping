@@ -22,5 +22,6 @@ public class Constants {
     public static final String MARKET_ID = "market_id";
     public static final String PARENT_MARKET_ID = "parent_market_id";
     public static final String COMPANY_MARKETS_JOIN_TABLE = "companies_markets";
+    public static final String SEGMENT_MARKETS_JOIN_TABLE = "segments_markets";
     public static final String VALUE = "value";
 }

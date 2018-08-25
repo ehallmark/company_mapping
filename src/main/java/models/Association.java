@@ -32,9 +32,12 @@ public class Association {
     private Model model;
     @Getter
     private boolean dependent;
-    public Association(Model model, String parentTableName, String childTableName, Type type, String parentIdField, String childIdField, boolean dependent) {
+    @Getter
+    private String joinTableName;
+    public Association(Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent) {
         this.parentIdField = parentIdField;
         this.dependent = dependent;
+        this.joinTableName = joinTableName;
         this.parentTableName = parentTableName;
         this.childIdField = childIdField;
         this.childTableName = childTableName;
