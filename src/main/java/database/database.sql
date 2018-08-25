@@ -89,7 +89,7 @@ create table companies_markets (
 create table segments_markets (
     segment_id integer not null,
     market_id integer not null,
-    primary key(company_id, market_id)
+    primary key(segment_id, market_id)
 );
 
 

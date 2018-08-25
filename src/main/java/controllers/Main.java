@@ -16,11 +16,11 @@ import static spark.Spark.*;
 
 public class Main {
     private static Model loadModel(Request req) {
-        String resource = req.queryParams("resource");
+        String resource = req.params("resource");
         int id;
         Association.Model type;
         try {
-            id = Integer.valueOf(req.queryParams("resource"));
+            id = Integer.valueOf(req.params("id"));
             type = Association.Model.valueOf(resource);
         } catch(Exception e) {
             e.printStackTrace();

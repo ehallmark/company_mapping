@@ -4,7 +4,7 @@ public class Constants {
     public static final String COMPANY_TABLE = "companies";
     public static final String MARKET_TABLE = "markets";
     public static final String SEGMENT_TABLE = "segments";
-    public static final String PRODUCT_TABLE = "tables";
+    public static final String PRODUCT_TABLE = "products";
     public static final String REVENUE_TABLE = "revenues";
     public static final String NAME = "name";
     public static final String NOTES = "notes";
