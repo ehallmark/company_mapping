@@ -16,9 +16,9 @@ public class Segment extends Model {
             new Association(Association.Model.Revenue, Constants.SEGMENT_TABLE,
                     Constants.REVENUE_TABLE, Association.Type.OneToMany,
                     Constants.SEGMENT_ID, Constants.REVENUE_ID, true),
-            new Association(Association.Model.Market, Constants.MARKET_TABLE,
-                    Constants.COMPANY_TABLE, Association.Type.ManyToOne,
-                    Constants.MARKET_ID, Constants.COMPANY_ID, false)
+            new Association(Association.Model.Market, Constants.SEGMENT_TABLE,
+                    Constants.MARKET_TABLE, Association.Type.ManyToMany,
+                    Constants.SEGMENT_ID, Constants.MARKET_ID, false)
 
     );
     private static final Set<String> ATTRS = Collections.synchronizedSet(new HashSet<>(Arrays.asList(

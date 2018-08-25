@@ -13,14 +13,13 @@ public class Company extends Model {
             new Association(Association.Model.Revenue, Constants.COMPANY_TABLE,
                     Constants.REVENUE_TABLE, Association.Type.OneToMany,
                     Constants.COMPANY_ID, Constants.REVENUE_ID, true),
-            new Association(Association.Model.Market, Constants.MARKET_TABLE,
-                    Constants.COMPANY_TABLE, Association.Type.ManyToOne,
-                    Constants.MARKET_ID, Constants.COMPANY_ID, false)
+            new Association(Association.Model.Market, Constants.COMPANY_TABLE,
+                    Constants.MARKET_TABLE, Association.Type.ManyToMany,
+                    Constants.COMPANY_ID, Constants.MARKET_ID, false)
 
     );
     private static final Set<String> ATTRS = Collections.synchronizedSet(new HashSet<>(Arrays.asList(
             Constants.NAME,
-            Constants.MARKET_ID,
             Constants.NOTES,
             Constants.UPDATED_AT,
             Constants.CREATED_AT
