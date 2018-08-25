@@ -102,7 +102,7 @@ public abstract class Model implements Serializable {
     public void loadShowTemplate() {
         ContainerTag html = div().withClass("row").with(
                 div().withClass("col-12").with(
-                        h5(this.getClass().getSimpleName()+" Information")
+                        h4(this.getClass().getSimpleName()+" Information")
                 ).with(
                     availableAttributes.stream().filter(attr->!Constants.isHiddenAttr(attr)).map(attr->{
                         Object val = data.get(attr);

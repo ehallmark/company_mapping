@@ -103,6 +103,7 @@ public class Main {
                                             nav().withClass("sidebar col-3").attr("style","z-index: 2; overflow-y: auto; height: 100%; position: fixed; padding-top: 75px;").with(
                                                     div().withClass("row").with(
                                                             div().withClass("col-12").with(
+                                                                    h4("Company Mapping App")
                                                             ),
                                                             div().withClass("col-12").withId("main-menu").with(
                                                                     div().withClass("row").with(
@@ -118,7 +119,6 @@ public class Main {
 
                                                     ), hr()
                                             ), div().withClass("col-9 offset-3").attr("style","padding-top: 58px; padding-left:0px; padding-right:0px;").with(
-                                                    h4("Company Mapping App"),
                                                     div().withId("results").attr("style", "margin-bottom: 200px;").with(
 
                                                     ),

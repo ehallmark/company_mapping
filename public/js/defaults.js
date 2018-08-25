@@ -157,7 +157,7 @@ var createResourceList = function(resourceId, resourceName, data) {
         $ul.append($li);
     }
     var $result = $('<div></div>');
-    $result.append('<h5>'+resourceName+'</h5>');
+    $result.append('<h4>List of '+resourceName+'</h4>');
     var $new = createNewResourceForm(resourceId, resourceName);
     $result.append($new);
     $result.append($ul);
