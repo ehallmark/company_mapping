@@ -36,6 +36,7 @@ create index segments_name_idx on segments (name);
 create table revenues (
     id serial primary key,
     value double precision,
+    name text,
     product_id integer,
     segment_id integer,
     market_id integer,

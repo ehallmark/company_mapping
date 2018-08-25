@@ -1,5 +1,6 @@
 package database;
 
+import com.google.gson.Gson;
 import lombok.NonNull;
 import models.*;
 
@@ -196,7 +197,7 @@ public class Database {
 
     public static synchronized Map<String,Object> select(@NonNull String tableName, int id, @NonNull Collection<String> attributes) throws SQLException {
         List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
-        PreparedStatement ps = conn.prepareStatement("select ("+String.join(",", attrList)+") from "+tableName+" where id=?");
+        PreparedStatement ps = conn.prepareStatement("select "+String.join(",", attrList)+" from "+tableName+" where id=?");
         ps.setObject(1, id);
         ResultSet rs = ps.executeQuery();
         Map<String,Object> data = new HashMap<>(attributes.size());
@@ -208,6 +209,49 @@ public class Database {
         rs.close();
         ps.close();
         return data;
+    }
+
+
+    public static synchronized List<Model> selectAll(@NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes) throws SQLException {
+        List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
+        PreparedStatement ps = conn.prepareStatement("select id,"+String.join(",", attrList)+" from "+tableName+"");
+        ResultSet rs = ps.executeQuery();
+        List<Model> models = new ArrayList<>();
+        while(rs.next()) {
+            Map<String, Object> data = new HashMap<>();
+            int id = rs.getInt(1);
+            for (int i = 0; i < attrList.size(); i++) {
+                data.put(attrList.get(i), rs.getObject(i + 2));
+            }
+            Model m = null;
+            switch (model) {
+                case Company: {
+                    m = new Company(id, data);
+                    break;
+                }
+                case Product: {
+                    m = new Product(id, data);
+                    break;
+                }
+                case Revenue: {
+                    m = new Revenue(id, data);
+                    break;
+                }
+                case Segment: {
+                    m = new Segment(id, data);
+                    break;
+                }
+                case Market: {
+                    m = new Market(id, data);
+                    break;
+                }
+            }
+            models.add(m);
+
+        }
+        rs.close();
+        ps.close();
+        return models;
     }
 
 }

@@ -3,20 +3,24 @@ package models;
 import database.Database;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.*;
 
-public abstract class Model {
+public abstract class Model implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     @Getter
     private final String tableName;
     @Getter
     private Integer id;
-    @Getter
+    @Getter @Setter
     protected Map<String,Object> data;
     @Getter
-    protected final Set<String> availableAttributes;
+    protected transient final Set<String> availableAttributes;
     @Getter
-    protected List<Association> associationsMeta;
+    protected transient List<Association> associationsMeta;
     @Getter
     protected Map<Association,List<Model>> associations;
     protected Model(@NonNull List<Association> associationsMeta, @NonNull Set<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data) {

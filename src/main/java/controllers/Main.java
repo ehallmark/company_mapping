@@ -11,6 +11,9 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+
 import static j2html.TagCreator.*;
 import static spark.Spark.*;
 
@@ -22,10 +25,14 @@ public class Main {
         try {
             id = Integer.valueOf(req.params("id"));
             type = Association.Model.valueOf(resource);
-        } catch(Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
+        return loadModel(type, id);
+    }
+
+    private static Model loadModel(Association.Model type, Integer id) {
         Model model;
         switch(type) {
             case Market: {
@@ -52,6 +59,9 @@ public class Main {
                 model = null;
                 break;
             }
+        }
+        if(model.existsInDatabase()) {
+            model.loadAttributesFromDatabase();
         }
         return model;
     }
@@ -94,10 +104,14 @@ public class Main {
                                                     div().withClass("row").with(
                                                             div().withClass("col-12").with(
                                                             ),
-                                                            div().withClass("col-12").withId("main-menu").attr("style","display: none;").with(
+                                                            div().withClass("col-12").withId("main-menu").with(
                                                                     div().withClass("row").with(
-                                                                            div().withClass("col-12 btn-group-vertical").with(
-
+                                                                            div().withClass("col-12 btn-group-vertical options").with(
+                                                                                    button("Markets").attr("data-resource", "Market").withId("markets_index_btn").withClass("btn btn-outline-secondary"),
+                                                                                    button("Companies").attr("data-resource", "Company").withId("companies_index_btn").withClass("btn btn-outline-secondary"),
+                                                                                    button("Segments").attr("data-resource", "Segment").withId("segments_index_btn").withClass("btn btn-outline-secondary"),
+                                                                                    button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary"),
+                                                                                    button("Revenues").attr("data-resource", "Revenue").withId("revenues_index_btn").withClass("btn btn-outline-secondary")
                                                                             )
                                                                     )
                                                             )
@@ -105,6 +119,9 @@ public class Main {
                                                     ), hr()
                                             ), div().withClass("col-9 offset-3").attr("style","padding-top: 58px; padding-left:0px; padding-right:0px;").with(
                                                     h4("Company Mapping App"),
+                                                    div().withId("results").attr("style", "margin-bottom: 200px;").with(
+
+                                                    ),
                                                     br(),
                                                     br(),
                                                     br()
@@ -156,8 +173,7 @@ public class Main {
         get("/resources/:resource/:id", (req, res) -> {
             Model model = loadModel(req);
             if(model != null) {
-                model.loadAttributesFromDatabase();
-                return new Gson().toJson(model.getData());
+                return new Gson().toJson(model);
             }
             else return null;
         });
@@ -165,7 +181,6 @@ public class Main {
         post("/resources/:resource/:id", (req, res) -> {
             Model model = loadModel(req);
             if(model != null) {
-                model.loadAttributesFromDatabase();
                 model.getAvailableAttributes().forEach(attr->{
                     String val = req.queryParams(attr);
                     if(val != null && val.trim().length()>0) {
@@ -173,7 +188,31 @@ public class Main {
                     }
                 });
                 model.updateInDatabase();
-                return new Gson().toJson(model.getData());
+                return new Gson().toJson(model);
+            }
+            else return null;
+        });
+
+        post("/new/:resource", (req, res) -> {
+            Association.Model type;
+            String resource = req.params("resource");
+            try {
+                type = Association.Model.valueOf(resource);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+            Model model = loadModel(type, null);
+            if(model != null) {
+                model.setData(new HashMap<>());
+                model.getAvailableAttributes().forEach(attr->{
+                    String val = req.queryParams(attr);
+                    if(val != null && val.trim().length()>0) {
+                        model.updateAttribute(attr, val);
+                    }
+                });
+                model.createInDatabase();
+                return new Gson().toJson(model);
             }
             else return null;
         });
@@ -185,6 +224,47 @@ public class Main {
                 return new Gson().toJson(Collections.singletonMap("result", "success"));
             }
             else return null;
+        });
+
+        get("/resources/:resource", (req, res) -> {
+            String resource = req.params("resource");
+            Association.Model type;
+            try {
+                type = Association.Model.valueOf(resource);
+            } catch(Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+            Model model;
+            switch(type) {
+                case Market: {
+                    model = new Market(null, null);
+                    break;
+                }
+                case Segment: {
+                    model = new Segment(null, null);
+                    break;
+                }
+                case Revenue: {
+                    model = new Revenue(null, null);
+                    break;
+                }
+                case Product: {
+                    model = new Product(null, null);
+                    break;
+                }
+                case Company: {
+                    model = new Company(null, null);
+                    break;
+                }
+                default: {
+                    model = null;
+                    break;
+                }
+            }
+            return new Gson().toJson(
+                    Database.selectAll(type, model.getTableName(), model.getAvailableAttributes())
+            );
         });
 
     }

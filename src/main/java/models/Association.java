@@ -2,7 +2,10 @@ package models;
 
 import lombok.Getter;
 
-public class Association {
+import java.io.Serializable;
+
+public class Association implements Serializable {
+    private static final long serialVersionUID = 1L;
     public enum Type {
         OneToMany,
         ManyToOne,
