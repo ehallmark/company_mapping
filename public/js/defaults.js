@@ -102,6 +102,45 @@ var onShowResourceFunction = function($topElem) {
         return false;
     });
 
+    $topElem.find('form.update-association').submit(function(e) {
+        e.preventDefault();
+        var $form = $(this);
+        var resourceId = $form.attr("data-resource");
+        var associationId = $form.attr("data-association");
+        var listRef = $form.attr('data-list-ref');
+        var id = $form.attr('data-id');
+        var formData = $form.serialize();
+        var newId = $form.find('select').val();
+        var prepend = $form.attr('data-prepend');
+        var oldRef = "#node-"+associationId+"-"+newId.toString();
+        $.ajax({
+            url: '/new_association/'+resourceId+'/'+associationId+'/'+id+'/'+newId,
+            dataType: 'json',
+            data: formData,
+            type: 'POST',
+            success: function(showData) {
+                var $oldRef = $(oldRef);
+                if($oldRef.length) {
+                    $(oldRef).html($(showData.template).unwrap());
+                    onShowResourceFunction($(oldRef));
+                } else {
+                    if(prepend==='prepend') {
+                        $(listRef).prepend(showData.template);
+                    } else {
+                        $(listRef).html(showData.template);
+                    }
+                    onShowResourceFunction($(listRef));
+                }
+                $form.find('select').val(null);
+                $('.resource-new-link').filter(':visible').each(function() {
+                    $(this).next().hide();
+                });
+            }
+        });
+        return false;
+    });
+
+
     $topElem.find('.multiselect-ajax').select2({
         closeOnSelect: true,
         ajax: {
@@ -119,9 +158,6 @@ var onShowResourceFunction = function($topElem) {
     });
 
     $topElem.find('.resource-show-link').click(showResourceByClickFunction);
-
-    $('#results .nav.nav-tabs .nav-link').filter(':first').trigger('click');
-
 };
 
 
@@ -164,6 +200,7 @@ var showResourceByClickFunction = function(e) {
             $results.empty();
             $results.html(showData.template);
             onShowResourceFunction(($(document.body)));
+            $('#results .nav.nav-tabs .nav-link').filter(':first').trigger('click');
         }
     });
 };
