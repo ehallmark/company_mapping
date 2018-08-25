@@ -7,18 +7,18 @@ public class Revenue extends Model {
             new Association(Association.Model.Market, Constants.MARKET_TABLE,
                     Constants.REVENUE_TABLE, null, Association.Type.ManyToOne,
                     Constants.MARKET_ID, Constants.REVENUE_ID, false),
-            new Association(Association.Model.Market, Constants.PRODUCT_TABLE,
+            new Association(Association.Model.Product, Constants.PRODUCT_TABLE,
                     Constants.REVENUE_TABLE, null, Association.Type.ManyToOne,
                     Constants.PRODUCT_ID, Constants.REVENUE_ID, false),
-            new Association(Association.Model.Market, Constants.SEGMENT_TABLE,
+            new Association(Association.Model.Segment, Constants.SEGMENT_TABLE,
                     Constants.REVENUE_TABLE, null, Association.Type.ManyToOne,
                     Constants.SEGMENT_ID, Constants.REVENUE_ID, false),
-            new Association(Association.Model.Market, Constants.COMPANY_TABLE,
+            new Association(Association.Model.Company, Constants.COMPANY_TABLE,
                     Constants.REVENUE_TABLE, null, Association.Type.ManyToOne,
                     Constants.COMPANY_ID, Constants.REVENUE_ID, false)
     );
 
-    private static final Set<String> ATTRS = Collections.synchronizedSet(new HashSet<>(Arrays.asList(
+    private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
             Constants.NAME,
             Constants.VALUE,
             Constants.PRODUCT_ID,
@@ -30,7 +30,7 @@ public class Revenue extends Model {
             Constants.NOTES,
             Constants.UPDATED_AT,
             Constants.CREATED_AT
-    )));
+    ));
     public Revenue(Integer id, Map<String,Object> data) {
         super(ASSOCIATIONS, ATTRS, Constants.REVENUE_TABLE, id, data);
     }

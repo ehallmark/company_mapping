@@ -1,6 +1,7 @@
 package database;
 
 import com.google.gson.Gson;
+import lombok.Getter;
 import lombok.NonNull;
 import models.*;
 
@@ -12,6 +13,7 @@ import java.util.*;
 public class Database {
     private static final String dbUrl = "jdbc:postgresql://localhost/companydb?user=postgres&password=password&tcpKeepAlive=true";
 
+    @Getter
     private static Connection conn;
     static {
         resetConn();
@@ -175,7 +177,7 @@ public class Database {
                 qs.add("?");
             }
         }
-        PreparedStatement ps = conn.prepareStatement("update "+tableName+" set ("+String.join(",",keys)+") = ("+ String.join(",",qs) + ") where id=?");
+        PreparedStatement ps = conn.prepareStatement("update "+tableName+" set ("+String.join(",",keys)+",updated_at) = ("+ String.join(",",qs) + ",now()) where id=?");
         for(int i = 0; i < keys.size(); i++) {
             ps.setObject(i+1, data.get(keys.get(i)));
         }

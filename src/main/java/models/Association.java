@@ -37,9 +37,15 @@ public class Association implements Serializable {
     private boolean dependent;
     @Getter
     private String joinTableName;
+    @Getter
+    private String associationName;
     public Association(Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent) {
+        this(model.toString(), model, parentTableName, childTableName, joinTableName, type, parentIdField, childIdField, dependent);
+    }
+    public Association(String associationName, Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent) {
         this.parentIdField = parentIdField;
         this.dependent = dependent;
+        this.associationName=associationName;
         this.joinTableName = joinTableName;
         this.parentTableName = parentTableName;
         this.childIdField = childIdField;

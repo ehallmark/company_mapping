@@ -18,12 +18,12 @@ public class Company extends Model {
                     Constants.COMPANY_ID, Constants.MARKET_ID, false)
 
     );
-    private static final Set<String> ATTRS = Collections.synchronizedSet(new HashSet<>(Arrays.asList(
+    private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
             Constants.NAME,
             Constants.NOTES,
             Constants.UPDATED_AT,
             Constants.CREATED_AT
-    )));
+    ));
     public Company(Integer id, Map<String,Object> data) {
         super(ASSOCIATIONS, ATTRS, Constants.COMPANY_TABLE, id, data);
     }

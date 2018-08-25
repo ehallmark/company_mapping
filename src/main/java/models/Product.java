@@ -18,7 +18,7 @@ public class Product extends Model {
                     Constants.MARKET_ID, Constants.PRODUCT_ID, false)
 
     );
-    private static final Set<String> ATTRS = Collections.synchronizedSet(new HashSet<>(Arrays.asList(
+    private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
             Constants.NAME,
             Constants.NOTES,
             Constants.COMPANY_ID,
@@ -26,7 +26,7 @@ public class Product extends Model {
             Constants.SEGMENT_ID,
             Constants.UPDATED_AT,
             Constants.CREATED_AT
-    )));
+    ));
     public Product(Integer id, Map<String,Object> data) {
         super(ASSOCIATIONS, ATTRS, Constants.PRODUCT_TABLE, id, data);
     }

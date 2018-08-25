@@ -173,6 +173,8 @@ public class Main {
         get("/resources/:resource/:id", (req, res) -> {
             Model model = loadModel(req);
             if(model != null) {
+                model.loadAssociations();
+                model.loadShowTemplate();
                 return new Gson().toJson(model);
             }
             else return null;
@@ -265,6 +267,34 @@ public class Main {
             return new Gson().toJson(
                     Database.selectAll(type, model.getTableName(), model.getAvailableAttributes())
             );
+        });
+
+        post("/new_association/:resource/:association/:resource_id/:association_id", (req,res)->{
+            String resource = req.params("resource");
+            String association = req.params("association");
+            String resourceId = req.params("resource_id");
+            String associationId = req.params("association_id");
+            Association.Model type;
+            Integer id;
+            Association.Model relatedType;
+            Integer relatedId;
+            try {
+                type = Association.Model.valueOf(resource);
+                id = Integer.valueOf(resourceId);
+                relatedType = Association.Model.valueOf(association);
+                relatedId = Integer.valueOf(associationId);
+            } catch(Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+            Model baseModel = loadModel(type, id);
+            Model relatedModel = loadModel(relatedType, relatedId);
+
+            String associationName = req.queryParams("_association_name");
+
+            baseModel.associateWith(relatedModel, associationName);
+
+            return new Gson().toJson(Collections.singletonMap("template", relatedModel.getLink().render()));
         });
 
     }

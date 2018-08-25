@@ -16,20 +16,20 @@ public class Market extends Model {
             new Association(Association.Model.Company, Constants.MARKET_TABLE,
                     Constants.COMPANY_TABLE, Constants.COMPANY_MARKETS_JOIN_TABLE, Association.Type.ManyToMany,
                     Constants.MARKET_ID, Constants.COMPANY_ID, false),
-            new Association(Association.Model.Market, Constants.MARKET_TABLE,
+            new Association("Sub Market", Association.Model.Market, Constants.MARKET_TABLE,
                     Constants.MARKET_TABLE, null, Association.Type.OneToMany,
                     Constants.PARENT_MARKET_ID, Constants.MARKET_ID, true),
-            new Association(Association.Model.Market, Constants.MARKET_TABLE,
+            new Association("Parent Market", Association.Model.Market, Constants.MARKET_TABLE,
                     Constants.MARKET_TABLE, null, Association.Type.ManyToOne,
                     Constants.MARKET_ID, Constants.PARENT_MARKET_ID, false)
     );
-    private static final Set<String> ATTRS = Collections.synchronizedSet(new HashSet<>(Arrays.asList(
+    private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
             Constants.NAME,
             Constants.PARENT_MARKET_ID,
             Constants.NOTES,
             Constants.UPDATED_AT,
             Constants.CREATED_AT
-    )));
+    ));
     public Market(Integer id, Map<String,Object> data) {
         super(ASSOCIATIONS, ATTRS, Constants.MARKET_TABLE, id, data);
     }
