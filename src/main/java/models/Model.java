@@ -141,6 +141,15 @@ public abstract class Model {
                 if(entry.getKey().isDependent()) {
                     for(Model association : entry.getValue()) {
                         association.deleteFromDatabase(cascade);
+                        // clean up join table if necessary
+                        if(entry.getKey().getType().equals(Association.Type.ManyToMany)) {
+                            try {
+                                Database.deleteByFieldName(entry.getKey().getJoinTableName(), entry.getKey().getParentIdField(), id);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                throw new RuntimeException("Error deleting record from database: " + e.getMessage());
+                            }
+                        }
                     }
                 }
             }

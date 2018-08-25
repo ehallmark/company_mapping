@@ -19,12 +19,11 @@ public class Database {
     public static synchronized void resetConn() {
         try {
             conn = DriverManager.getConnection(dbUrl);
-            conn.setAutoCommit(false);
+            conn.setAutoCommit(true);
         } catch(Exception e) {
             e.printStackTrace();
         }
     }
-
 
     public static synchronized Integer insert(@NonNull String tableName, Map<String,Object> data) throws SQLException {
         data = new HashMap<>(data);
@@ -50,7 +49,6 @@ public class Database {
         }
         rs.close();
         ps.close();
-        conn.commit();
         return id;
     }
 
@@ -183,15 +181,17 @@ public class Database {
         ps.setObject(keys.size()+1, id);
         ps.executeUpdate();
         ps.close();
-        conn.commit();
     }
 
     public static synchronized void delete(@NonNull String tableName, int id) throws SQLException {
-        PreparedStatement ps = conn.prepareStatement("delete from "+tableName+" where id=?");
+        deleteByFieldName(tableName, "id", id);
+    }
+
+    public static synchronized void deleteByFieldName(@NonNull String tableName, @NonNull String fieldName, int id) throws SQLException {
+        PreparedStatement ps = conn.prepareStatement("delete from "+tableName+" where "+fieldName+"=?");
         ps.setObject(1, id);
         ps.executeUpdate();
         ps.close();
-        conn.commit();
     }
 
     public static synchronized Map<String,Object> select(@NonNull String tableName, int id, @NonNull Collection<String> attributes) throws SQLException {
