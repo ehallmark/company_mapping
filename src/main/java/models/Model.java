@@ -100,8 +100,10 @@ public abstract class Model implements Serializable {
     }
 
     public void loadShowTemplate() {
-        ContainerTag html = div().with(h5(this.getClass().getSimpleName()+" Information"))
-                .with(
+        ContainerTag html = div().withClass("row").with(
+                div().withClass("col-12").with(
+                        h5(this.getClass().getSimpleName()+" Information")
+                ).with(
                     availableAttributes.stream().filter(attr->!Constants.isHiddenAttr(attr)).map(attr->{
                         Object val = data.get(attr);
                         String orginalAttr = attr;
@@ -118,31 +120,48 @@ public abstract class Model implements Serializable {
                                         .withText(attr+": "+val.toString())
                         );
                     }).collect(Collectors.toList())
-                ).with(h5("Associations")).with(
-                        associationsMeta.stream().map(association->{
-                            List<Model> models = associations.get(association);
-                            if(models==null) {
-                                models = Collections.emptyList();
-                            }
-                            String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-");
-                            return div().with(
-                                    div().withText(association.getAssociationName()),
-                                    div().with(a("(New)").withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
-                                            form().attr("data-list-ref","#"+listRef).attr("data-association", association.getModel().toString())
-                                                    .attr("data-resource", this.getClass().getSimpleName())
-                                                    .attr("data-id", id.toString()).withClass("association").with(
-                                                    input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
-                                                    label("Name:").with(
-                                                            input().withType("text").withClass("form-control").withName(Constants.NAME)
-                                                    ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
-                                            )
-                                    )),br(),
-                                    div().withId(listRef).with(models.stream().map(model->{
-                                        return model.getLink();
-                                    }).collect(Collectors.toList()))
-                            );
-                        }).collect(Collectors.toList())
-                );
+                )
+        ).with(
+                div().withClass("col-12").with(
+                        h5("Associations"),
+                        div().with(
+                                ul().withClass("nav nav-tabs").attr("role", "tablist").with(
+                                        associationsMeta.stream().map(association-> {
+                                            String assocId = "tab-link-"+association.getAssociationName().toLowerCase().replace(" ","-");
+                                            return li().withClass("nav-item").with(
+                                                    a(association.getAssociationName()).withClass("nav-link").attr("data-toggle", "tab").withHref("#" + assocId).attr("role", "tab")
+                                            );
+                                        }).collect(Collectors.toList())
+                                )
+                        ),
+                        div().withClass("row tab-content").withId("main-container").with(
+                                associationsMeta.stream().map(association->{
+                                    String assocId = "tab-link-"+association.getAssociationName().toLowerCase().replace(" ","-");
+                                    List<Model> models = associations.get(association);
+                                    if(models==null) {
+                                        models = Collections.emptyList();
+                                    }
+                                    String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-");
+
+                                    return div().attr("role", "tabpanel").withId(assocId).withClass("col-12 tab-pane fade").with(
+                                            div().with(a("(New)").withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
+                                                    form().attr("data-list-ref","#"+listRef).attr("data-association", association.getModel().toString())
+                                                            .attr("data-resource", this.getClass().getSimpleName())
+                                                            .attr("data-id", id.toString()).withClass("association").with(
+                                                            input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
+                                                            label("Name:").with(
+                                                                    input().withType("text").withClass("form-control").withName(Constants.NAME)
+                                                            ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+                                                    )
+                                            )),br(),
+                                            div().withId(listRef).with(models.stream().map(model->{
+                                                return model.getLink();
+                                            }).collect(Collectors.toList()))
+                                    );
+                                }).collect(Collectors.toList())
+                        )
+                )
+        );
         template = html.render();
     }
 
