@@ -6,6 +6,10 @@ import models.*;
 import spark.Request;
 import spark.Spark;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.OutputStream;
 import java.util.Collections;
 import static j2html.TagCreator.*;
 import static spark.Spark.*;
@@ -54,7 +58,7 @@ public class Main {
 
 
     public static void main(String[] args) throws Exception {
-        staticFileLocation("public/");
+        staticFiles.externalLocation(new File("public").getAbsolutePath());
         port(6969);
 
         get("/", (req, res)->{
@@ -66,10 +70,6 @@ public class Main {
                             link().withRel("icon").withType("image/png").attr("sizes", "16x16").withHref("/images/favicon-16x16.png"),
                             script().withSrc("/js/jquery-3.3.1.min.js"),
                             script().withSrc("/js/jquery-ui-1.12.1.min.js"),
-                            script().withText(
-                                    "/*** Handle jQuery plugin naming conflict between jQuery UI and Bootstrap ***/\n " +
-                                            "$.widget.bridge('uibutton', $.ui.button); " +
-                                            "$.widget.bridge('uitooltip', $.ui.tooltip); "),
                             script().withSrc("/js/popper.min.js"),
                             script().withSrc("/js/jquery.dynatable.js"),
                             script().withSrc("/js/defaults.js"),
@@ -103,15 +103,53 @@ public class Main {
                                                             )
 
                                                     ), hr()
+                                            ), div().withClass("col-9 offset-3").attr("style","padding-top: 58px; padding-left:0px; padding-right:0px;").with(
+                                                    h4("Company Mapping App"),
+                                                    br(),
+                                                    br(),
+                                                    br()
                                             )
-                                    ),div().withClass("col-9 offset-3").attr("style","padding-top: 58px; padding-left:0px; padding-right:0px;").with(
-                                            br(),
-                                            br(),
-                                            br()
                                     )
                             )
                     )
-            );
+            ).render();
+        });
+
+        // Host my own image asset!
+        get("/images/brand.png", (request, response) -> {
+            response.type("image/png");
+            String pathToImage = "public/images/brand.png";
+            File f = new File(pathToImage);
+            BufferedImage bi = ImageIO.read(f);
+            OutputStream out = response.raw().getOutputStream();
+            ImageIO.write(bi, "png", out);
+            out.close();
+            response.status(200);
+            return response.body();
+        });
+
+        get("/images/favicon-16x16.png", (request, response) -> {
+            response.type("image/png");
+            String pathToImage = "public/images/favicon-16x16.png";
+            File f = new File(pathToImage);
+            BufferedImage bi = ImageIO.read(f);
+            OutputStream out = response.raw().getOutputStream();
+            ImageIO.write(bi, "png", out);
+            out.close();
+            response.status(200);
+            return response.body();
+        });
+
+        get("/images/favicon-32x32.png", (request, response) -> {
+            response.type("image/png");
+            String pathToImage = "public/images/favicon-32x32.png";
+            File f = new File(pathToImage);
+            BufferedImage bi = ImageIO.read(f);
+            OutputStream out = response.raw().getOutputStream();
+            ImageIO.write(bi, "png", out);
+            out.close();
+            response.status(200);
+            return response.body();
         });
 
 
