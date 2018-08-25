@@ -69,3 +69,7 @@ input.form-control {
     border: 1px solid #aaa;
     height: 32px;
 }
+
+.btn {
+    color: black;
+}
