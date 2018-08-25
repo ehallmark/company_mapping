@@ -207,7 +207,7 @@ public class Main {
 
         get("/ajax/resources/:resource/:from_resource/:from_id", (req, res)->{
             String resource = req.params("resource");
-            String fromResource = req.params("resource");
+            String fromResource = req.params("from_resource");
             int fromId;
             Association.Model fromType;
             Association.Model type;
@@ -220,18 +220,21 @@ public class Main {
                 return null;
             }
             Model model = getModelByType(type);
+            Map<String,String> idToNameMap = new HashMap<>();
             Function<String,List<String>> resultsSearchFunction = search -> {
                 try {
                     if(search!=null&&search.trim().length()==0) {
                         search = null;
                     }
-                    return Database.selectAll(type, model.getTableName(), Collections.singletonList(Constants.NAME), search).stream().filter(m->(!fromType.equals(type))||(!m.getId().equals(fromId))).map(m->(String)m.getData().get(Constants.NAME)).collect(Collectors.toList());
+                    List<Model> models = Database.selectAll(type, model.getTableName(), Collections.singletonList(Constants.NAME), search).stream().filter(m->!(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
+                    models.forEach(m->idToNameMap.put(m.getId().toString(),(String)m.getData().get(Constants.NAME)));
+                    return models.stream().map(m->m.getId().toString()).collect(Collectors.toList());
                 } catch(Exception e) {
                     e.printStackTrace();
                     return Collections.emptyList();
                 }
             };
-            Function<String,String> displayFunction = result ->  result;
+            Function<String,String> displayFunction = result ->  idToNameMap.get(result);
             Function<String,String> htmlFunction = null; //result -> "<span>"+ (result+" ("+titlePartMap.getOrDefault(result,"")+")").replace(" ()","") + "</span>";
             return handleAjaxRequest(req, resultsSearchFunction, displayFunction, htmlFunction);
         });

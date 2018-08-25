@@ -51,7 +51,7 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
-        return div().with(
+        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
                 a((String)data.get(Constants.NAME)).attr("data-id", id.toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link")
         );
     }
@@ -178,7 +178,7 @@ public abstract class Model implements Serializable {
                                                     label("Name:").with(
                                                             input().withType("text").withClass("form-control").withName(Constants.NAME)
                                                     ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
-                                            ),form().attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
+                                            ),form().attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
                                                     .attr("data-resource", this.getClass().getSimpleName())
                                                     .with(
                                                             input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),

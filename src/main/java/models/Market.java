@@ -21,7 +21,7 @@ public class Market extends Model {
                     Constants.PARENT_MARKET_ID, Constants.MARKET_ID, true),
             new Association("Parent Market", Association.Model.Market, Constants.MARKET_TABLE,
                     Constants.MARKET_TABLE, null, Association.Type.ManyToOne,
-                    Constants.MARKET_ID, Constants.PARENT_MARKET_ID, false)
+                    Constants.PARENT_MARKET_ID, Constants.MARKET_ID, false)
     );
     private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
             Constants.NAME,

@@ -12,7 +12,7 @@ public class Segment extends Model {
                     Constants.PARENT_SEGMENT_ID, Constants.SEGMENT_ID, true),
             new Association("Sub Segment", Association.Model.Segment, Constants.SEGMENT_TABLE,
                     Constants.SEGMENT_TABLE, null, Association.Type.ManyToOne,
-                    Constants.SEGMENT_ID, Constants.PARENT_SEGMENT_ID, false),
+                    Constants.PARENT_SEGMENT_ID, Constants.SEGMENT_ID, false),
             new Association(Association.Model.Revenue, Constants.SEGMENT_TABLE,
                     Constants.REVENUE_TABLE, null, Association.Type.OneToMany,
                     Constants.SEGMENT_ID, Constants.REVENUE_ID, true),
