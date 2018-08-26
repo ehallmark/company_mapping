@@ -24,6 +24,10 @@ public class Constants {
     public static final String COMPANY_MARKETS_JOIN_TABLE = "companies_markets";
     public static final String SEGMENT_MARKETS_JOIN_TABLE = "segments_markets";
     public static final String VALUE = "value";
+    public static final String TEXT_AREA_FIELD_TYPE = "textarea";
+    public static final String TEXT_FIELD_TYPE = "text";
+    public static final String BOOL_FIELD_TYPE = "boolean";
+    public static final String NUMBER_FIELD_TYPE = "number";
 
     private static final Map<String, String> ATTR_MAP = Collections.synchronizedMap(new HashMap<>());
     static {
@@ -54,11 +58,23 @@ public class Constants {
         HIDDEN_ATTRS.add(REVENUE_ID);
     }
 
+    private static final Map<String,String> FIELD_TYPE_MAP = Collections.synchronizedMap(new HashMap<>());
+    static {
+        FIELD_TYPE_MAP.put(VALUE, NUMBER_FIELD_TYPE);
+        FIELD_TYPE_MAP.put(NAME, TEXT_FIELD_TYPE);
+        FIELD_TYPE_MAP.put(IS_ESTIMATE, BOOL_FIELD_TYPE);
+        FIELD_TYPE_MAP.put(IS_PERCENTAGE, BOOL_FIELD_TYPE);
+    }
+
     public static boolean isHiddenAttr(String attr) {
         return HIDDEN_ATTRS.contains(attr);
     };
 
     public static String humanAttrFor(String attr) {
         return ATTR_MAP.getOrDefault(attr, attr);
+    };
+
+    public static String fieldTypeForAttr(String attr) {
+        return FIELD_TYPE_MAP.getOrDefault(attr, Constants.TEXT_AREA_FIELD_TYPE);
     };
 }

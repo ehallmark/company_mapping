@@ -291,8 +291,20 @@ public class Main {
             Model model = loadModel(req);
             if(model != null) {
                 model.getAvailableAttributes().forEach(attr->{
-                    String val = req.queryParams(attr);
-                    if(val != null && val.trim().length()>0) {
+                    Object val = req.queryParams(attr);
+                    if(val != null) {
+                        String fieldType = Constants.fieldTypeForAttr(attr);
+                        val = val.toString().trim();
+                        if(fieldType.equals(Constants.NUMBER_FIELD_TYPE)) {
+                            try {
+                                val = Double.valueOf(val.toString().trim());
+                            } catch(Exception e) {
+                                e.printStackTrace();
+                                val = 0;
+                            }
+                        } else if(fieldType.equals(Constants.BOOL_FIELD_TYPE)) {
+                            val = val.toString().toLowerCase().trim().startsWith("t");
+                        }
                         model.updateAttribute(attr, val);
                     }
                 });

@@ -13,6 +13,7 @@ $(document).ready(function() {
                     var $results = $('#results');
                     $results.empty();
                     $results.html(createResourceList(resource, $btn.text(),data));
+                    onShowResourceFunction($(document.body));
                 }
             });
         });
@@ -24,6 +25,7 @@ var onShowResourceFunction = function($topElem) {
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
         e.stopPropagation();
         var $this = $(this);
+        var fieldType = $this.attr('data-field-type');
         var resourceId = $this.attr('data-resource');
         var val = $this.attr('data-val');
         var attr = $this.attr('data-attr');
@@ -33,28 +35,52 @@ var onShowResourceFunction = function($topElem) {
             $this.html(attrName+": "+val);
             $(this).off('dblclick');
         });
-        $this.html('<label>'+attrName+":<textarea class='form-control'/> </label><span onclick='$(document.body).dblclick();' style='cursor: pointer;'>X</span><br /><button type='submit' class='btn btn-outline-secondary btn-sm'>Update</button>");
-        var $input = $this.find('textarea');
+        var input = null;
+        var inputTag = null;
+        if (fieldType==='textarea') {
+            input = "<textarea class='form-control'/>";
+            inputTag = "textarea";
+        } else if (fieldType==='text') {
+            input = "<input type='text' class='form-control' />";
+            inputTag = "input";
+        } else if (fieldType==='number') {
+            input = "<input type='number' class='form-control' />";
+            inputTag = "input";
+        } else if (fieldType==='boolean') {
+            input = "<input type='checkbox' value='t' />";
+            if(val && val!='false' && val != '(empty)') {
+                input = "<input type='checkbox' checked='true' value='true' />";
+            }
+            inputTag = "input";
+        }
+        $this.html('<label>'+attrName+":"+input+"</label><span onclick='$(document.body).dblclick();' style='cursor: pointer;'>X</span><br /><button type='submit' class='btn btn-outline-secondary btn-sm'>Update</button>");
+        var $input = $this.find(inputTag);
         var $btn = $this.find('button');
         $input.val(val);
-        $btn.click(function(e) {
-            var val = $input.val();
-            var data = {};
-            data[attr] = val;
-            $.ajax({
-                url: '/resources/'+resourceId+'/'+id,
-                dataType: 'json',
-                type: 'POST',
-                data: data,
-                success: function(showData) {
-                    $this.html(attrName+": "+val);
-                    $(document.body).off('dblclick');
-                },
-                error: function() {
-                    alert("An error occurred.");
+        $btn.click(function(attr, attrName, $this, $input) {
+            return function(e) {
+                var value = $input.val();
+                if(fieldType==='boolean') {
+                    value = $input.is(':checked');
                 }
-            });
-        });
+                var data = {};
+                data[attr] = value;
+                $.ajax({
+                    url: '/resources/'+resourceId+'/'+id,
+                    dataType: 'json',
+                    type: 'POST',
+                    data: data,
+                    success: function(showData) {
+                        $this.html(attrName+": "+value);
+                        $(document.body).off('dblclick');
+                        $this.attr('data-val', value);
+                    },
+                    error: function() {
+                        alert("An error occurred.");
+                    }
+                });
+            };
+        }(attr, attrName, $this, $input));
     });
 
     $topElem.find('.resource-new-link').click(function(e) {

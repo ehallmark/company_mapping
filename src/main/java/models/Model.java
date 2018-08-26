@@ -125,6 +125,7 @@ public abstract class Model implements Serializable {
                                         .attr("data-val", val.toString())
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
+                                        .attr("data-field-type", Constants.fieldTypeForAttr(orginalAttr))
                                         .withClass("resource-data-field" + (editable ? " editable" : ""))
                                         .withText(attr+": "+val.toString())
                         );
