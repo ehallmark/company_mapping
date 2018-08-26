@@ -329,7 +329,7 @@ public class Main {
         delete("/resources/:resource/:id", (req, res) -> {
             Model model = loadModel(req);
             if(model != null) {
-                model.deleteFromDatabase(true);
+                model.deleteFromDatabase(false);
                 return new Gson().toJson(Collections.singletonMap("result", "success"));
             }
             else return null;
@@ -375,7 +375,7 @@ public class Main {
 
             baseModel.associateWith(relatedModel, associationName);
 
-            return new Gson().toJson(Collections.singletonMap("template", relatedModel.getLink().render()));
+            return new Gson().toJson(Collections.singletonMap("template", relatedModel.getLink(null, null).render()));
         });
 
     }

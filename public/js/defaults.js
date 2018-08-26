@@ -140,6 +140,28 @@ var onShowResourceFunction = function($topElem) {
         return false;
     });
 
+    $('span.delete-node').click(function() {
+        var $this = $(this);
+        var id = $this.attr('data-id');
+        var resourceId = $this.attr('data-resource');
+        var data = {};
+        data[attr] = val;
+        var associationName = $this.attr('data-association');
+        var associationId = $this.attr('data-association-id');
+        var url = '/resources/'+resourceId+'/'+id + "/"+associationName+"/"+associationId;
+        $.ajax({
+            url: url,
+            dataType: 'json',
+            type: 'DELETE',
+            success: function(showData) {
+                $this.closest('div').remove();
+            },
+            error: function() {
+                alert("An error occurred.");
+            }
+        });
+    });
+
 
     $topElem.find('.multiselect-ajax').select2({
         closeOnSelect: true,
@@ -210,10 +232,29 @@ var createResourceList = function(resourceId, resourceName, data) {
     var $ul = $('<div></div>');
     for(var i = 0; i < data.length; i++) {
         var obj = data[i];
-        var $li = $('<a href="#" style="cursor: pointer;">'+obj.data.name+"</a><br/>");
+        var $li = $('<div><a href="#" style="cursor: pointer;">'+obj.data.name+"</a><span style='cursor: pointer;'>X</span></div>");
         $li.attr('data-id', obj.id);
         $li.attr('data-resource', resourceId);
-        $li.click(showResourceByClickFunction);
+        var $a = $li.find('a');
+        $a.attr('data-id', obj.id);
+        $a.attr('data-resource', resourceId);
+        $a.click(showResourceByClickFunction);
+        $li.find('span').click(function() {
+            var $this = $(this);
+            var id = $this.closest('div').attr('data-id');
+            var url = '/resources/'+resourceId+'/'+id;
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                type: 'DELETE',
+                success: function(showData) {
+                    $this.closest('div').remove();
+                },
+                error: function() {
+                    alert("An error occurred.");
+                }
+            });
+        });
         $ul.append($li);
     }
     var $result = $('<div></div>');
