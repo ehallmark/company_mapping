@@ -39,11 +39,14 @@ public class Association implements Serializable {
     private String joinTableName;
     @Getter
     private String associationName;
-    public Association(Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent) {
-        this(model.toString(), model, parentTableName, childTableName, joinTableName, type, parentIdField, childIdField, dependent);
+    @Getter
+    private String reverseAssociationName;
+    public Association(Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent, String reverseAssociationName) {
+        this(model.toString(), model, parentTableName, childTableName, joinTableName, type, parentIdField, childIdField, dependent, reverseAssociationName);
     }
-    public Association(String associationName, Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent) {
+    public Association(String associationName, Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent, String reverseAssociationName) {
         this.parentIdField = parentIdField;
+        this.reverseAssociationName=reverseAssociationName;
         this.dependent = dependent;
         this.associationName=associationName;
         this.joinTableName = joinTableName;
@@ -77,6 +80,5 @@ public class Association implements Serializable {
             }
         }
     }
-
 
 }

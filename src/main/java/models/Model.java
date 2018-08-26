@@ -47,14 +47,15 @@ public abstract class Model implements Serializable {
         return id != null;
     }
 
-    public ContainerTag getLink(Association association, String associationId) {
+    public ContainerTag getLink(@NonNull String associationName, @NonNull String associationModel, @NonNull Integer associationId) {
         if(data==null) {
             loadAttributesFromDatabase();
         }
         return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
                 a((String)data.get(Constants.NAME)).attr("data-id", id.toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link"),
-                span("X").attr("data-association", association.getModel().toString())
-                        .attr("data-association-id", associationId).attr("style","cursor: pointer;").withClass("delete-node").attr("data-resource", this.getClass().getSimpleName()).attr("data-id", id)
+                span("X").attr("data-association", associationModel)
+                        .attr("data-association-name", associationName)
+                        .attr("data-association-id", associationId.toString()).attr("style","cursor: pointer;").withClass("delete-node").attr("data-resource", this.getClass().getSimpleName()).attr("data-id", id)
         );
     }
 
@@ -194,7 +195,7 @@ public abstract class Model implements Serializable {
                                     return div().attr("role", "tabpanel").withId(assocId).withClass("col-12 tab-pane fade").with(
                                             panel, br(),
                                             div().withId(listRef).with(models.stream().map(model->{
-                                                return model.getLink(association, model.getId().toString());
+                                                return model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id);
                                             }).collect(Collectors.toList()))
                                     );
                                 }).collect(Collectors.toList())
@@ -312,29 +313,7 @@ public abstract class Model implements Serializable {
                 if(cascade && entry.getKey().isDependent()) {
                     association.deleteFromDatabase(true);
                 }
-                // clean up join table if necessary
-                if (entry.getKey().getType().equals(Association.Type.ManyToMany)) {
-                    try {
-                        Database.deleteByFieldName(entry.getKey().getJoinTableName(), entry.getKey().getParentIdField(), id);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new RuntimeException("Error deleting record from database: " + e.getMessage());
-                    }
-                } else if(Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToOne).contains(entry.getKey().getType())) {
-                    // child table has the key
-                    try {
-                        Integer idToUse;
-                        if(entry.getKey().getType().equals(Association.Type.ManyToOne)) {
-                            idToUse = association.getId();
-                        } else {
-                            idToUse = id;
-                        }
-                        Database.deleteByFieldName(entry.getKey().getChildTableName(), entry.getKey().getParentIdField(), idToUse);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new RuntimeException("Error deleting record from database: " + e.getMessage());
-                    }
-                }
+                cleanUpParentIds(entry.getKey(), association.getId());
             }
         }
         try {
@@ -342,6 +321,32 @@ public abstract class Model implements Serializable {
         } catch(Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error deleting record from database: "+e.getMessage());
+        }
+    }
+
+    public void cleanUpParentIds(@NonNull Association association, int assocId) {
+        // clean up join table if necessary
+        if (association.getType().equals(Association.Type.ManyToMany)) {
+            try {
+                Database.deleteByFieldName(association.getJoinTableName(), association.getParentIdField(), id);
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new RuntimeException("Error deleting record from database: " + e.getMessage());
+            }
+        } else if(Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToOne).contains(association.getType())) {
+            // child table has the key
+            try {
+                Integer idToUse;
+                if(association.getType().equals(Association.Type.ManyToOne)) {
+                    idToUse = assocId;
+                } else {
+                    idToUse = id;
+                }
+                Database.nullifyByFieldName(association.getChildTableName(), association.getParentIdField(), idToUse);
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new RuntimeException("Error deleting record from database: " + e.getMessage());
+            }
         }
     }
 }

@@ -197,6 +197,13 @@ public class Database {
         ps.close();
     }
 
+    public static synchronized void nullifyByFieldName(@NonNull String tableName, @NonNull String fieldName, int id) throws SQLException {
+        PreparedStatement ps = conn.prepareStatement("update "+tableName+" set "+fieldName+"=null where "+fieldName+"=?");
+        ps.setObject(1, id);
+        ps.executeUpdate();
+        ps.close();
+    }
+
     public static synchronized Map<String,Object> select(@NonNull String tableName, int id, @NonNull Collection<String> attributes) throws SQLException {
         List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
         PreparedStatement ps = conn.prepareStatement("select "+String.join(",", attrList)+" from "+tableName+" where id=?");

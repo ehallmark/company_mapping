@@ -335,6 +335,38 @@ public class Main {
             else return null;
         });
 
+        post("/resources_delete", (req, res) -> {
+            String resource = req.queryParams("resource");
+            String association = req.queryParams("association");
+            String resourceId = req.queryParams("id");
+            String associationId = req.queryParams("association_id");
+            String associationName = req.queryParams("associationRef");
+            Association.Model type;
+            Integer id;
+            Association.Model baseType;
+            Integer baseId;
+            try {
+                type = Association.Model.valueOf(resource);
+                id = Integer.valueOf(resourceId);
+                baseType = Association.Model.valueOf(association);
+                baseId = Integer.valueOf(associationId);
+            } catch(Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+            Model baseModel = loadModel(baseType, baseId);
+            Model toDelete = loadModel(type, id);
+            if(baseModel != null && toDelete!=null) {
+                // remove association
+                Association assoc = toDelete.getAssociationsMeta().stream().filter(m->m.getAssociationName().equals(associationName)).findAny().orElse(null);
+                if(assoc!=null) {
+                    toDelete.cleanUpParentIds(assoc, baseId);
+                    return new Gson().toJson(Collections.singletonMap("result", "success"));
+                }
+            }
+            return null;
+        });
+
         get("/resources/:resource", (req, res) -> {
             String resource = req.params("resource");
             Association.Model type;
@@ -372,10 +404,10 @@ public class Main {
             Model relatedModel = loadModel(relatedType, relatedId);
 
             String associationName = req.queryParams("_association_name");
-
+            Association associationModel = baseModel.getAssociationsMeta().stream().filter(m->m.getAssociationName().equals(associationName)).findAny().orElse(null);
             baseModel.associateWith(relatedModel, associationName);
 
-            return new Gson().toJson(Collections.singletonMap("template", relatedModel.getLink(null, null).render()));
+            return new Gson().toJson(Collections.singletonMap("template", relatedModel.getLink(associationModel.getReverseAssociationName(), baseModel.getClass().getSimpleName(), baseModel.getId()).render()));
         });
 
     }

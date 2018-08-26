@@ -6,16 +6,16 @@ public class Revenue extends Model {
     private static final List<Association> ASSOCIATIONS = Arrays.asList(
             new Association(Association.Model.Market, Constants.MARKET_TABLE,
                     Constants.REVENUE_TABLE, null, Association.Type.ManyToOne,
-                    Constants.MARKET_ID, Constants.REVENUE_ID, false),
+                    Constants.MARKET_ID, Constants.REVENUE_ID, false, "Revenue"),
             new Association(Association.Model.Product, Constants.PRODUCT_TABLE,
                     Constants.REVENUE_TABLE, null, Association.Type.ManyToOne,
-                    Constants.PRODUCT_ID, Constants.REVENUE_ID, false),
+                    Constants.PRODUCT_ID, Constants.REVENUE_ID, false, "Revenue"),
             new Association(Association.Model.Segment, Constants.SEGMENT_TABLE,
                     Constants.REVENUE_TABLE, null, Association.Type.ManyToOne,
-                    Constants.SEGMENT_ID, Constants.REVENUE_ID, false),
+                    Constants.SEGMENT_ID, Constants.REVENUE_ID, false, "Revenue"),
             new Association(Association.Model.Company, Constants.COMPANY_TABLE,
                     Constants.REVENUE_TABLE, null, Association.Type.ManyToOne,
-                    Constants.COMPANY_ID, Constants.REVENUE_ID, false)
+                    Constants.COMPANY_ID, Constants.REVENUE_ID, false, "Revenue")
     );
 
     private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
