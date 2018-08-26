@@ -144,15 +144,21 @@ var onShowResourceFunction = function($topElem) {
         var $this = $(this);
         var id = $this.attr('data-id');
         var resourceId = $this.attr('data-resource');
-        var data = {};
-        data[attr] = val;
         var associationName = $this.attr('data-association');
         var associationId = $this.attr('data-association-id');
-        var url = '/resources/'+resourceId+'/'+id + "/"+associationName+"/"+associationId;
+        var associationRef = $this.attr('data-association-name');
+        var url = '/resources_delete';
         $.ajax({
             url: url,
             dataType: 'json',
-            type: 'DELETE',
+            type: 'POST',
+            data: {
+                associationRef: associationRef,
+                resource: resourceId,
+                id: id,
+                association: associationName,
+                association_id: associationId
+            },
             success: function(showData) {
                 $this.closest('div').remove();
             },
