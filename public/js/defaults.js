@@ -180,6 +180,10 @@ var onShowResourceFunction = function($topElem) {
         var formData = $form.serialize();
         var newId = $form.find('select').val();
         var prepend = $form.attr('data-prepend');
+        if (!newId) {
+            alert('Please select a valid association.');
+            return false;
+        }
         var oldRef = "#node-"+associationId+"-"+newId.toString();
         $.ajax({
             url: '/new_association/'+resourceId+'/'+associationId+'/'+id+'/'+newId,
@@ -199,7 +203,7 @@ var onShowResourceFunction = function($topElem) {
                     }
                     onShowResourceFunction($(listRef));
                 }
-                $form.find('select').val(null);
+                $form.find('select').val(null).trigger('change');
                 $('.resource-new-link').filter(':visible').each(function() {
                     $(this).next().hide();
                 });
