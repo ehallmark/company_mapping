@@ -5,7 +5,6 @@ import j2html.tags.ContainerTag;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-import spark.Request;
 
 import java.io.Serializable;
 import java.sql.Connection;
@@ -112,9 +111,23 @@ public abstract class Model implements Serializable {
         }
     }
 
-    public void loadShowTemplate() {
+    private static String capitalize(String in) {
+        return in.substring(0, 1).toUpperCase() + in.substring(1);
+    }
+
+    public void loadShowTemplate(boolean back) {
+        ContainerTag button;
+        if(back) {
+            String previousTarget = "#"+tableName+"_index_btn";
+            button = button("Back to "+capitalize(tableName)).attr("data-target", previousTarget)
+                    .withClass("btn btn-outline-secondary btn-sm back-button");
+        } else {
+            button = span();
+        }
         ContainerTag html = div().withClass("row").with(
                 div().withClass("col-12").with(
+                        button,
+
                         h4(this.getClass().getSimpleName()+" Information")
                 ).with(
                     availableAttributes.stream().filter(attr->!Constants.isHiddenAttr(attr)).map(attr->{

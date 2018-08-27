@@ -328,7 +328,7 @@ public class Main {
                             m.getAssociationsMeta().forEach(assoc->{
                                 List<Model> assocModel = m.getAssociations().get(assoc);
                                 if(assocModel==null) {
-                                    map.put(assoc.getAssociationName(), "");
+                                    map.put(assoc.getAssociationName().toLowerCase().replace(" ", "-"), "");
                                 } else {
                                     map.put(assoc.getAssociationName().toLowerCase().replace(" ", "-"), String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink().render()).collect(Collectors.toList())));
                                 }
@@ -367,7 +367,7 @@ public class Main {
             Model model = loadModel(req);
             if(model != null) {
                 model.loadAssociations();
-                model.loadShowTemplate();
+                model.loadShowTemplate(true);
                 return new Gson().toJson(model);
             }
             else return null;

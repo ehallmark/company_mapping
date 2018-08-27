@@ -19,6 +19,7 @@ $(document).ready(function() {
             });
         });
     });
+
 });
 
 var createResourceDynatable = function(resource) {
@@ -115,6 +116,13 @@ var onShowResourceFunction = function($topElem) {
                 });
             };
         }(attr, attrName, $this, $input));
+    });
+
+    $topElem.find('.back-button').click(function(e) {
+        e.preventDefault();
+        var target = $(this).attr('data-target');
+        target = $(target);
+        target.trigger('click');
     });
 
     $topElem.find('.resource-new-link').click(function(e) {
@@ -260,18 +268,8 @@ var createNewResourceForm = function(resourceId, resourceName) {
             data: $form.serialize(),
             type: 'POST',
             success: function(showData) {
-                $('#'+resourceName.toLowerCase()+"_index_btn").trigger('click');
-                var dynatable = $('table.dynatable').data('dynatable');
-                if(dynatable) {
-                    $.ajax({
-                        url: '/clear_dynatable',
-                        dataType: 'json',
-                        type: 'POST',
-                        success: function() {
-                            createResourceDynatable(resourceId);
-                        }
-                    });
-                }
+                var id = showData.id;
+                showResourceFunction(resourceId, id);
             }
         });
         return false;
@@ -284,12 +282,7 @@ var createNewResourceForm = function(resourceId, resourceName) {
     return $('<div></div>').append($new).append($form);
 };
 
-
-var showResourceByClickFunction = function(e) {
-    e.preventDefault();
-    var resourceId = $(this).attr('data-resource');
-    var id = $(this).attr('data-id')
-    var $this = $(this);
+var showResourceFunction = function(resourceId, id) {
     $.ajax({
         url: '/resources/'+resourceId+'/'+id,
         dataType: 'json',
@@ -305,8 +298,16 @@ var showResourceByClickFunction = function(e) {
 };
 
 
+var showResourceByClickFunction = function(e) {
+    e.preventDefault();
+    var resourceId = $(this).attr('data-resource');
+    var id = $(this).attr('data-id')
+    showResourceFunction(resourceId, id);
+};
+
+
 var createResourceList = function(resourceId, resourceName, data) {
-    var $ul = $('<div></div>');
+    /*var $ul = $('<div></div>');
     for(var i = 0; i < data.length; i++) {
         var obj = data[i];
         var $li = $('<div><a href="#" style="cursor: pointer;">'+obj.data.name+"</a><span style='cursor: pointer;'>X</span></div>");
@@ -344,12 +345,12 @@ var createResourceList = function(resourceId, resourceName, data) {
             });
         });
         $ul.append($li);
-    }
+    }*/
     var $result = $('<div class="col-12"></div>');
     $result.append('<h3>'+resourceName+'</h3>');
     var $new = createNewResourceForm(resourceId, resourceName);
     $result.append($new);
-    $result.append($ul);
+    //$result.append($ul);
     var $outer = $('<div class="row"></div>');
     $outer.append($result);
     return $outer;
