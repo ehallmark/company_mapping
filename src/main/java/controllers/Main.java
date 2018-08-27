@@ -2,6 +2,7 @@ package controllers;
 
 import com.google.gson.Gson;
 import database.Database;
+import j2html.tags.ContainerTag;
 import models.*;
 import spark.Request;
 import spark.Spark;
@@ -10,12 +11,10 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.OutputStream;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static j2html.TagCreator.*;
 import static spark.Spark.*;
@@ -145,6 +144,7 @@ public class Main {
 
         get("/", (req, res)->{
             // home page
+            req.session(true);
             return html().with(
                     head().with(
                             title("GTT Group"),
@@ -274,6 +274,85 @@ public class Main {
             out.close();
             response.status(200);
             return response.body();
+        });
+
+        post("/init/datatable/:resource", (req, res)-> {
+            DataTable.unregisterDataTable(req);
+
+            Association.Model type;
+            String resource = req.params("resource");
+            try {
+                type = Association.Model.valueOf(resource);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+            Model model = loadModel(type, null);
+            if(model!=null) {
+                List<String> headers = new ArrayList<>();
+                Set<String> numericAttrs = new HashSet<>();
+                List<String> humanHeaders = new ArrayList<>();
+                for(String header : model.getAvailableAttributes()) {
+                    if (!Constants.isHiddenAttr(header) && !Arrays.asList(Constants.UPDATED_AT,Constants.CREATED_AT).contains(header)) {
+                        headers.add(header);
+                        humanHeaders.add(Constants.humanAttrFor(header));
+                    }
+                }
+                for(Association association : model.getAssociationsMeta()) {
+                    headers.add(association.getAssociationName().toLowerCase().replace(" ", "-"));
+                    humanHeaders.add(association.getAssociationName());
+                }
+
+                for(String header : headers) {
+                    if(Constants.fieldTypeForAttr(header).equals(Constants.NUMBER_FIELD_TYPE)) {
+                        numericAttrs.add(header);
+                    }
+                }
+
+                List<Map<String,String>> data = Database.selectAll(type, model.getTableName(), model.getAvailableAttributes())
+                        .stream().map(m->{
+                            Map<String,String> map = new HashMap<>(m.getData().size()+m.getAssociationsMeta().size());
+                            m.getData().forEach((k,v)->{
+                                map.put(k,v==null?"":v.toString());
+                            });
+                            map.put(Constants.NAME, m.getSimpleLink().render());
+                            m.loadAssociations();
+                            m.getAssociationsMeta().forEach(assoc->{
+                                List<Model> assocModel = m.getAssociations().get(assoc);
+                                if(assocModel==null) {
+                                    map.put(assoc.getAssociationName(), "");
+                                } else {
+                                    map.put(assoc.getAssociationName().toLowerCase().replace(" ", "-"), String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink().render()).collect(Collectors.toList())));
+                                }
+                            });
+                            return map;
+                        }).collect(Collectors.toList());
+                DataTable.registerDataTabe(req, headers, data, numericAttrs);
+
+                ContainerTag html = div().withClass("row").with(
+                        div().withClass("col-10 offset-1").with(
+                                h3("Companies"),
+                                table().withClass("table table-striped dynatable").with(
+                                        thead().with(
+                                                tr().with(
+                                                        IntStream.range(0, humanHeaders.size()).mapToObj(i->{
+                                                            return th(humanHeaders.get(i)).attr("data-dynatable-column", headers.get(i));
+                                                        }).collect(Collectors.toList())
+                                                )
+                                        ),tbody().with(
+
+                                        )
+                                )
+                        )
+                ) ;
+                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+            }
+            return null;
+        });
+
+        get("/dataTable.json", (req, res)->{
+            // something
+            return DataTable.handleDataTable(req, res);
         });
 
 

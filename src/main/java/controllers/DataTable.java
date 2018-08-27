@@ -30,11 +30,15 @@ public class DataTable {
         // lock
         excelSession.put("lock", new ReentrantLock());
 
-        req.session(false).attribute(EXCEL_SESSION, excelSession);
+        req.session().attribute(EXCEL_SESSION, excelSession);
     }
 
     public static void unregisterDataTable(Request req) {
-        req.session(false).removeAttribute(EXCEL_SESSION);
+        try {
+            req.session(false).removeAttribute(EXCEL_SESSION);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -65,31 +69,23 @@ public class DataTable {
                 long totalCount = data.size();
                 // check for search
                 List<Map<String, String>> queriedData;
-                String searchStr;
                 if (req.queryMap("queries") != null && req.queryMap("queries").hasKey("search")) {
-                    searchStr = req.queryMap("queries").value("search").toLowerCase();
-                    if (searchStr == null || searchStr.trim().isEmpty()) {
+                    String searchStr = req.queryMap("queries").value("search").toLowerCase();
+                    if (searchStr.trim().isEmpty()) {
                         queriedData = data;
                     } else {
                         queriedData = new ArrayList<>(data.stream().filter(m -> m.values().stream().anyMatch(val -> val.toLowerCase().contains(searchStr))).collect(Collectors.toList()));
                     }
                 } else {
-                    searchStr = "";
                     queriedData = data;
                 }
                 long queriedCount = queriedData.size();
                 // check for sorting
                 if (req.queryMap("sorts") != null) {
                     req.queryMap("sorts").toMap().forEach((k, v) -> {
-                        System.out.println("Sorting " + k + ": " + v);
                         if (v == null || k == null) return;
                         boolean isNumericField = numericAttrNames.contains(k);
                         boolean reversed = (v.length > 0 && v[0].equals("-1"));
-
-                        String directionStr = reversed ? "-1" : "1";
-
-                        String sortStr = k + directionStr + searchStr;
-                        System.out.println("New sort string: " + sortStr);
 
                         Comparator<Map<String, String>> comp = (d1, d2) -> {
                             if (isNumericField) {

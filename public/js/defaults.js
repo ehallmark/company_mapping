@@ -18,6 +18,34 @@ $(document).ready(function() {
             });
         });
     });
+
+    var resource = 'Company';
+    $.ajax({
+        url: '/init/datatable/'+resource,
+        dataType: 'json',
+        type: 'POST',
+        success: function(data) {
+            var $results = $('#results');
+            $results.empty();
+            $results.html(data.result);
+            var $table = $('table.dynatable');
+            $table.bind('dynatable:afterUpdate', function() {
+                onShowResourceFunction($table);
+
+            }).dynatable({
+                dataset: {
+                    ajax: true,
+                    ajaxUrl: 'dataTable.json',
+                    ajaxOnLoad: true,
+                    records: []
+                },
+                features: {
+                    pushState: false,
+                    paginate: true
+                }
+            });
+        }
+    });
 });
 
 

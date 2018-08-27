@@ -52,11 +52,15 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
-                a((String)data.get(Constants.NAME)).attr("data-id", id.toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link"),
+                getSimpleLink(),
                 span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
                         .attr("data-association-id", associationId.toString()).attr("style","cursor: pointer;").withClass("delete-node").attr("data-resource", this.getClass().getSimpleName()).attr("data-id", id)
         );
+    }
+
+    public ContainerTag getSimpleLink() {
+        return a((String)data.get(Constants.NAME)).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link");
     }
 
 
