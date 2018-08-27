@@ -338,7 +338,7 @@ public class Main {
                 DataTable.registerDataTabe(req, headers, data, numericAttrs);
 
                 ContainerTag html = div().withClass("row").with(
-                        div().withClass("col-10 offset-1").with(
+                        div().withClass("col-12").with(
                                 table().withClass("table table-striped dynatable").with(
                                         thead().with(
                                                 tr().with(
@@ -503,8 +503,13 @@ public class Main {
 
             String associationName = req.queryParams("_association_name");
             Association associationModel = baseModel.getAssociationsMeta().stream().filter(m->m.getAssociationName().equals(associationName)).findAny().orElse(null);
-            baseModel.associateWith(relatedModel, associationName);
 
+            try {
+                baseModel.associateWith(relatedModel, associationName);
+            } catch(Exception e) {
+                e.printStackTrace();
+                return new Gson().toJson(Collections.singletonMap("template", p("Error: "+e.getMessage()).attr("style", "color: red;").render()));
+            }
             return new Gson().toJson(Collections.singletonMap("template", relatedModel.getLink(associationModel.getReverseAssociationName(), baseModel.getClass().getSimpleName(), baseModel.getId()).render()));
         });
 

@@ -1,6 +1,5 @@
 package database;
 
-import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.NonNull;
 import models.*;
@@ -165,9 +164,8 @@ public class Database {
         return model;
     }
 
-    public static synchronized void update(@NonNull String tableName, int id, Map<String,Object> data) throws SQLException {
+    public static synchronized void update(@NonNull String tableName, int id, Map<String,Object> data, @NonNull List<String> keys) throws SQLException {
         data = new HashMap<>(data);
-        List<String> keys = new ArrayList<>(data.keySet());
         List<String> qs = new ArrayList<>(keys.size());
         for(int i = 0; i < keys.size(); i++) {
             if(data.get(keys.get(i)) != null && data.get(keys.get(i)) instanceof LocalDate) {

@@ -69,8 +69,37 @@ public abstract class Model implements Serializable {
             if(association.getAssociationName().equals(associationName)) {
                     if(association.getModel().toString().equals(this.getClass().getSimpleName())) {
                         // same model, make sure there are no self references
-                        if(otherModel.getId().equals(id)) {
-                            throw new RuntimeException("Unable to assign association to itself.");
+                        // check all parents and children
+                        if(associations==null) {
+                            loadAssociations();
+                        }
+                        Set<Integer> allIds = new HashSet<>();
+                        List<Map<Association, List<Model>>> maps = Collections.singletonList(associations);
+                        while(maps.size()>0) {
+                            maps = maps.stream().flatMap(map->map.getOrDefault(association, Collections.emptyList()).stream())
+                                    .map(m->{
+                                        m.loadAssociations();
+                                        allIds.add(m.getId());
+                                        return m.getAssociations();
+                                    }).collect(Collectors.toList());
+                        }
+                        for(Association reverseAssociation : associationsMeta) {
+                            if(reverseAssociation.getReverseAssociationName().equals(association.getAssociationName())) {
+                                // check this association too
+                                maps = Collections.singletonList(associations);
+                                while(maps.size()>0) {
+                                    maps = maps.stream().flatMap(map->map.getOrDefault(reverseAssociation, Collections.emptyList()).stream())
+                                            .map(m->{
+                                                m.loadAssociations();
+                                                allIds.add(m.getId());
+                                                return m.getAssociations();
+                                            }).collect(Collectors.toList());
+                                }
+                                break;
+                            }
+                        }
+                        if(allIds.contains(otherModel.getId())) {
+                            throw new RuntimeException("Unable to assign association. Cycle detected.");
                         }
                     }
                     switch (association.getType()) {
@@ -289,9 +318,10 @@ public abstract class Model implements Serializable {
         }
         try {
             Map<String,Object> dataCopy = new HashMap<>(data);
-            dataCopy.remove(Constants.UPDATED_AT);
-            dataCopy.remove(Constants.CREATED_AT);
-            Database.update(tableName, id, dataCopy);
+            List<String> keys = new ArrayList<>(availableAttributes);
+            keys.remove(Constants.UPDATED_AT);
+            keys.remove(Constants.CREATED_AT);
+            Database.update(tableName, id, dataCopy, keys);
         } catch(Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error inserting record into database: " + e.getMessage());
