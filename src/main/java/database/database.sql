@@ -2,6 +2,7 @@
 
 -- model tables
 drop table products;
+
 create table products (
     id serial primary key,
     name text not null,
@@ -14,11 +15,15 @@ create table products (
 );
 
 create index products_company_id_idx on products (company_id);
+
 create index products_segment_id_idx on products (segment_id);
+
 create index products_market_id_idx on products (market_id);
+
 create index products_name_idx on products (name);
 
 drop table segments;
+
 create table segments (
     id serial primary key,
     name text not null,
@@ -30,10 +35,13 @@ create table segments (
 );
 
 create index segments_parent_segment_id_idx on segments (parent_segment_id);
+
 create index segments_company_id_idx on segments (company_id);
+
 create index segments_name_idx on segments (name);
 
 drop table revenues;
+
 create table revenues (
     id serial primary key,
     value double precision,
@@ -50,12 +58,17 @@ create table revenues (
 );
 
 create index revenues_product_id_idx on revenues (product_id);
+
 create index revenues_market_id_idx on revenues (market_id);
+
 create index revenues_segment_id_idx on revenues (segment_id);
+
 create index revenues_company_id_idx on revenues (company_id);
+
 create index revenues_name_idx on revenues (name);
 
 drop table markets;
+
 create table markets (
     id serial primary key,
     name text not null,
@@ -66,10 +79,12 @@ create table markets (
 );
 
 create index markets_name_idx on markets (name);
+
 create index markets_parent_market_id_idx on markets (parent_market_id);
 
 
 drop table companies;
+
 create table companies (
     id serial primary key,
     name text not null,
@@ -84,6 +99,7 @@ create index companies_name_idx on companies (name);
 -- join tables
 
 drop table companies_markets;
+
 create table companies_markets (
     company_id integer not null,
     market_id integer not null,
@@ -91,6 +107,7 @@ create table companies_markets (
 );
 
 drop table segments_markets;
+
 create table segments_markets (
     segment_id integer not null,
     market_id integer not null,

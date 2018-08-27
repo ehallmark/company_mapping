@@ -5,7 +5,6 @@ import database.Database;
 import j2html.tags.ContainerTag;
 import models.*;
 import spark.Request;
-import spark.Spark;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -17,6 +16,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static j2html.TagCreator.*;
+import static j2html.TagCreator.head;
 import static spark.Spark.*;
 
 public class Main {
@@ -204,6 +204,14 @@ public class Main {
             ).render();
         });
 
+        post("/clear_dynatable", (req,res)->{
+            try {
+                DataTable.unregisterDataTable(req);
+            } catch(Exception e) {
+
+            }
+            return new Gson().toJson(Collections.singletonMap("success", "true"));
+        });
 
         get("/ajax/resources/:resource/:from_resource/:from_id", (req, res)->{
             String resource = req.params("resource");
@@ -331,7 +339,6 @@ public class Main {
 
                 ContainerTag html = div().withClass("row").with(
                         div().withClass("col-10 offset-1").with(
-                                h3("Companies"),
                                 table().withClass("table table-striped dynatable").with(
                                         thead().with(
                                                 tr().with(

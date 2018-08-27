@@ -14,20 +14,26 @@ $(document).ready(function() {
                     $results.empty();
                     $results.html(createResourceList(resource, $btn.text(),data));
                     onShowResourceFunction($(document.body));
+                    createResourceDynatable(resource);
                 }
             });
         });
     });
+});
 
-    var resource = 'Company';
+var createResourceDynatable = function(resource) {
     $.ajax({
         url: '/init/datatable/'+resource,
         dataType: 'json',
         type: 'POST',
         success: function(data) {
+            var $prevTable = $('table.dynatable');
+            if($prevTable.length>0) {
+                $prevTable.closest('.row').remove();
+            }
             var $results = $('#results');
-            $results.empty();
-            $results.html(data.result);
+            //$results.empty();
+            $results.append(data.result);
             var $table = $('table.dynatable');
             $table.bind('dynatable:afterUpdate', function() {
                 onShowResourceFunction($table);
@@ -46,7 +52,7 @@ $(document).ready(function() {
             });
         }
     });
-});
+};
 
 
 var onShowResourceFunction = function($topElem) {
@@ -255,6 +261,17 @@ var createNewResourceForm = function(resourceId, resourceName) {
             type: 'POST',
             success: function(showData) {
                 $('#'+resourceName.toLowerCase()+"_index_btn").trigger('click');
+                var dynatable = $('table.dynatable').data('dynatable');
+                if(dynatable) {
+                    $.ajax({
+                        url: '/clear_dynatable',
+                        dataType: 'json',
+                        type: 'POST',
+                        success: function() {
+                            createResourceDynatable(resourceId);
+                        }
+                    });
+                }
             }
         });
         return false;
@@ -309,6 +326,17 @@ var createResourceList = function(resourceId, resourceName, data) {
                 type: 'DELETE',
                 success: function(showData) {
                     $this.closest('div').remove();
+                    var dynatable = $('table.dynatable').data('dynatable');
+                    if(dynatable) {
+                        $.ajax({
+                            url: '/clear_dynatable',
+                            dataType: 'json',
+                            type: 'POST',
+                            success: function() {
+                                createResourceDynatable(resourceId);
+                            }
+                        });
+                    }
                 },
                 error: function() {
                     alert("An error occurred.");
@@ -317,10 +345,12 @@ var createResourceList = function(resourceId, resourceName, data) {
         });
         $ul.append($li);
     }
-    var $result = $('<div></div>');
-    $result.append('<h4>List of '+resourceName+'</h4>');
+    var $result = $('<div class="col-12"></div>');
+    $result.append('<h3>'+resourceName+'</h3>');
     var $new = createNewResourceForm(resourceId, resourceName);
     $result.append($new);
     $result.append($ul);
-    return $result;
+    var $outer = $('<div class="row"></div>');
+    $outer.append($result);
+    return $outer;
 };
