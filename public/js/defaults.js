@@ -175,6 +175,7 @@ var onShowResourceFunction = function($topElem) {
         var $form = $(this);
         var resourceId = $form.attr("data-resource");
         var associationId = $form.attr("data-association");
+        var associationName = $form.attr("data-association-name-reverse");
         var listRef = $form.attr('data-list-ref');
         var id = $form.attr('data-id');
         var formData = $form.serialize();
@@ -192,16 +193,18 @@ var onShowResourceFunction = function($topElem) {
             type: 'POST',
             success: function(showData) {
                 var $oldRef = $(oldRef);
-                if($oldRef.length) {
-                    $(oldRef).html($(showData.template).unwrap());
-                    onShowResourceFunction($(oldRef));
+                if($oldRef.length && $oldRef.find('span[data-association-name]').filter(':first').attr('data-association-name')===associationName) {
+                    $oldRef.html($(showData.template).unwrap());
+                    onShowResourceFunction($oldRef);
                 } else {
+                    var $listRef = $(listRef);
+                    $listRef.find('.server-error').remove();
                     if(prepend==='prepend') {
-                        $(listRef).prepend(showData.template);
+                        $listRef.prepend(showData.template);
                     } else {
-                        $(listRef).html(showData.template);
+                        $listRef.html(showData.template);
                     }
-                    onShowResourceFunction($(listRef));
+                    onShowResourceFunction($listRef);
                 }
                 $form.find('select').val(null).trigger('change');
                 $('.resource-new-link').filter(':visible').each(function() {

@@ -228,7 +228,7 @@ public abstract class Model implements Serializable {
                                                     label("Name:").with(
                                                             input().withType("text").withClass("form-control").withName(Constants.NAME)
                                                     ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
-                                            ),form().attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
+                                            ),form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
                                                     .attr("data-resource", this.getClass().getSimpleName())
                                                     .with(
                                                             input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),

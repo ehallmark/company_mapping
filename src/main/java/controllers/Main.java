@@ -508,7 +508,7 @@ public class Main {
                 baseModel.associateWith(relatedModel, associationName);
             } catch(Exception e) {
                 e.printStackTrace();
-                return new Gson().toJson(Collections.singletonMap("template", p("Error: "+e.getMessage()).attr("style", "color: red;").render()));
+                return new Gson().toJson(Collections.singletonMap("template", div().withText("Error: "+e.getMessage()).withClass("server-error").attr("style", "color: red;").with(span("X").attr("style", "cursor: pointer; color: black;").attr("onclick", "$(this).parent().remove();")).render()));
             }
             return new Gson().toJson(Collections.singletonMap("template", relatedModel.getLink(associationModel.getReverseAssociationName(), baseModel.getClass().getSimpleName(), baseModel.getId()).render()));
         });
