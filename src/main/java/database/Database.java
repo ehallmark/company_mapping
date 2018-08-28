@@ -77,10 +77,6 @@ public class Database {
                     models.add(new Product(id, null));
                     break;
                 }
-                case Segment: {
-                    models.add(new Segment(id, null));
-                    break;
-                }
             }
         }
         rs.close();
@@ -111,10 +107,6 @@ public class Database {
                     models.add(new Product(id, null));
                     break;
                 }
-                case Segment: {
-                    models.add(new Segment(id, null));
-                    break;
-                }
             }
         }
         rs.close();
@@ -142,10 +134,6 @@ public class Database {
             }
             case Product: {
                 model = new Product(parentId, null);
-                break;
-            }
-            case Segment: {
-                model = new Segment(parentId, null);
                 break;
             }
         }
@@ -232,10 +220,6 @@ public class Database {
                 }
                 case Product: {
                     m = new Product(id, data);
-                    break;
-                }
-                case Segment: {
-                    m = new Segment(id, data);
                     break;
                 }
                 case Market: {

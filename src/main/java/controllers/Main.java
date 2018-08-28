@@ -45,10 +45,6 @@ public class Main {
                 model = new Market(id, null);
                 break;
             }
-            case Segment: {
-                model = new Segment(id, null);
-                break;
-            }
             case Product: {
                 model = new Product(id, null);
                 break;
@@ -151,7 +147,6 @@ public class Main {
                                                                             div().withClass("col-12 btn-group-vertical options").with(
                                                                                     button("Markets").attr("data-resource", "Market").withId("markets_index_btn").withClass("btn btn-outline-secondary"),
                                                                                     button("Companies").attr("data-resource", "Company").withId("companies_index_btn").withClass("btn btn-outline-secondary"),
-                                                                                    button("Segments").attr("data-resource", "Segment").withId("segments_index_btn").withClass("btn btn-outline-secondary"),
                                                                                     button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary")
                                                                             )
                                                                     )
@@ -292,13 +287,18 @@ public class Main {
                                 map.put(k,v==null?"":v.toString());
                             });
                             map.put(Constants.NAME, m.getSimpleLink().render());
+                            map.put(Constants.NAME+Constants.TEXT_ONLY, (String)m.getData().get(Constants.NAME));
                             m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
                                 List<Model> assocModel = m.getAssociations().get(assoc);
+                                String fieldName = assoc.getAssociationName().toLowerCase().replace(" ", "-");
+                                String fieldNameTextOnly = fieldName+Constants.TEXT_ONLY;
                                 if(assocModel==null) {
-                                    map.put(assoc.getAssociationName().toLowerCase().replace(" ", "-"), "");
+                                    map.put(fieldName, "");
+                                    map.put(fieldNameTextOnly, "");
                                 } else {
-                                    map.put(assoc.getAssociationName().toLowerCase().replace(" ", "-"), String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink().render()).collect(Collectors.toList())));
+                                    map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink().render()).collect(Collectors.toList())));
+                                    map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList())));
                                 }
                             });
                             return map;
@@ -332,11 +332,12 @@ public class Main {
         post("/diagram/:resource/:id", (req, res)-> {
             Model model = loadModel(req);
             if(model!=null) {
-                Map<String,Object> map = model.loadNestedAssociations();
+                ContainerTag diagram = model.loadNestedAssociations();
 
-                System.out.println("Maps: "+new Gson().toJson(map));
                 ContainerTag html = div().withClass("col-12").with(
-
+                        model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
+                        h3("Diagram of "+model.getData().get(Constants.NAME)),
+                        diagram
                 );
 
                 return new Gson().toJson(Collections.singletonMap("result", html.render()));

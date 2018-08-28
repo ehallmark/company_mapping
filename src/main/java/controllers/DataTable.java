@@ -2,12 +2,12 @@ package controllers;
 
 import com.google.gson.Gson;
 import lombok.NonNull;
+import models.Constants;
 import spark.QueryParamsMap;
 import spark.Request;
 import spark.Response;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -70,11 +70,14 @@ public class DataTable {
                 // check for search
                 List<Map<String, String>> queriedData;
                 if (req.queryMap("queries") != null && req.queryMap("queries").hasKey("search")) {
-                    String searchStr = req.queryMap("queries").value("search").toLowerCase();
+                    String searchStr = req.queryMap("queries").value("search").toLowerCase().trim();
                     if (searchStr.trim().isEmpty()) {
                         queriedData = data;
                     } else {
-                        queriedData = new ArrayList<>(data.stream().filter(m -> m.values().stream().anyMatch(val -> val.toLowerCase().contains(searchStr))).collect(Collectors.toList()));
+                        queriedData = data.stream().filter(m -> headers.stream().anyMatch(header -> {
+                            boolean match = m.getOrDefault(header+ Constants.TEXT_ONLY, m.getOrDefault(header, "")).toLowerCase().contains(searchStr);
+                            return match;
+                        })).collect(Collectors.toCollection(ArrayList::new));
                     }
                 } else {
                     queriedData = data;

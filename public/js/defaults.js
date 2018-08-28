@@ -57,6 +57,10 @@ var createResourceDynatable = function(resource) {
 
 
 var onShowResourceFunction = function($topElem) {
+    $topElem.find('.add-back-text').each(function() {
+        $(this).text('Back to '+$(this).text());
+    });
+
     $topElem.find('.diagram-button').click(function(e) {
         e.preventDefault();
         var $this = $(this);
@@ -287,7 +291,7 @@ var onShowResourceFunction = function($topElem) {
 
 var createNewResourceForm = function(resourceId, resourceName) {
     var $new = $('<a href="#">(New)</a>');
-    var $form = $('<form style="display: none;" class="form-control"><label>Name:<br /><input class="form-control" type="text" name="name"/ ></label><button class="btn btn-outline-secondary btn-sm" type="submit">Create</button></form>')
+    var $form = $('<form style="display: none;"><label>Name:<br /><input class="form-control" type="text" name="name"/ ></label><button class="btn btn-outline-secondary btn-sm" type="submit">Create</button></form>')
     $form.submit(function(e) {
         e.preventDefault();
         $.ajax({

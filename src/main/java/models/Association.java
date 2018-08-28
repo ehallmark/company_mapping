@@ -16,9 +16,7 @@ public class Association implements Serializable {
     public enum Model {
         Company,
         Market,
-        Product,
-        Revenue,
-        Segment
+        Product
     }
 
     @Getter
