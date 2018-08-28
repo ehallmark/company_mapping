@@ -68,38 +68,54 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
-        ContainerTag map = ul();
+        ContainerTag inner = ul();
+        ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
+                li().with(h4(getSimpleLink())).with(
+                        inner
+                )
+        );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(map, allReferences);
-        return map;
+        loadNestedAssociationHelper(inner, allReferences);
+        return tag;
     };
 
     private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen) {
         if(associations==null) {
             loadAssociations();
         }
-        List<Model> models = new ArrayList<>();
+        Map<String,List<Model>> modelMap = new HashMap<>();
         for(Association association : associationsMeta) {
             if(associations.containsKey(association)) {
                 List<Model> assocModels = associations.get(association);
                 if(assocModels!=null) {
-                    for(Model model : assocModels) {
-                        String _id = model.getClass().getSimpleName()+model.getId();
-                        if(!alreadySeen.contains(_id)) {
-                            models.add(model);
-                            alreadySeen.add(_id);
-                        }
+                    assocModels = assocModels.stream().filter(m -> {
+                        String _id = m.getClass().getSimpleName() + m.getId();
+                        boolean keep = !alreadySeen.contains(_id);
+                        alreadySeen.add(_id);
+                        return keep;
+                    }).collect(Collectors.toList());
+                    if (assocModels.size() > 0) {
+                        modelMap.put(association.getAssociationName(), assocModels);
                     }
                 }
             }
         }
-        if(models.size()>0) {
+        if(modelMap.size()>0) {
             // recurse
-            for(Model model : models) {
-                ContainerTag nestedTag = ul();
-                container.with(li().with(model.getSimpleLink(), nestedTag));
-                model.loadNestedAssociationHelper(nestedTag, alreadySeen);
-            }
+            modelMap.forEach((associationName, models) -> {
+                ContainerTag modelsTag = ul();
+                ContainerTag tag =  ul().with(
+                        li().with(h5(associationName)).with(
+                                modelsTag
+                        )
+                );
+                for(Model model : models) {
+                    ContainerTag inner = ul();
+                    modelsTag.with(li().with(model.getSimpleLink(), inner));
+                    model.loadNestedAssociationHelper(inner, alreadySeen);
+                }
+                container.with(tag);
+            });
         }
     }
 
