@@ -70,7 +70,7 @@ public abstract class Model implements Serializable {
         }
         ContainerTag inner = ul();
         ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
-                li().with(h4(getSimpleLink())).with(
+                li().with(h4(getSimpleLink())).attr("style", "list-style: none;").with(
                         inner
                 )
         );
@@ -103,15 +103,12 @@ public abstract class Model implements Serializable {
         if(modelMap.size()>0) {
             // recurse
             modelMap.forEach((associationName, models) -> {
-                ContainerTag modelsTag = ul();
                 ContainerTag tag =  ul().with(
-                        li().with(h5(associationName)).with(
-                                modelsTag
-                        )
+                        li().with(h5(associationName)).attr("style", "list-style: none;")
                 );
                 for(Model model : models) {
                     ContainerTag inner = ul();
-                    modelsTag.with(li().with(model.getSimpleLink(), inner));
+                    tag.with(li().with(model.getSimpleLink(), inner));
                     model.loadNestedAssociationHelper(inner, alreadySeen);
                 }
                 container.with(tag);
