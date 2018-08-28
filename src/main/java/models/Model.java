@@ -30,6 +30,7 @@ public abstract class Model implements Serializable {
     @Getter
     protected Map<Association,List<Model>> associations;
     protected String template;
+    private Set<String> allReferences;
     protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data) {
         this.tableName = tableName;
         this.data = data;
@@ -68,7 +69,8 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         ContainerTag map = ul();
-        loadNestedAssociationHelper(map, new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id)));
+        this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
+        loadNestedAssociationHelper(map, allReferences);
         return map;
     };
 
@@ -106,74 +108,45 @@ public abstract class Model implements Serializable {
         // find association
         for(Association association : associationsMeta) {
             if(association.getAssociationName().equals(associationName)) {
-                    if(association.getModel().toString().equals(this.getClass().getSimpleName())) {
-                        // same model, make sure there are no self references
-                        // check all parents and children
-                        if(associations==null) {
-                            loadAssociations();
-                        }
-                        Set<Integer> allIds = new HashSet<>();
-                        List<Map<Association, List<Model>>> maps = Collections.singletonList(associations);
-                        while(maps.size()>0) {
-                            maps = maps.stream().flatMap(map->map.getOrDefault(association, Collections.emptyList()).stream())
-                                    .map(m->{
-                                        m.loadAssociations();
-                                        allIds.add(m.getId());
-                                        return m.getAssociations();
-                                    }).collect(Collectors.toList());
-                        }
-                        for(Association reverseAssociation : associationsMeta) {
-                            if(reverseAssociation.getReverseAssociationName().equals(association.getAssociationName())) {
-                                // check this association too
-                                maps = Collections.singletonList(associations);
-                                while(maps.size()>0) {
-                                    maps = maps.stream().flatMap(map->map.getOrDefault(reverseAssociation, Collections.emptyList()).stream())
-                                            .map(m->{
-                                                m.loadAssociations();
-                                                allIds.add(m.getId());
-                                                return m.getAssociations();
-                                            }).collect(Collectors.toList());
-                                }
-                                break;
-                            }
-                        }
-                        if(allIds.contains(otherModel.getId())) {
-                            throw new RuntimeException("Unable to assign association. Cycle detected.");
-                        }
+                // make sure we haven't introduced in cycles
+                loadNestedAssociations(); // hack to access allReferences
+                String otherRef = otherModel.getClass().getSimpleName() + otherModel.getId();
+                if (this.allReferences.contains(otherRef)) {
+                    throw new RuntimeException("Unable to assign association. Cycle detected.");
+                }
+                switch (association.getType()) {
+                    case OneToMany: {
+                        // need to set parent id of association
+                        otherModel.updateAttribute(association.getParentIdField(), id);
+                        otherModel.updateInDatabase();
+                        break;
                     }
-                    switch (association.getType()) {
-                        case OneToMany: {
-                            // need to set parent id of association
-                            otherModel.updateAttribute(association.getParentIdField(), id);
-                            otherModel.updateInDatabase();
-                            break;
-                        }
-                        case ManyToOne: {
-                            // need to set parent id of current model
-                            updateAttribute(association.getParentIdField(), otherModel.getId());
-                            updateInDatabase();
-                            break;
-                        }
-                        case ManyToMany: {
-                            try {
-                                // need to add to join table
-                                Connection conn = Database.getConn();
-                                PreparedStatement ps = null;
-                                ps = conn.prepareStatement("insert into "+association.getJoinTableName() + " ("+association.getParentIdField()+","+association.getChildIdField()+") values (?,?) on conflict do nothing");
-                                ps.setInt(1, id);
-                                ps.setInt(2, otherModel.getId());
-                                ps.executeUpdate();
-                                ps.close();
-                            } catch(Exception e) {
-                                e.printStackTrace();
-                            }
-                            break;
-                        }
-                        case OneToOne: {
-                            // NOT IMPLEMENTED
-                            break;
-                        }
+                    case ManyToOne: {
+                        // need to set parent id of current model
+                        updateAttribute(association.getParentIdField(), otherModel.getId());
+                        updateInDatabase();
+                        break;
                     }
+                    case ManyToMany: {
+                        try {
+                            // need to add to join table
+                            Connection conn = Database.getConn();
+                            PreparedStatement ps = null;
+                            ps = conn.prepareStatement("insert into "+association.getJoinTableName() + " ("+association.getParentIdField()+","+association.getChildIdField()+") values (?,?) on conflict do nothing");
+                            ps.setInt(1, id);
+                            ps.setInt(2, otherModel.getId());
+                            ps.executeUpdate();
+                            ps.close();
+                        } catch(Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    }
+                    case OneToOne: {
+                        // NOT IMPLEMENTED
+                        break;
+                    }
+                }
                 break;
             }
         }
