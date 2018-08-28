@@ -103,6 +103,21 @@ public abstract class Model implements Serializable {
         }
     }
 
+    public void removeManyToOneAssociations(String associationName) {
+        for(Association association : associationsMeta) {
+            if(association.getAssociationName().equals(associationName)) {
+                switch (association.getType()) {
+                    case ManyToOne: {
+                        // need to set parent id of current model
+                        updateAttribute(association.getParentIdField(), null);
+                        updateInDatabase();
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
 
     public void associateWith(Model otherModel, String associationName) {
         // find association

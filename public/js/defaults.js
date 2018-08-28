@@ -219,8 +219,15 @@ var onShowResourceFunction = function($topElem) {
             success: function(showData) {
                 var $oldRef = $(oldRef);
                 if($oldRef.length && $oldRef.find('span[data-association-name]').filter(':first').attr('data-association-name')===associationName) {
-                    $oldRef.html($(showData.template).unwrap());
-                    onShowResourceFunction($oldRef);
+                    var template = $(showData.template);
+                    if(template.hasClass('server-error')) {
+                        var $listRef = $(listRef);
+                        $listRef.append(showData.template);
+                        onShowResourceFunction($listRef);
+                    } else {
+                        $oldRef.html($(showData.template).unwrap());
+                        onShowResourceFunction($oldRef);
+                    }
                 } else {
                     var $listRef = $(listRef);
                     $listRef.find('.server-error').remove();

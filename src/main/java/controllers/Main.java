@@ -488,6 +488,7 @@ public class Main {
             Association associationModel = baseModel.getAssociationsMeta().stream().filter(m->m.getAssociationName().equals(associationName)).findAny().orElse(null);
 
             try {
+                baseModel.removeManyToOneAssociations(associationName);
                 baseModel.associateWith(relatedModel, associationName);
             } catch(Exception e) {
                 e.printStackTrace();
