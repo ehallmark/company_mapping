@@ -63,6 +63,45 @@ public abstract class Model implements Serializable {
     }
 
 
+    public Map<String,Object> loadNestedAssociations() {
+        Map<String, Object> map = new HashMap<>();
+        if(associations==null) loadAssociations();
+        Set<String> associationNames = associationsMeta.stream().map(a->a.getAssociationName()).collect(Collectors.toSet());
+        loadNestedAssociationHelper(map, associationNames);
+        return map;
+    };
+
+    private void loadNestedAssociationHelper(Map<String,Object> map, Set<String> associationNames) {
+        if(associations==null) loadAssociations();
+        List<Model> models = new ArrayList<>();
+        Set<String> newAssociations = new HashSet<>(associationNames);
+        for(Association association : associationsMeta) {
+            if(associationNames.contains(association.getAssociationName())&&!map.containsKey(association)) {
+                if(associations.containsKey(association)) {
+                    List<Model> assocModels = associations.get(association);
+                    if(assocModels!=null) {
+                        if(assocModels.size()>0) {
+                            assocModels.get(0).getAssociationsMeta().forEach(a->{
+                                newAssociations.add(a.getAssociationName());
+                            });
+                        }
+                        map.put(association.getAssociationName(), assocModels);
+                        models.addAll(assocModels);
+                    }
+                }
+            }
+        }
+        if(models.size()>0) {
+            // recurse
+            Map<String,Object> nestedMap = new HashMap<>();
+            map.put("NESTED", nestedMap);
+            for(Model model : models) {
+                model.loadNestedAssociationHelper(nestedMap, newAssociations);
+            }
+        }
+    }
+
+
     public void associateWith(Model otherModel, String associationName) {
         // find association
         for(Association association : associationsMeta) {
@@ -153,7 +192,7 @@ public abstract class Model implements Serializable {
         } else {
             button = span();
         }
-        ContainerTag html = div().withClass("row").with(
+        ContainerTag html = div().withClass("col-12").with(
                 div().withClass("col-12").with(
                         button,
                         h4(this.getClass().getSimpleName()+" Information")

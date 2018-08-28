@@ -12,8 +12,6 @@ public class Product extends Model {
             Constants.NAME,
             Constants.REVENUE,
             Constants.NOTES,
-            Constants.COMPANY_ID,
-            Constants.MARKET_ID,
             Constants.SEGMENT_ID,
             Constants.UPDATED_AT,
             Constants.CREATED_AT

@@ -107,12 +107,14 @@ var onShowResourceFunction = function($topElem) {
             }
             inputTag = "input";
         }
-        $this.html('<label>'+attrName+":"+input+"</label><span onclick='$(document.body).dblclick();' style='cursor: pointer;'>X</span><br /><button type='submit' class='btn btn-outline-secondary btn-sm'>Update</button>");
+        $this.html('<form><label>'+attrName+":"+input+"</label><span onclick='$(document.body).dblclick();' style='cursor: pointer;'>X</span><br /><button type='submit' class='btn btn-outline-secondary btn-sm'>Update</button></form>");
         var $input = $this.find(inputTag);
+        var $form = $this.find('form');
         var $btn = $this.find('button');
         $input.val(val);
-        $btn.click(function(attr, attrName, $this, $input) {
+        $form.submit(function(attr, attrName, $this, $input) {
             return function(e) {
+                e.preventDefault();
                 var value = $input.val();
                 if(fieldType==='boolean') {
                     value = $input.is(':checked');

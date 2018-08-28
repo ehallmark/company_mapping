@@ -152,8 +152,7 @@ public class Main {
                                                                                     button("Markets").attr("data-resource", "Market").withId("markets_index_btn").withClass("btn btn-outline-secondary"),
                                                                                     button("Companies").attr("data-resource", "Company").withId("companies_index_btn").withClass("btn btn-outline-secondary"),
                                                                                     button("Segments").attr("data-resource", "Segment").withId("segments_index_btn").withClass("btn btn-outline-secondary"),
-                                                                                    button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary"),
-                                                                                    button("Revenues").attr("data-resource", "Revenue").withId("revenues_index_btn").withClass("btn btn-outline-secondary")
+                                                                                    button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary")
                                                                             )
                                                                     )
                                                             )
@@ -306,21 +305,19 @@ public class Main {
                         }).collect(Collectors.toList());
                 DataTable.registerDataTabe(req, headers, data, numericAttrs);
 
-                ContainerTag html = div().withClass("row").with(
-                        div().withClass("col-12").with(
-                                table().withClass("table table-striped dynatable").with(
-                                        thead().with(
-                                                tr().with(
-                                                        IntStream.range(0, humanHeaders.size()).mapToObj(i->{
-                                                            return th(humanHeaders.get(i)).attr("data-dynatable-column", headers.get(i));
-                                                        }).collect(Collectors.toList())
-                                                )
-                                        ),tbody().with(
-
+                ContainerTag html = div().withClass("col-12").with(
+                        table().withClass("table table-striped dynatable").with(
+                                thead().with(
+                                        tr().with(
+                                                IntStream.range(0, humanHeaders.size()).mapToObj(i->{
+                                                    return th(humanHeaders.get(i)).attr("data-dynatable-column", headers.get(i));
+                                                }).collect(Collectors.toList())
                                         )
+                                ),tbody().with(
+
                                 )
                         )
-                ) ;
+                );
                 return new Gson().toJson(Collections.singletonMap("result", html.render()));
             }
             return null;
@@ -334,21 +331,13 @@ public class Main {
 
         post("/diagram/:resource/:id", (req, res)-> {
             Model model = loadModel(req);
-            Map<String,Object> map = new HashMap<>();
             if(model!=null) {
-                map.put(Constants.NAME, model.getSimpleLink().render());
-                model.loadAssociations();
-                List<Map<Association, List<Model>>> maps = Collections.singletonList(model.getAssociations());
-                for(Association association : model.getAssociationsMeta()) {
-                   // map.put(association.getAssociationName(), nestedMap);
+                Map<String,Object> map = model.loadNestedAssociations();
 
-                }
                 System.out.println("Maps: "+new Gson().toJson(map));
-                ContainerTag html = div().withClass("row").with(
-                        div().withClass("col-12").with(
+                ContainerTag html = div().withClass("col-12").with(
 
-                        )
-                ) ;
+                );
 
                 return new Gson().toJson(Collections.singletonMap("result", html.render()));
             }
