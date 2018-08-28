@@ -69,10 +69,6 @@ public class Database {
                     models.add(new Company(id, null));
                     break;
                 }
-                case Revenue: {
-                    models.add(new Revenue(id, null));
-                    break;
-                }
                 case Market: {
                     models.add(new Market(id, null));
                     break;
@@ -107,10 +103,6 @@ public class Database {
                     models.add(new Company(id, null));
                     break;
                 }
-                case Revenue: {
-                    models.add(new Revenue(id, null));
-                    break;
-                }
                 case Market: {
                     models.add(new Market(id, null));
                     break;
@@ -142,10 +134,6 @@ public class Database {
         switch(associationType) {
             case Company: {
                 model = new Company(parentId, null);
-                break;
-            }
-            case Revenue: {
-                model = new Revenue(parentId, null);
                 break;
             }
             case Market: {
@@ -244,10 +232,6 @@ public class Database {
                 }
                 case Product: {
                     m = new Product(id, data);
-                    break;
-                }
-                case Revenue: {
-                    m = new Revenue(id, data);
                     break;
                 }
                 case Segment: {

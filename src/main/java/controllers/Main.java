@@ -35,34 +35,7 @@ public class Main {
     }
 
     private static Model getModelByType(Association.Model type) {
-        Model model;
-        switch(type) {
-            case Market: {
-                model = new Market(null, null);
-                break;
-            }
-            case Segment: {
-                model = new Segment(null, null);
-                break;
-            }
-            case Revenue: {
-                model = new Revenue(null, null);
-                break;
-            }
-            case Product: {
-                model = new Product(null, null);
-                break;
-            }
-            case Company: {
-                model = new Company(null, null);
-                break;
-            }
-            default: {
-                model = null;
-                break;
-            }
-        }
-        return model;
+        return loadModel(type, null);
     }
 
     private static Model loadModel(Association.Model type, Integer id) {
@@ -74,10 +47,6 @@ public class Main {
             }
             case Segment: {
                 model = new Segment(id, null);
-                break;
-            }
-            case Revenue: {
-                model = new Revenue(id, null);
                 break;
             }
             case Product: {
@@ -371,36 +340,8 @@ public class Main {
                 model.loadAssociations();
                 List<Map<Association, List<Model>>> maps = Collections.singletonList(model.getAssociations());
                 for(Association association : model.getAssociationsMeta()) {
-                    Map<String,Object> nestedMap = new HashMap<>();
-                    map.put(association.getAssociationName(), nestedMap);
-                    while (maps.size() > 0) {
-                        maps = maps.stream().flatMap(m -> m.getOrDefault(association, Collections.emptyList()).stream())
-                                .map(m -> {
-                                    m.loadAssociations();
-                                    return m.getAssociations();
-                                }).collect(Collectors.toList());
-                        Map<String,Object> tmp = new HashMap<>();
-                        nestedMap.put(association.getAssociationName(), tmp);
-                        nestedMap = tmp;
-                    }
-                    nestedMap = new HashMap<>();
-                    for (Association reverseAssociation : model.getAssociationsMeta()) {
-                        if (reverseAssociation.getReverseAssociationName().equals(association.getAssociationName())) {
-                            // check this association too
-                            maps = Collections.singletonList(model.getAssociations());
-                            while (maps.size() > 0) {
-                                maps = maps.stream().flatMap(m -> m.getOrDefault(reverseAssociation, Collections.emptyList()).stream())
-                                        .map(m -> {
-                                            m.loadAssociations();
-                                            return m.getAssociations();
-                                        }).collect(Collectors.toList());
-                                Map<String,Object> tmp = new HashMap<>();
-                                nestedMap.put(reverseAssociation.getAssociationName(), tmp);
-                                nestedMap = tmp;
-                            }
-                            break;
-                        }
-                    }
+                   // map.put(association.getAssociationName(), nestedMap);
+
                 }
                 System.out.println("Maps: "+new Gson().toJson(map));
                 ContainerTag html = div().withClass("row").with(
