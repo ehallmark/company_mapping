@@ -104,12 +104,19 @@ public abstract class Model implements Serializable {
             // recurse
             modelMap.forEach((associationName, models) -> {
                 ContainerTag tag =  ul().with(
-                        li().with(h5(associationName)).attr("style", "list-style: none;")
+                        li().attr("style", "list-style: none;").with(
+                                h5(associationName).attr("style", "cursor: pointer;")
+                                .attr("onclick", "$(this).parent().next().slideToggle();")
+                        )
                 );
                 for(Model model : models) {
+                    model.loadAttributesFromDatabase();
+                    Object revenueStr = model.getData().getOrDefault(Constants.REVENUE, "");
+                    if(revenueStr==null) revenueStr = "";
+                    revenueStr = "(Revenue: "+revenueStr+")";
                     ContainerTag inner = ul();
-                    tag.with(li().with(model.getSimpleLink(), inner));
-                    model.loadNestedAssociationHelper(inner, alreadySeen);
+                    tag.with(li().with(model.getSimpleLink(), span(revenueStr.toString()).attr("margin-left: 10px;"), inner));
+                    model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen));
                 }
                 container.with(tag);
             });
