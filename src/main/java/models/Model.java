@@ -115,7 +115,7 @@ public abstract class Model implements Serializable {
                     if(revenueStr==null) revenueStr = "";
                     revenueStr = "(Revenue: "+revenueStr+")";
                     ContainerTag inner = ul();
-                    tag.with(li().with(model.getSimpleLink(), span(revenueStr.toString()).attr("margin-left: 10px;"), inner));
+                    tag.with(li().with(model.getSimpleLink(), span(revenueStr.toString()).attr("style","margin-left: 10px;"), inner));
                     model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen));
                 }
                 container.with(tag);
