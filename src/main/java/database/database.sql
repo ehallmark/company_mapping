@@ -3,6 +3,7 @@
 drop table if exists revenues; -- old
 drop table if exists segments_markets;
 drop table if exists segments;
+drop table if exists companies_markets;
 
 -- model tables
 drop table products;
@@ -13,11 +14,13 @@ create table products (
     revenue double precision,
     notes text,
     company_id integer,
+    market_id integer,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now()
 );
 
 create index products_company_id_idx on products (company_id);
+create index products_market_id_idx on products (market_id);
 create index products_name_idx on products (name);
 
 drop table companies;
@@ -47,14 +50,3 @@ create table markets (
 
 create index markets_name_idx on markets (name);
 create index markets_parent_market_id_idx on markets (parent_market_id);
-
--- join tables
-
-drop table companies_markets;
-create table companies_markets (
-    company_id integer not null,
-    market_id integer not null,
-    primary key(company_id, market_id)
-);
-
-
