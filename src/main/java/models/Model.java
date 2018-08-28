@@ -137,10 +137,13 @@ public abstract class Model implements Serializable {
         for(Association association : associationsMeta) {
             if(association.getAssociationName().equals(associationName)) {
                 // make sure we haven't introduced in cycles
-                loadNestedAssociations(); // hack to access allReferences
-                String otherRef = otherModel.getClass().getSimpleName() + otherModel.getId();
-                if (this.allReferences.contains(otherRef)) {
-                    throw new RuntimeException("Unable to assign association. Cycle detected.");
+                if(association.getModel().equals(this.getClass().getSimpleName())) {
+                    System.out.println("Checking for cycles...");
+                    loadNestedAssociations(); // hack to access allReferences
+                    String otherRef = otherModel.getClass().getSimpleName() + otherModel.getId();
+                    if (this.allReferences.contains(otherRef)) {
+                        throw new RuntimeException("Unable to assign association. Cycle detected.");
+                    }
                 }
                 switch (association.getType()) {
                     case OneToMany: {
