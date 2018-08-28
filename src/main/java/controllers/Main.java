@@ -402,7 +402,7 @@ public class Main {
                         }
                     }
                 }
-
+                System.out.println("Maps: "+new Gson().toJson(map));
                 ContainerTag html = div().withClass("row").with(
                         div().withClass("col-12").with(
 

@@ -178,7 +178,9 @@ public abstract class Model implements Serializable {
                 )
         ).with(
                 div().withClass("col-12").with(
-                        button = button("Diagram this "+this.getClass().getSimpleName())
+                        button("Diagram this "+this.getClass().getSimpleName())
+                                .attr("data-id", id.toString())
+                                .attr("data-resource", this.getClass().getSimpleName())
                                 .withClass("btn btn-outline-secondary btn-sm diagram-button")
                 ),
                 div().withClass("col-12").with(
