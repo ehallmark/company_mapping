@@ -57,6 +57,25 @@ var createResourceDynatable = function(resource) {
 
 
 var onShowResourceFunction = function($topElem) {
+    $topElem.find('.diagram-button').click(function(e) {
+        e.preventDefault();
+        var $this = $(this);
+        var id = $this.attr('data-id');
+        var resourceId = $this.attr('data-resource');
+        $.ajax({
+            url: '/diagram/'+resourceId+'/'+id,
+            dataType: 'json',
+            type: 'POST',
+            success: function(data) {
+                $('#results').html(data.result);
+                onShowResourceFunction($('#results'));
+            },
+            error: function() {
+                alert("An error occurred.");
+            }
+        });
+    });
+
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
         e.stopPropagation();
         var $this = $(this);

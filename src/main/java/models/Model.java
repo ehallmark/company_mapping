@@ -156,7 +156,6 @@ public abstract class Model implements Serializable {
         ContainerTag html = div().withClass("row").with(
                 div().withClass("col-12").with(
                         button,
-
                         h4(this.getClass().getSimpleName()+" Information")
                 ).with(
                     availableAttributes.stream().filter(attr->!Constants.isHiddenAttr(attr)).map(attr->{
@@ -178,6 +177,10 @@ public abstract class Model implements Serializable {
                     }).collect(Collectors.toList())
                 )
         ).with(
+                div().withClass("col-12").with(
+                        button = button("Diagram this "+this.getClass().getSimpleName())
+                                .withClass("btn btn-outline-secondary btn-sm diagram-button")
+                ),
                 div().withClass("col-12").with(
                         h5("Associations"),
                         div().with(

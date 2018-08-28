@@ -363,6 +363,58 @@ public class Main {
         });
 
 
+        post("/diagram/:resource/:id", (req, res)-> {
+            Model model = loadModel(req);
+            Map<String,Object> map = new HashMap<>();
+            if(model!=null) {
+                map.put(Constants.NAME, model.getSimpleLink().render());
+                model.loadAssociations();
+                List<Map<Association, List<Model>>> maps = Collections.singletonList(model.getAssociations());
+                for(Association association : model.getAssociationsMeta()) {
+                    Map<String,Object> nestedMap = new HashMap<>();
+                    map.put(association.getAssociationName(), nestedMap);
+                    while (maps.size() > 0) {
+                        maps = maps.stream().flatMap(m -> m.getOrDefault(association, Collections.emptyList()).stream())
+                                .map(m -> {
+                                    m.loadAssociations();
+                                    return m.getAssociations();
+                                }).collect(Collectors.toList());
+                        Map<String,Object> tmp = new HashMap<>();
+                        nestedMap.put(association.getAssociationName(), tmp);
+                        nestedMap = tmp;
+                    }
+                    nestedMap = new HashMap<>();
+                    for (Association reverseAssociation : model.getAssociationsMeta()) {
+                        if (reverseAssociation.getReverseAssociationName().equals(association.getAssociationName())) {
+                            // check this association too
+                            maps = Collections.singletonList(model.getAssociations());
+                            while (maps.size() > 0) {
+                                maps = maps.stream().flatMap(m -> m.getOrDefault(reverseAssociation, Collections.emptyList()).stream())
+                                        .map(m -> {
+                                            m.loadAssociations();
+                                            return m.getAssociations();
+                                        }).collect(Collectors.toList());
+                                Map<String,Object> tmp = new HashMap<>();
+                                nestedMap.put(reverseAssociation.getAssociationName(), tmp);
+                                nestedMap = tmp;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                ContainerTag html = div().withClass("row").with(
+                        div().withClass("col-12").with(
+
+                        )
+                ) ;
+
+                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+            }
+            return null;
+        });
+
+
         get("/resources/:resource/:id", (req, res) -> {
             Model model = loadModel(req);
             if(model != null) {
