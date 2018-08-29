@@ -56,6 +56,22 @@ var createResourceDynatable = function(resource) {
 };
 
 
+var showDiagramFunction = function(id,resourceId) {
+    $.ajax({
+        url: '/diagram/'+resourceId+'/'+id,
+        dataType: 'json',
+        type: 'POST',
+        success: function(data) {
+            $('#results').html(data.result);
+            onShowResourceFunction($('#results'));
+        },
+        error: function() {
+            alert("An error occurred.");
+        }
+    });
+};
+
+
 var onShowResourceFunction = function($topElem) {
     $topElem.find('.add-back-text').each(function() {
         $(this).text('Back to '+$(this).text());
@@ -66,18 +82,7 @@ var onShowResourceFunction = function($topElem) {
         var $this = $(this);
         var id = $this.attr('data-id');
         var resourceId = $this.attr('data-resource');
-        $.ajax({
-            url: '/diagram/'+resourceId+'/'+id,
-            dataType: 'json',
-            type: 'POST',
-            success: function(data) {
-                $('#results').html(data.result);
-                onShowResourceFunction($('#results'));
-            },
-            error: function() {
-                alert("An error occurred.");
-            }
-        });
+        showDiagramFunction(id,resourceId);
     });
 
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
@@ -163,6 +168,9 @@ var onShowResourceFunction = function($topElem) {
         var listRef = $form.attr('data-list-ref');
         var formData = $form.serialize();
         var prepend = $form.attr('data-prepend');
+        var refresh = $form.attr('data-refresh');
+        var originalId = $form.attr('data-original-id');
+        var originalResourceId = $form.attr('data-original-resource');
         $.ajax({
             url: '/new/'+associationId,
             dataType: 'json',
@@ -176,16 +184,20 @@ var onShowResourceFunction = function($topElem) {
                     data: formData,
                     type: 'POST',
                     success: function(showData) {
-                        if(prepend==='prepend') {
-                            $(listRef).prepend(showData.template);
+                        if(refresh==='refresh') {
+                            showDiagramFunction(originalId,originalResourceId);
                         } else {
-                            $(listRef).html(showData.template);
+                            if(prepend==='prepend') {
+                                $(listRef).prepend(showData.template);
+                            } else {
+                                $(listRef).html(showData.template);
+                            }
+                            $form.find('input.form-control').val(null);
+                            onShowResourceFunction($(listRef));
+                            $('.resource-new-link').filter(':visible').each(function() {
+                                $(this).next().hide();
+                            });
                         }
-                        $form.find('input.form-control').val(null);
-                        onShowResourceFunction($(listRef));
-                        $('.resource-new-link').filter(':visible').each(function() {
-                            $(this).next().hide();
-                        });
                     }
                 });
 
@@ -210,6 +222,9 @@ var onShowResourceFunction = function($topElem) {
             alert('Please select a valid association.');
             return false;
         }
+        var refresh = $form.attr('data-refresh');
+        var originalId = $form.attr('data-original-id');
+        var originalResourceId = $form.attr('data-original-resource');
         var oldRef = "#node-"+associationId+"-"+newId.toString();
         $.ajax({
             url: '/new_association/'+resourceId+'/'+associationId+'/'+id+'/'+newId,
@@ -218,30 +233,38 @@ var onShowResourceFunction = function($topElem) {
             type: 'POST',
             success: function(showData) {
                 var $oldRef = $(oldRef);
-                if($oldRef.length && $oldRef.find('span[data-association-name]').filter(':first').attr('data-association-name')===associationName) {
-                    var template = $(showData.template);
-                    if(template.hasClass('server-error')) {
-                        var $listRef = $(listRef);
-                        $listRef.append(showData.template);
-                        onShowResourceFunction($listRef);
-                    } else {
-                        $oldRef.html($(showData.template).unwrap());
-                        onShowResourceFunction($oldRef);
-                    }
+                if(refresh==='refresh') {
+                    if($(showData.template).hasClass('server-error')) {
+                        alert('A cycle has been detected. Unable to assign '+associationId+' to '+resourceId);
+                    };
+                    showDiagramFunction(originalId,originalResourceId);
                 } else {
-                    var $listRef = $(listRef);
-                    $listRef.find('.server-error').remove();
-                    if(prepend==='prepend') {
-                        $listRef.prepend(showData.template);
+
+                    if($oldRef.length && $oldRef.find('span[data-association-name]').filter(':first').attr('data-association-name')===associationName) {
+                        var template = $(showData.template);
+                        if(template.hasClass('server-error')) {
+                            var $listRef = $(listRef);
+                            $listRef.append(showData.template);
+                            onShowResourceFunction($listRef);
+                        } else {
+                            $oldRef.html($(showData.template).unwrap());
+                            onShowResourceFunction($oldRef);
+                        }
                     } else {
-                        $listRef.html(showData.template);
+                        var $listRef = $(listRef);
+                        $listRef.find('.server-error').remove();
+                        if(prepend==='prepend') {
+                            $listRef.prepend(showData.template);
+                        } else {
+                            $listRef.html(showData.template);
+                        }
+                        onShowResourceFunction($listRef);
                     }
-                    onShowResourceFunction($listRef);
+                    $form.find('select').val(null).trigger('change');
+                    $('.resource-new-link').filter(':visible').each(function() {
+                        $(this).next().hide();
+                    });
                 }
-                $form.find('select').val(null).trigger('change');
-                $('.resource-new-link').filter(':visible').each(function() {
-                    $(this).next().hide();
-                });
             }
         });
         return false;

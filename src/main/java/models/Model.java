@@ -10,6 +10,7 @@ import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static j2html.TagCreator.*;
@@ -75,7 +76,7 @@ public abstract class Model implements Serializable {
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(inner, allReferences);
+        loadNestedAssociationHelper(inner, allReferences, new AtomicInteger(0), this);
         return tag;
     };
 
@@ -93,11 +94,11 @@ public abstract class Model implements Serializable {
                 .withClass("resource-data-field editable").attr("style","margin-left: 10px;");
     }
 
-    private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen) {
+    private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original) {
         if(associations==null) {
             loadAssociations();
         }
-        Map<String,List<Model>> modelMap = new HashMap<>();
+        Map<Association,List<Model>> modelMap = new HashMap<>();
         for(Association association : associationsMeta) {
             if(associations.containsKey(association)) {
                 List<Model> assocModels = associations.get(association);
@@ -108,28 +109,30 @@ public abstract class Model implements Serializable {
                         alreadySeen.add(_id);
                         return keep;
                     }).collect(Collectors.toList());
-                    if (assocModels.size() > 0) {
-                        modelMap.put(association.getAssociationName(), assocModels);
-                    }
+                    //if (assocModels.size() > 0) {
+                        modelMap.put(association, assocModels);
+                    //}
                 }
             }
         }
         if(modelMap.size()>0) {
             // recurse
-            modelMap.forEach((associationName, models) -> {
+            modelMap.forEach((association, models) -> {
                 ContainerTag tag =  ul().with(
                         li().attr("style", "list-style: none;").with(
-                                h5(associationName).attr("style", "cursor: pointer;")
+                                h5(association.getAssociationName()).attr("style", "cursor: pointer;")
                                 .attr("onclick", "$(this).parent().next().slideToggle();")
                         )
                 );
+
                 for(Model model : models) {
                     model.loadAttributesFromDatabase();
                     ContainerTag inner = ul();
                     tag.with(li().with(model.getSimpleLink(), model.getRevenueAsSpan(), inner));
-                    model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen));
+                    model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
                 }
-                container.with(tag);
+                String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-")+cnt.getAndIncrement();
+                container.with(tag.with(li().with(getAddAssociationPanel(association, listRef, original))));
             });
         }
     }
@@ -205,6 +208,57 @@ public abstract class Model implements Serializable {
         return in.substring(0, 1).toUpperCase() + in.substring(1);
     }
 
+    private ContainerTag getAddAssociationPanel(Association association, String listRef, Model diagramModel) {
+        Association.Type type = association.getType();
+        String prepend = "false";
+        String createText = "(New)";
+        switch(type) {
+            case OneToMany: {
+                prepend = "prepend";
+                break;
+            }
+            case ManyToOne: {
+                prepend = "false";
+                createText = "(Update)";
+                break;
+            }
+            case ManyToMany: {
+                prepend = "prepend";
+                break;
+            }
+            case OneToOne: {
+                // not implemented
+                break;
+            }
+        }
+        ContainerTag panel = div().with(a(createText).withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
+                form().attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-association", association.getModel().toString())
+                        .attr("data-resource", this.getClass().getSimpleName())
+                        .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
+                        .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")
+                        .attr("data-original-resource",diagramModel!=null ? diagramModel.getClass().getSimpleName() : "f")
+                        .attr("data-id", id.toString()).withClass("association").with(
+                        input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
+                        label("Name:").with(
+                                input().withType("text").withClass("form-control").withName(Constants.NAME)
+                        ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+                ),form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
+                        .attr("data-resource", this.getClass().getSimpleName())
+                        .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
+                        .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")
+                        .attr("data-original-resource",diagramModel!=null ? diagramModel.getClass().getSimpleName() : "f")
+                        .with(
+                                input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
+                                label(association.getAssociationName()+" Name:").with(
+                                        select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName("id")
+                                                .attr("data-url", "/ajax/resources/"+association.getModel()+"/"+this.getClass().getSimpleName()+"/"+id)
+                                ), br(), button("Assign").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+
+                        )
+        ));
+        return panel;
+    }
+
     public void loadShowTemplate(boolean back) {
         ContainerTag button;
         if(back) {
@@ -264,47 +318,7 @@ public abstract class Model implements Serializable {
                                         models = Collections.emptyList();
                                     }
                                     String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-");
-                                    Association.Type type = association.getType();
-                                    String prepend = "false";
-                                    String createText = "(New)";
-                                    switch(type) {
-                                        case OneToMany: {
-                                            prepend = "prepend";
-                                            break;
-                                        }
-                                        case ManyToOne: {
-                                            prepend = "false";
-                                            createText = "(Update)";
-                                            break;
-                                        }
-                                        case ManyToMany: {
-                                            prepend = "prepend";
-                                            break;
-                                        }
-                                        case OneToOne: {
-                                            // not implemented
-                                            break;
-                                        }
-                                    }
-                                    ContainerTag panel = div().with(a(createText).withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
-                                            form().attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-association", association.getModel().toString())
-                                                    .attr("data-resource", this.getClass().getSimpleName())
-                                                    .attr("data-id", id.toString()).withClass("association").with(
-                                                    input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
-                                                    label("Name:").with(
-                                                            input().withType("text").withClass("form-control").withName(Constants.NAME)
-                                                    ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
-                                            ),form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
-                                                    .attr("data-resource", this.getClass().getSimpleName())
-                                                    .with(
-                                                            input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
-                                                            label(association.getAssociationName()+" Name:").with(
-                                                                    select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName("id")
-                                                                    .attr("data-url", "/ajax/resources/"+association.getModel()+"/"+this.getClass().getSimpleName()+"/"+id)
-                                                            ), br(), button("Assign").withClass("btn btn-outline-secondary btn-sm").withType("submit")
-
-                                                    )
-                                    ));
+                                    ContainerTag panel = getAddAssociationPanel(association, listRef, null);
                                     return div().attr("role", "tabpanel").withId(assocId).withClass("col-12 tab-pane fade").with(
                                             panel, br(),
                                             div().withId(listRef).with(models.stream().map(model->{
