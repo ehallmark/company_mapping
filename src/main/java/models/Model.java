@@ -70,7 +70,7 @@ public abstract class Model implements Serializable {
         }
         ContainerTag inner = ul();
         ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
-                li().with(h4(getSimpleLink())).attr("style", "list-style: none;").with(
+                li().with(h4(getSimpleLink()),getRevenueAsSpan()).attr("style", "list-style: none;").with(
                         inner
                 )
         );
@@ -78,6 +78,20 @@ public abstract class Model implements Serializable {
         loadNestedAssociationHelper(inner, allReferences);
         return tag;
     };
+
+    private ContainerTag getRevenueAsSpan() {
+        Object revenueStr = getData().getOrDefault(Constants.REVENUE, "");
+        if(revenueStr==null) revenueStr = "";
+        revenueStr = "Revenue: "+revenueStr;
+        return span(revenueStr.toString())
+                .attr("data-field-type", Constants.NUMBER_FIELD_TYPE)
+                .attr("data-resource", this.getClass().getSimpleName())
+                .attr("data-val", this.getData().get(Constants.REVENUE))
+                .attr("data-attr", Constants.REVENUE)
+                .attr("data-attrname", Constants.humanAttrFor(Constants.REVENUE))
+                .attr("data-id", id.toString())
+                .withClass("resource-data-field editable").attr("style","margin-left: 10px;");
+    }
 
     private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen) {
         if(associations==null) {
@@ -111,11 +125,8 @@ public abstract class Model implements Serializable {
                 );
                 for(Model model : models) {
                     model.loadAttributesFromDatabase();
-                    Object revenueStr = model.getData().getOrDefault(Constants.REVENUE, "");
-                    if(revenueStr==null) revenueStr = "";
-                    revenueStr = "(Revenue: "+revenueStr+")";
                     ContainerTag inner = ul();
-                    tag.with(li().with(model.getSimpleLink(), span(revenueStr.toString()).attr("style","margin-left: 10px;"), inner));
+                    tag.with(li().with(model.getSimpleLink(), model.getRevenueAsSpan(), inner));
                     model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen));
                 }
                 container.with(tag);
