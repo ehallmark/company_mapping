@@ -72,8 +72,8 @@ public abstract class Model implements Serializable {
         ContainerTag inner = ul();
         String revenueClass = "resource-revenue-"+this.getClass().getSimpleName()+id;
         ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
-                li().with(h4(getSimpleLink()),getRevenueAsSpan(revenueClass)).attr("style", "list-style: none;").with(
-                        inner
+                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(revenueClass)).attr("style", "list-style: none;").with(
+                        br(),inner
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
@@ -94,7 +94,7 @@ public abstract class Model implements Serializable {
                 .attr("data-attrname", Constants.humanAttrFor(Constants.REVENUE))
                 .attr("data-id", id.toString())
                 .attr("data-update-class", updateClass)
-                .withClass("resource-data-field editable "+fullId).attr("style","margin-left: 10px;");
+                .withClass("resource-data-field editable "+fullId).attr("style","margin-left: 10px; display: inline;");
     }
 
     private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original) {
@@ -103,40 +103,41 @@ public abstract class Model implements Serializable {
         }
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
+        double totalRevenueOfLevel = 0;
         for(Association association : associationsMeta) {
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
-            int sizeBefore = assocModels.size();
-            assocModels = assocModels.stream().filter(m -> {
-                String _id = m.getClass().getSimpleName() + m.getId();
-                boolean keep = _id.equals(originalId) || !alreadySeen.contains(_id);
-                alreadySeen.add(_id);
-                return keep;
-            }).collect(Collectors.toList());
-            int sizeAfter = assocModels.size();
-            if(sizeAfter > 0 || (sizeBefore==0)) {
-                modelMap.put(association, assocModels);
+            for(Model assoc : assocModels) {
+                assoc.loadAttributesFromDatabase();
+                Number rev = (Number)assoc.getData().get(Constants.REVENUE);
+                if(rev!=null) {
+                    totalRevenueOfLevel += rev.doubleValue();
+                }
             }
+            modelMap.put(association, assocModels);
         }
         if(modelMap.size()>0) {
             // recurse
+            final double _totalRevenue = totalRevenueOfLevel;
             modelMap.forEach((association, models) -> {
                 boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
                 ContainerTag tag =  ul().with(
                         li().attr("style", "list-style: none;").with(
-                                h5(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName()).attr("style", "cursor: pointer;")
-                                .attr("onclick", "$(this).parent().nextAll().slideToggle();")
+                                h6(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName()).attr("style", "cursor: pointer; display: inline;")
+                                .attr("onclick", "$(this).parent().nextAll().slideToggle();"),
+                                span("Revenue: "+_totalRevenue).withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
                         )
                 );
                 for(Model model : models) {
                     String _id = model.getClass().getSimpleName() + model.getId();
                     boolean sameModel = _id.equals(originalId);
-                    model.loadAttributesFromDatabase();
                     ContainerTag inner = ul();
                     String revenueClass = sameModel ? ("resource-revenue-"+_id) : null;
                     tag.with(li().attr("style", "display: none;").with(model.getSimpleLink(), model.getRevenueAsSpan(revenueClass), inner));
-                    if(!sameModel) {
+                    if(!sameModel && !alreadySeen.contains(_id)) {
+                        alreadySeen.add(_id);
                         model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
                     }
+                    alreadySeen.add(_id);
                 }
                 String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-")+cnt.getAndIncrement();
                 container.with(tag.with(li().attr("style", "display: none;").with(getAddAssociationPanel(association, listRef, original))));
