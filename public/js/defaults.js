@@ -75,7 +75,7 @@ var updateAssociationTotals = function() {
     $('.association-revenue-totals').each(function() {
         var $this = $(this);
         var sum = 0.0;
-        $this.parent().nextAll().find('span.resource-data-field').each(function() {
+        $this.parent().nextAll().children().filter('span.resource-data-field').each(function() {
             var $field = $(this);
             if($field.attr('data-val')) {
                 sum += parseFloat($field.attr('data-val'));
