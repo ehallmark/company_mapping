@@ -103,15 +103,17 @@ public abstract class Model implements Serializable {
             if(associations.containsKey(association)) {
                 List<Model> assocModels = associations.get(association);
                 if(assocModels!=null) {
+                    int sizeBefore = assocModels.size();
                     assocModels = assocModels.stream().filter(m -> {
                         String _id = m.getClass().getSimpleName() + m.getId();
                         boolean keep = !alreadySeen.contains(_id);
                         alreadySeen.add(_id);
                         return keep;
                     }).collect(Collectors.toList());
-                    //if (assocModels.size() > 0) {
+                    int sizeAfter = assocModels.size();
+                    if(sizeAfter > 0 || (sizeBefore==0)) {
                         modelMap.put(association, assocModels);
-                    //}
+                    }
                 }
             }
         }
