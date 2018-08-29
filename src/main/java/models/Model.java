@@ -70,8 +70,9 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         ContainerTag inner = ul();
+        String revenueClass = "original-model-revenue";
         ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
-                li().with(h4(getSimpleLink()),getRevenueAsSpan()).attr("style", "list-style: none;").with(
+                li().with(h4(getSimpleLink()),getRevenueAsSpan(null).withClass(revenueClass)).attr("style", "list-style: none;").with(
                         inner
                 )
         );
@@ -80,7 +81,7 @@ public abstract class Model implements Serializable {
         return tag;
     };
 
-    private ContainerTag getRevenueAsSpan() {
+    private ContainerTag getRevenueAsSpan(String updateClass) {
         Object revenueStr = getData().getOrDefault(Constants.REVENUE, "");
         if(revenueStr==null) revenueStr = "";
         revenueStr = "Revenue: "+revenueStr;
@@ -91,6 +92,7 @@ public abstract class Model implements Serializable {
                 .attr("data-attr", Constants.REVENUE)
                 .attr("data-attrname", Constants.humanAttrFor(Constants.REVENUE))
                 .attr("data-id", id.toString())
+                .attr("data-update-class", updateClass)
                 .withClass("resource-data-field editable").attr("style","margin-left: 10px;");
     }
 
@@ -98,23 +100,20 @@ public abstract class Model implements Serializable {
         if(associations==null) {
             loadAssociations();
         }
+        String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
         for(Association association : associationsMeta) {
-            if(associations.containsKey(association)) {
-                List<Model> assocModels = associations.get(association);
-                if(assocModels!=null) {
-                    int sizeBefore = assocModels.size();
-                    assocModels = assocModels.stream().filter(m -> {
-                        String _id = m.getClass().getSimpleName() + m.getId();
-                        boolean keep = !alreadySeen.contains(_id);
-                        alreadySeen.add(_id);
-                        return keep;
-                    }).collect(Collectors.toList());
-                    int sizeAfter = assocModels.size();
-                    if(sizeAfter > 0 || (sizeBefore==0)) {
-                        modelMap.put(association, assocModels);
-                    }
-                }
+            List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
+            int sizeBefore = assocModels.size();
+            assocModels = assocModels.stream().filter(m -> {
+                String _id = m.getClass().getSimpleName() + m.getId();
+                boolean keep = _id.equals(originalId) || !alreadySeen.contains(_id);
+                alreadySeen.add(_id);
+                return keep;
+            }).collect(Collectors.toList());
+            int sizeAfter = assocModels.size();
+            if(sizeAfter > 0 || (sizeBefore==0)) {
+                modelMap.put(association, assocModels);
             }
         }
         if(modelMap.size()>0) {
@@ -128,10 +127,15 @@ public abstract class Model implements Serializable {
                 );
 
                 for(Model model : models) {
+                    String _id = model.getClass().getSimpleName() + model.getId();
+                    boolean sameModel = _id.equals(originalId);
                     model.loadAttributesFromDatabase();
                     ContainerTag inner = ul();
-                    tag.with(li().with(model.getSimpleLink(), model.getRevenueAsSpan(), inner));
-                    model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
+                    String revenueClass = sameModel ? "original-model-revenue" : null;
+                    tag.with(li().with(model.getSimpleLink(), model.getRevenueAsSpan(revenueClass), inner));
+                    if(!sameModel) {
+                        model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
+                    }
                 }
                 String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-")+cnt.getAndIncrement();
                 container.with(tag.with(li().with(getAddAssociationPanel(association, listRef, original))));
@@ -160,7 +164,7 @@ public abstract class Model implements Serializable {
         for(Association association : associationsMeta) {
             if(association.getAssociationName().equals(associationName)) {
                 // make sure we haven't introduced in cycles
-                if(association.getModel().equals(this.getClass().getSimpleName())) {
+                if(association.getModel().toString().equals(this.getClass().getSimpleName())) {
                     System.out.println("Checking for cycles...");
                     loadNestedAssociations(); // hack to access allReferences
                     String otherRef = otherModel.getClass().getSimpleName() + otherModel.getId();

@@ -94,6 +94,7 @@ var onShowResourceFunction = function($topElem) {
         var attr = $this.attr('data-attr');
         var attrName = $this.attr('data-attrname');
         var id = $this.attr('data-id');
+        var updateOtherFieldsByClassName = $this.attr('data-update-class');
         $(document.body).dblclick(function() {
             $this.html(attrName+": "+val);
             $(this).off('dblclick');
@@ -137,6 +138,9 @@ var onShowResourceFunction = function($topElem) {
                     data: data,
                     success: function(showData) {
                         $this.html(attrName+": "+value);
+                        if(updateOtherFieldsByClassName) {
+                            $('.'+updateOtherFieldsByClassName).html(attrName+': '+value);
+                        }
                         $(document.body).off('dblclick');
                         $this.attr('data-val', value);
                     },
