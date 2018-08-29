@@ -132,7 +132,7 @@ public abstract class Model implements Serializable {
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
                     String revenueClass = "resource-revenue-"+_id;
-                    tag.with(li().attr("style", "display: none;").with(model.getSimpleLink(), model.getRevenueAsSpan(revenueClass), inner));
+                    tag.with(li().attr("style", "display: none;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id), model.getRevenueAsSpan(revenueClass), inner));
                     if(!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
                         model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
