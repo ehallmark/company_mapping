@@ -4,6 +4,9 @@ import java.util.*;
 
 public class Market extends Model {
     private static final List<Association> ASSOCIATIONS = Arrays.asList(
+            new Association(Association.Model.Product, Constants.MARKET_TABLE,
+                    Constants.PRODUCT_TABLE, null, Association.Type.OneToMany,
+                    Constants.MARKET_ID, Constants.PRODUCT_ID, false, "Market"),
             new Association("Sub Market", Association.Model.Market, Constants.MARKET_TABLE,
                     Constants.MARKET_TABLE, null, Association.Type.OneToMany,
                     Constants.PARENT_MARKET_ID, Constants.MARKET_ID, true, "Parent Market"),

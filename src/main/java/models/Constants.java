@@ -63,4 +63,12 @@ public class Constants {
     public static String fieldTypeForAttr(String attr) {
         return FIELD_TYPE_MAP.getOrDefault(attr, Constants.TEXT_AREA_FIELD_TYPE);
     };
+
+    public static String pluralizeAssociationName(String associationName) {
+        if(associationName.endsWith("y")) {
+            return associationName.substring(0, associationName.length()-1)+"ies";
+        } else {
+            return associationName + "s";
+        }
+    }
 }

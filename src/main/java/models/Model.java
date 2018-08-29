@@ -120,26 +120,26 @@ public abstract class Model implements Serializable {
         if(modelMap.size()>0) {
             // recurse
             modelMap.forEach((association, models) -> {
+                boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
                 ContainerTag tag =  ul().with(
                         li().attr("style", "list-style: none;").with(
-                                h5(association.getAssociationName()).attr("style", "cursor: pointer;")
-                                .attr("onclick", "$(this).parent().next().slideToggle();")
+                                h5(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName()).attr("style", "cursor: pointer;")
+                                .attr("onclick", "$(this).parent().nextAll().slideToggle();")
                         )
                 );
-
                 for(Model model : models) {
                     String _id = model.getClass().getSimpleName() + model.getId();
                     boolean sameModel = _id.equals(originalId);
                     model.loadAttributesFromDatabase();
                     ContainerTag inner = ul();
                     String revenueClass = sameModel ? ("resource-revenue-"+_id) : null;
-                    tag.with(li().with(model.getSimpleLink(), model.getRevenueAsSpan(revenueClass), inner));
+                    tag.with(li().attr("style", "display: none;").with(model.getSimpleLink(), model.getRevenueAsSpan(revenueClass), inner));
                     if(!sameModel) {
                         model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
                     }
                 }
                 String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-")+cnt.getAndIncrement();
-                container.with(tag.with(li().with(getAddAssociationPanel(association, listRef, original))));
+                container.with(tag.with(li().attr("style", "display: none;").with(getAddAssociationPanel(association, listRef, original))));
             });
         }
     }
@@ -227,6 +227,9 @@ public abstract class Model implements Serializable {
             case ManyToOne: {
                 prepend = "false";
                 createText = "(Update)";
+                if(getData().get(association.getParentIdField())==null) {
+                    createText = "(Set)";
+                }
                 break;
             }
             case ManyToMany: {
