@@ -282,7 +282,10 @@ public abstract class Model implements Serializable {
         ContainerTag html = div().withClass("col-12").with(
                 div().withClass("col-12").with(
                         button,
-                        h4(this.getClass().getSimpleName()+" Information")
+                        h4(this.getClass().getSimpleName()+" Information"),
+                        button("Delete this "+this.getClass().getSimpleName()).withClass("btn btn-outline-danger btn-sm delete-button")
+                        .attr("data-id", id.toString())
+                        .attr("data-resource", this.getClass().getSimpleName())
                 ).with(
                     availableAttributes.stream().filter(attr->!Constants.isHiddenAttr(attr)).map(attr->{
                         Object val = data.get(attr);

@@ -88,6 +88,28 @@ var updateAssociationTotals = function() {
 var onShowResourceFunction = function($topElem) {
     updateAssociationTotals();
 
+    // delete node
+    $('.delete-button').click(function(e) {
+        e.preventDefault();
+        var $this = $(this);
+        var resourceId = $this.attr('data-resource');
+        if(confirm("Are you sure you want to delete this "+resourceId+"?")) {
+            var id = $this.attr('data-id');
+            var url = '/resources/'+resourceId+'/'+id;
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                type: 'DELETE',
+                success: function(showData) {
+                    $('.back-button').trigger('click');
+                },
+                error: function() {
+                    alert("An error occurred.");
+                }
+            });
+        }
+    });
+
     $topElem.find('.add-back-text').each(function() {
         $(this).text('Back to '+$(this).text());
     });
