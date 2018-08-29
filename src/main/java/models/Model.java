@@ -70,9 +70,9 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         ContainerTag inner = ul();
-        String revenueClass = "original-model-revenue";
+        String revenueClass = "resource-revenue-"+this.getClass().getSimpleName()+id;
         ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
-                li().with(h4(getSimpleLink()),getRevenueAsSpan(null).withClass(revenueClass)).attr("style", "list-style: none;").with(
+                li().with(h4(getSimpleLink()),getRevenueAsSpan(revenueClass)).attr("style", "list-style: none;").with(
                         inner
                 )
         );
@@ -85,6 +85,7 @@ public abstract class Model implements Serializable {
         Object revenueStr = getData().getOrDefault(Constants.REVENUE, "");
         if(revenueStr==null) revenueStr = "";
         revenueStr = "Revenue: "+revenueStr;
+        String fullId = "resource-revenue-"+getClass().getSimpleName()+getId();
         return span(revenueStr.toString())
                 .attr("data-field-type", Constants.NUMBER_FIELD_TYPE)
                 .attr("data-resource", this.getClass().getSimpleName())
@@ -93,7 +94,7 @@ public abstract class Model implements Serializable {
                 .attr("data-attrname", Constants.humanAttrFor(Constants.REVENUE))
                 .attr("data-id", id.toString())
                 .attr("data-update-class", updateClass)
-                .withClass("resource-data-field editable").attr("style","margin-left: 10px;");
+                .withClass("resource-data-field editable "+fullId).attr("style","margin-left: 10px;");
     }
 
     private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original) {
@@ -131,7 +132,7 @@ public abstract class Model implements Serializable {
                     boolean sameModel = _id.equals(originalId);
                     model.loadAttributesFromDatabase();
                     ContainerTag inner = ul();
-                    String revenueClass = sameModel ? "original-model-revenue" : null;
+                    String revenueClass = sameModel ? ("resource-revenue-"+_id) : null;
                     tag.with(li().with(model.getSimpleLink(), model.getRevenueAsSpan(revenueClass), inner));
                     if(!sameModel) {
                         model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
