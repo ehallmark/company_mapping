@@ -115,9 +115,9 @@ public abstract class Model implements Serializable {
             }
             modelMap.put(association, assocModels);
         }
+        final double _totalRevenue = totalRevenueOfLevel;
         if(modelMap.size()>0) {
             // recurse
-            final double _totalRevenue = totalRevenueOfLevel;
             modelMap.forEach((association, models) -> {
                 boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
                 ContainerTag tag =  ul().with(
@@ -131,7 +131,7 @@ public abstract class Model implements Serializable {
                     String _id = model.getClass().getSimpleName() + model.getId();
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
-                    String revenueClass = sameModel ? ("resource-revenue-"+_id) : null;
+                    String revenueClass = "resource-revenue-"+_id;
                     tag.with(li().attr("style", "display: none;").with(model.getSimpleLink(), model.getRevenueAsSpan(revenueClass), inner));
                     if(!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);

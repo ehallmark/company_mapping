@@ -71,8 +71,23 @@ var showDiagramFunction = function(id,resourceId) {
     });
 };
 
+var updateAssociationTotals = function() {
+    $('.association-revenue-totals').each(function() {
+        var $this = $(this);
+        var sum = 0.0;
+        $this.parent().nextAll().find('span.resource-data-field').each(function() {
+            var $field = $(this);
+            if($field.attr('data-val')) {
+                sum += parseFloat($field.attr('data-val'));
+            }
+        });
+        $this.text('Revenue: '+sum.toString());
+    });
+};
 
 var onShowResourceFunction = function($topElem) {
+    updateAssociationTotals();
+
     $topElem.find('.add-back-text').each(function() {
         $(this).text('Back to '+$(this).text());
     });
@@ -143,6 +158,7 @@ var onShowResourceFunction = function($topElem) {
                         }
                         $(document.body).off('dblclick');
                         $this.attr('data-val', value);
+                        updateAssociationTotals();
                     },
                     error: function() {
                         alert("An error occurred.");
