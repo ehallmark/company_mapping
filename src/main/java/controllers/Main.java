@@ -237,11 +237,7 @@ public class Main {
                     }
                     final String fieldToUse = Constants.NAME;
                     List<Model> models;
-                    if(model.isRevenueModel()) {
-                        models = Database.selectAllFromRevenueModel(type, model.getTableName(), model.getAssociationsMeta().get(0), search);
-                    } else {
-                        models = Database.selectAll(type, model.getTableName(), Collections.singletonList(fieldToUse), search).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
-                    }
+                    models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), Collections.singletonList(fieldToUse), search).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
                     models.forEach(m -> idToNameMap.put(m.getId().toString(), (String) m.getData().get(fieldToUse)));
                     return models.stream().map(m->m.getId().toString()).collect(Collectors.toList());
                 } catch(Exception e) {
@@ -336,7 +332,7 @@ public class Main {
                     headers.add(0, Constants.NAME);
                 }
 
-                List<Map<String,String>> data = Database.selectAll(type, model.getTableName(), model.getAvailableAttributes())
+                List<Map<String,String>> data = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes())
                         .stream().map(m->{
                             Map<String,String> map = new HashMap<>(m.getData().size()+m.getAssociationsMeta().size());
                             m.getData().forEach((k,v)->{

@@ -8,6 +8,7 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Database {
     private static final String dbUrl = "jdbc:postgresql://localhost/companydb?user=postgres&password=password&tcpKeepAlive=true";
@@ -291,18 +292,31 @@ public class Database {
         return models;
     }
 
-    public static synchronized List<Model> selectAll(@NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes) throws SQLException {
-        return selectAll(model, tableName, attributes, null);
+    public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes) throws SQLException {
+        return selectAll(isRevenueModel, model, tableName, attributes, null);
     }
 
-    public static synchronized List<Model> selectAll(@NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, String searchName) throws SQLException {
+    public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, String searchName) throws SQLException {
         List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
-        PreparedStatement ps = conn.prepareStatement("select id,"+String.join(",", attrList)+" from "+tableName+"" + (searchName==null?"" : ( " where lower(name) like '%'||?||'%' order by lower(name)")));
+        PreparedStatement ps;
+        if(isRevenueModel) {
+            String parentTableName = tableName.replace("_revenue","");
+            if(parentTableName.equals("companys")) {
+                parentTableName = "companies"; // handle weird english language
+            }
+            String parentIdField = model.toString().replace("Revenue","").toLowerCase()+"_id";
+            ps = conn.prepareStatement("select r.id as id,j.name||' Revenue ('||r.year::text||')' as name,"+String.join(",", attrList.stream().map(a->"r."+a).collect(Collectors.toList()))+" from "+tableName+" as r join "+parentTableName+" as j on (r."+parentIdField+"=j.id) " + (searchName==null?"" : ( " where lower(j.name) like '%'||?||'%' order by lower(j.name)")));
+        } else {
+            ps = conn.prepareStatement("select id,"+String.join(",", attrList)+" from "+tableName+"" + (searchName==null?"" : ( " where lower(name) like '%'||?||'%' order by lower(name)")));
+        }
         if(searchName!=null) {
             ps.setString(1, searchName);
         }
         ResultSet rs = ps.executeQuery();
         List<Model> models = new ArrayList<>();
+        if(isRevenueModel) {
+            attrList.add(0, Constants.NAME);
+        }
         while(rs.next()) {
             Map<String, Object> data = new HashMap<>();
             int id = rs.getInt(1);
