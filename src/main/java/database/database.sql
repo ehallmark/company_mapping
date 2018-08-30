@@ -2,14 +2,13 @@
 
 -- model tables
 drop table products cascade;
-
 create table products (
     id serial primary key,
     name text not null,
     revenue double precision,
     notes text,
-    company_id integer,
-    market_id integer,
+    company_id integer references companies (id) on delete set null,
+    market_id integer references markets (id) on delete set null,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now()
 );
@@ -26,7 +25,8 @@ create table companies (
     notes text,
     parent_company_id integer,
     updated_at timestamp not null default now(),
-    created_at timestamp not null default now()
+    created_at timestamp not null default now(),
+    foreign key (parent_company_id) references companies (id) on delete set null
 );
 
 create index companies_parent_company_id_idx on companies (parent_company_id);
@@ -38,9 +38,9 @@ create table markets (
     name text not null,
     revenue double precision,
     parent_market_id integer,
-    notes text,
     updated_at timestamp not null default now(),
-    created_at timestamp not null default now()
+    created_at timestamp not null default now(),
+    foreign key (parent_market_id) references markets (id) on delete restrict
 );
 
 create index markets_name_idx on markets (name);
@@ -114,8 +114,8 @@ create index product_revenues_product_id_idx on product_revenues (product_id);
 
 drop table companies_markets;
 create table companies_markets (
-    company_id integer not null,
-    market_id integer not null,
+    company_id integer not null references companies (id) on delete cascade,
+    market_id integer not null references markets (id) on delete cascade,
     primary key (company_id, market_id)
 );
 
