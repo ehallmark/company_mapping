@@ -10,7 +10,8 @@ create table products (
     company_id integer references companies (id) on delete set null,
     market_id integer references markets (id) on delete set null,
     updated_at timestamp not null default now(),
-    created_at timestamp not null default now()
+    created_at timestamp not null default now(),
+    unique (name, company_id, market_id)
 );
 
 create index products_company_id_idx on products (company_id);
@@ -20,13 +21,14 @@ create index products_name_idx on products (name);
 drop table companies cascade;
 create table companies (
     id serial primary key,
-    name text not null unique,
+    name text not null,
     revenue double precision,
     notes text,
     parent_company_id integer,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),
-    foreign key (parent_company_id) references companies (id) on delete set null
+    foreign key (parent_company_id) references companies (id) on delete set null,
+    unique (parent_company_id, name)
 );
 
 create index companies_parent_company_id_idx on companies (parent_company_id);
@@ -35,13 +37,14 @@ create index companies_name_idx on companies (name);
 drop table markets cascade;
 create table markets (
     id serial primary key,
-    name text not null unique,
+    name text not null,
     revenue double precision,
     notes text,
     parent_market_id integer,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),
-    foreign key (parent_market_id) references markets (id) on delete restrict
+    foreign key (parent_market_id) references markets (id) on delete restrict,
+    unique (parent_market_id, name)
 );
 
 create index markets_name_idx on markets (name);
@@ -64,7 +67,8 @@ create table market_revenues (
     created_at timestamp not null default now(),
     check (notes is not null OR source is not null),
     check (is_estimate OR (source is not null)),
-    check ((not is_estimate) OR estimate_type is not null)
+    check ((not is_estimate) OR estimate_type is not null),
+    unique (market_id, year)
 );
 
 create index market_revenues_market_id_idx on market_revenues (market_id);
@@ -85,7 +89,8 @@ create table company_revenues (
     created_at timestamp not null default now(),
     check (notes is not null OR source is not null),
     check (is_estimate OR (source is not null)),
-    check ((not is_estimate) OR estimate_type is not null)
+    check ((not is_estimate) OR estimate_type is not null),
+    unique (company_id, year)
 );
 
 create index company_revenues_company_id_idx on company_revenues (company_id);
@@ -107,7 +112,8 @@ create table product_revenues (
     created_at timestamp not null default now(),
     check (notes is not null OR source is not null),
     check (is_estimate OR (source is not null)),
-    check ((not is_estimate) OR estimate_type is not null)
+    check ((not is_estimate) OR estimate_type is not null),
+    unique (product_id, year)
 );
 
 create index product_revenues_product_id_idx on product_revenues (product_id);
