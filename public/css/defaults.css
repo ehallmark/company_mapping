@@ -59,7 +59,7 @@ label {
     margin-bottom: 0px;
 }
 
-.select2-selection__rendered {
+.select2-container {
     min-width: 200px !important;
 }
 

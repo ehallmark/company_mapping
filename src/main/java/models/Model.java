@@ -91,7 +91,8 @@ public abstract class Model implements Serializable {
             return form().with(
                     label(associationResource).with(
                             br(),
-                            select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName(applicableField)
+                            select().withClass("multiselect-ajax")
+                                    .withName(applicableField)
                                     .attr("data-url", "/ajax/resources/"+associationResource+"/"+this.getClass().getSimpleName()+"/-1")
                     ), br(),
                     label(Constants.humanAttrFor(Constants.YEAR)).with(
@@ -351,10 +352,11 @@ public abstract class Model implements Serializable {
         ContainerTag html = div().withClass("col-12").with(
                 div().withClass("col-12").with(
                         button,
-                        h4(this.getClass().getSimpleName()+" Information"),
-                        button("Delete this "+this.getClass().getSimpleName()).withClass("btn btn-outline-danger btn-sm delete-button")
+                        h4(Constants.humanAttrFor(this.getClass().getSimpleName())+" Information"),
+                        button("Delete this "+Constants.humanAttrFor(this.getClass().getSimpleName())).withClass("btn btn-outline-danger btn-sm delete-button")
                         .attr("data-id", id.toString())
                         .attr("data-resource", this.getClass().getSimpleName())
+                        .attr("data-resource-name", Constants.humanAttrFor(this.getClass().getSimpleName()))
                 ).with(
                     availableAttributes.stream().filter(attr->!Constants.isHiddenAttr(attr)).map(attr->{
                         Object val = data.get(attr);
@@ -368,7 +370,7 @@ public abstract class Model implements Serializable {
                                         .attr("data-val", val.toString())
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
-                                        .attr("data-field-type", Constants.fieldTypeForAttr(orginalAttr))
+                                        .attr("data-field-type", orginalAttr.equals(Constants.ESTIMATE_TYPE)?Constants.ESTIMATE_TYPE:Constants.fieldTypeForAttr(orginalAttr))
                                         .withClass("resource-data-field" + (editable ? " editable" : ""))
                                         .withText(attr+": "+val.toString())
                         );

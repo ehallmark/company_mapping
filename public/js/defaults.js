@@ -93,7 +93,8 @@ var onShowResourceFunction = function($topElem) {
         e.preventDefault();
         var $this = $(this);
         var resourceId = $this.attr('data-resource');
-        if(confirm("Are you sure you want to delete this "+resourceId+"?")) {
+        var resourceName = $this.attr('data-resource-name');
+        if(confirm("Are you sure you want to delete this "+resourceName+"?")) {
             var id = $this.attr('data-id');
             var url = '/resources/'+resourceId+'/'+id;
             $.ajax({
@@ -153,9 +154,18 @@ var onShowResourceFunction = function($topElem) {
                 input = "<input type='checkbox' checked='true' value='true' />";
             }
             inputTag = "input";
+        } else if (fieldType==='estimate_type') {
+            input = "<select class='multiselect'><option selected='true'></option><option value='0'>Low</option><option value='1'>Medium</option><option value='2'>High</option></select>";
+            inputTag = "select";
         }
         $this.html('<form><label>'+attrName+":"+input+"</label><span onclick='$(document.body).dblclick();' style='cursor: pointer;'>X</span><br /><button type='submit' class='btn btn-outline-secondary btn-sm'>Update</button></form>");
         var $input = $this.find(inputTag);
+        if(fieldType==='estimate_type') {
+            $input.select2({
+                    minimumResultsForSearch: 5,
+                    closeOnSelect: true
+                });
+        }
         var $form = $this.find('form');
         var $btn = $this.find('button');
         $input.val(val);
