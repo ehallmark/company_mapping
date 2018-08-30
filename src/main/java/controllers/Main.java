@@ -332,7 +332,7 @@ public class Main {
                 }
 
                 if(model.isRevenueModel()) {
-                    humanHeaders.add(0, "");
+                    humanHeaders.add(0, Constants.humanAttrFor(Constants.NAME));
                     headers.add(0, Constants.NAME);
                 }
 
@@ -343,11 +343,7 @@ public class Main {
                                 map.put(k,v==null?"":v.toString());
                             });
                             map.put(Constants.NAME, m.getSimpleLink().render());
-                            if(model.isRevenueModel()) {
-                                map.put(Constants.NAME + Constants.TEXT_ONLY, "");
-                            } else {
-                                map.put(Constants.NAME + Constants.TEXT_ONLY, (String) m.getData().get(Constants.NAME));
-                            }
+                            map.put(Constants.NAME + Constants.TEXT_ONLY, (String) m.getData().get(Constants.NAME));
                             m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
                                 List<Model> assocModel = m.getAssociations().get(assoc);
