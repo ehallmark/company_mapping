@@ -1,10 +1,14 @@
 package controllers;
 
+import auth.PasswordHandler;
 import com.google.gson.Gson;
 import database.Database;
 import j2html.tags.ContainerTag;
 import models.*;
+import spark.QueryParamsMap;
 import spark.Request;
+import spark.Response;
+import spark.Session;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -115,13 +119,75 @@ public class Main {
         return new Gson().toJson(response);
     }
 
+    public static String extractString(Request req, String param, String defaultVal) {
+        return extractString(req.queryMap(),param, defaultVal);
+    }
+    public static String extractString(QueryParamsMap paramsMap, String param, String defaultVal) {
+        if(paramsMap.value(param)!=null&&paramsMap.value(param).trim().length()>0) {
+            return paramsMap.value(param).replaceAll("\\r","");
+        } else {
+            return defaultVal;
+        }
+    }
+
+    private static void authorize(Request req, Response res) {
+        try {
+            if (req.session().attribute("authorized") == null || ! (Boolean) req.session().attribute("authorized")) {
+                res.redirect("/");
+                halt("Access expired. Please sign in.");
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+            res.redirect("/");
+            halt("Error during authentication.");
+        }
+    }
+
+    private static boolean softAuthorize(Request req, Response res) {
+        try {
+            if (req.session().attribute("authorized") == null || ! (Boolean) req.session().attribute("authorized")) {
+                return false;
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+
     public static void main(String[] args) throws Exception {
         staticFiles.externalLocation(new File("public").getAbsolutePath());
+        final PasswordHandler passwordHandler = new PasswordHandler();
         port(6969);
+
+        post("/login", (req,res)->{
+            Session session = req.session(true);
+            String username = extractString(req, "username", "");
+            String password = extractString(req, "password", "");
+            boolean authorized = passwordHandler.authorizeUser(username,password);
+            session.attribute("authorized",authorized);
+            if(!authorized) {
+                halt("User not found.");
+            }
+            session.attribute("username",username);
+            res.status(200);
+            res.redirect("/");
+            return null;
+        });
+
+        get("/logout", (req,res)->{
+            req.session(true).attribute("authorized",false);
+            req.session().removeAttribute("username");
+            res.redirect("/");
+            res.status(200);
+            return null;
+        });
 
         get("/", (req, res)->{
             // home page
             req.session(true);
+            boolean authorized = softAuthorize(req, res);
             return html().with(
                     head().with(
                             title("GTT Group"),
@@ -155,7 +221,7 @@ public class Main {
                                                                     h4("Company Mapping App")
                                                             ),
                                                             div().withClass("col-12").withId("main-menu").with(
-                                                                    div().withClass("row").with(
+                                                                    div().withClass("row").with( authorized ?
                                                                             div().withClass("col-12 btn-group-vertical options").with(
                                                                                     button("Markets").attr("data-resource", "Market").withId("markets_index_btn").withClass("btn btn-outline-secondary"),
                                                                                     button("Companies").attr("data-resource", "Company").withId("companies_index_btn").withClass("btn btn-outline-secondary"),
@@ -163,6 +229,15 @@ public class Main {
                                                                                     button("Market Revenues").attr("data-resource", "MarketRevenue").withId("market_revenues_index_btn").withClass("btn btn-outline-secondary"),
                                                                                     button("Company Revenues").attr("data-resource", "CompanyRevenue").withId("company_revenues_index_btn").withClass("btn btn-outline-secondary"),
                                                                                     button("Product Revenues").attr("data-resource", "ProductRevenue").withId("product_revenues_index_btn").withClass("btn btn-outline-secondary")
+                                                                            ) : div().withClass("col-12").with(
+                                                                                form().withClass("form-group").withMethod("POST").withAction("/login").attr("style", "margin-top: 100px;").with(
+                                                                                        p("Log in"),
+                                                                                        label("Username").with(
+                                                                                                input().withType("text").withClass("form-control").withName("username")
+                                                                                        ), br(), br(), label("Password").with(
+                                                                                                input().withType("password").withClass("form-control").withName("password")
+                                                                                        ), br(), br(), button("Login").withType("submit").withClass("btn btn-outline-secondary")
+                                                                                )
                                                                             )
                                                                     )
                                                             )
@@ -183,6 +258,7 @@ public class Main {
         });
 
         post("/clear_dynatable", (req,res)->{
+            authorize(req,res);
             try {
                 DataTable.unregisterDataTable(req);
             } catch(Exception e) {
@@ -192,6 +268,7 @@ public class Main {
         });
 
         get("/ajax/resources/:resource/:from_resource/:from_id", (req, res)->{
+            authorize(req,res);
             String resource = req.params("resource");
             String fromResource = req.params("from_resource");
             Integer _fromId;
@@ -288,6 +365,7 @@ public class Main {
         });
 
         post("/init/datatable/:resource", (req, res)-> {
+            authorize(req,res);
             DataTable.unregisterDataTable(req);
 
             Association.Model type;
@@ -378,12 +456,14 @@ public class Main {
         });
 
         get("/dataTable.json", (req, res)->{
+            authorize(req,res);
             // something
             return DataTable.handleDataTable(req, res);
         });
 
 
         post("/diagram/:resource/:id", (req, res)-> {
+            authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
                 ContainerTag diagram = model.loadNestedAssociations();
@@ -411,6 +491,7 @@ public class Main {
         });
 
         post("/resources/:resource/:id", (req, res) -> {
+            authorize(req,res);
             Model model = loadModel(req);
             if(model != null) {
                 model.getAvailableAttributes().forEach(attr->{
@@ -438,6 +519,7 @@ public class Main {
         });
 
         post("/new/:resource", (req, res) -> {
+            authorize(req,res);
             Association.Model type;
             String resource = req.params("resource");
             try {
@@ -462,6 +544,7 @@ public class Main {
         });
 
         delete("/resources/:resource/:id", (req, res) -> {
+            authorize(req,res);
             Model model = loadModel(req);
             if(model != null) {
                 try {
@@ -476,6 +559,7 @@ public class Main {
         });
 
         post("/resources_delete", (req, res) -> {
+            authorize(req,res);
             String resource = req.queryParams("resource");
             String association = req.queryParams("association");
             String resourceId = req.queryParams("id");
@@ -508,6 +592,7 @@ public class Main {
         });
 
         get("/resources/:resource", (req, res) -> {
+            authorize(req,res);
             String resource = req.params("resource");
             Association.Model type;
             try {
@@ -523,6 +608,7 @@ public class Main {
         });
 
         post("/new_association/:resource/:association/:resource_id/:association_id", (req,res)->{
+            authorize(req,res);
             String resource = req.params("resource");
             String association = req.params("association");
             String resourceId = req.params("resource_id");
