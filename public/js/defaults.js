@@ -351,34 +351,37 @@ var onShowResourceFunction = function($topElem) {
     $('span.delete-node').click(function() {
         var $this = $(this);
         var id = $this.attr('data-id');
+        var name = $this.prev().text();
         var resourceId = $this.attr('data-resource');
         var associationName = $this.attr('data-association');
         var associationId = $this.attr('data-association-id');
         var associationRef = $this.attr('data-association-name');
         var url = '/resources_delete';
-        $.ajax({
-            url: url,
-            dataType: 'json',
-            type: 'POST',
-            data: {
-                associationRef: associationRef,
-                resource: resourceId,
-                id: id,
-                association: associationName,
-                association_id: associationId
-            },
-            success: function(showData) {
-                var $deleteProp = $this.closest('.stop-delete-prop');
-                if($deleteProp.parent().is('li')) {
-                    $deleteProp.parent().remove();
-                } else {
-                    $deleteProp.remove();
+        if(confirm('Are you sure you want to unlink '+name+' from it\'s '+associationRef+'?')) {
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                type: 'POST',
+                data: {
+                    associationRef: associationRef,
+                    resource: resourceId,
+                    id: id,
+                    association: associationName,
+                    association_id: associationId
+                },
+                success: function(showData) {
+                    var $deleteProp = $this.closest('.stop-delete-prop');
+                    if($deleteProp.parent().is('li')) {
+                        $deleteProp.parent().remove();
+                    } else {
+                        $deleteProp.remove();
+                    }
+                },
+                error: function() {
+                    alert("An error occurred.");
                 }
-            },
-            error: function() {
-                alert("An error occurred.");
-            }
-        });
+            });
+        }
     });
 
 

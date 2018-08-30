@@ -222,7 +222,7 @@ public abstract class Model implements Serializable {
                 tag.add(
                         li().attr("style", "list-style: none;").with(
                                 h6(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName()).attr("style", "cursor: pointer; display: inline;")
-                                .attr("onclick", "$(this).nextAll().slideToggle();"),
+                                .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
                                 span("Revenue: "+_totalRevenue).withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
                         ).with(
                                 ul.attr("style", "display: "+display)
