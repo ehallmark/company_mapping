@@ -1,10 +1,7 @@
 \connect companydb
 
-drop table if exists segments_markets;
-drop table if exists segments;
-
 -- model tables
-drop table products;
+drop table products cascade;
 
 create table products (
     id serial primary key,
@@ -21,7 +18,7 @@ create index products_company_id_idx on products (company_id);
 create index products_market_id_idx on products (market_id);
 create index products_name_idx on products (name);
 
-drop table companies;
+drop table companies cascade;
 create table companies (
     id serial primary key,
     name text not null,
@@ -35,7 +32,7 @@ create table companies (
 create index companies_parent_company_id_idx on companies (parent_company_id);
 create index companies_name_idx on companies (name);
 
-drop table markets;
+drop table markets cascade;
 create table markets (
     id serial primary key,
     name text not null,
@@ -61,7 +58,7 @@ create table market_revenues (
     is_estimate boolean not null default ('f'),
     estimate_type integer check (estimate_type in (0, 1, 2)),
     cagr double precision,
-    market_id integer,
+    market_id integer references markets (id) on delete restrict,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),
     check (notes is not null OR source is not null),
@@ -82,7 +79,7 @@ create table company_revenues (
     is_estimate boolean,
     estimate_type integer check (estimate_type is null or estimate_type in (0, 1, 2)),
     cagr double precision,
-    company_id integer,
+    company_id integer references companies (id) on delete restrict,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),
     check (notes is not null OR source is not null),
@@ -104,7 +101,7 @@ create table product_revenues (
     is_estimate boolean,
     estimate_type integer check (estimate_type is null or estimate_type in (0, 1, 2)),
     cagr double precision,
-    product_id integer,
+    product_id integer references products (id) on delete restrict,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),
     check (notes is not null OR source is not null),

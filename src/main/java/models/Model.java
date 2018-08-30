@@ -391,11 +391,11 @@ public abstract class Model implements Serializable {
                     }).collect(Collectors.toList())
                 )
         ).with(
-                div().withClass("col-12").with(
+                div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
                         button("Diagram this "+Constants.humanAttrFor(this.getClass().getSimpleName()))
                                 .attr("data-id", id.toString())
                                 .attr("data-resource", this.getClass().getSimpleName())
-                                .withClass("btn btn-outline-secondary btn-sm diagram-button")
+                                .withClass("btn btn-outline-secondary btn-sm diagram-button") : div()
                 ),
                 div().withClass("col-12").with(
                         h5("Associations"),
