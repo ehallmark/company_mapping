@@ -9,6 +9,7 @@ import lombok.Setter;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -32,11 +33,14 @@ public abstract class Model implements Serializable {
     protected Map<Association,List<Model>> associations;
     protected String template;
     private Set<String> allReferences;
-    protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data) {
+    @Getter
+    private final boolean isRevenueModel;
+    protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data, boolean isRevenueModel) {
         this.tableName = tableName;
         this.data = data;
         this.associationsMeta = associationsMeta;
         this.id = id;
+        this.isRevenueModel = isRevenueModel;
         this.availableAttributes=availableAttributes;
         if(id != null && data == null) {
             // pull data from database
@@ -52,7 +56,7 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
-        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
+        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).withClass("stop-delete-prop").with(
                 getSimpleLink(),
                 span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
@@ -61,9 +65,79 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag getSimpleLink(@NonNull String... additionalClasses) {
-        return a((String)data.get(Constants.NAME)).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+String.join(" ", additionalClasses));
+        String name;
+        if(isRevenueModel) {
+            name = "(View)";
+        } else {
+            name = (String)data.get(Constants.NAME);
+        }
+        return a(name).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+String.join(" ", additionalClasses));
     }
 
+    public ContainerTag getCreateNewForm() {
+        if(this.getClass().getSimpleName().endsWith("Revenue")) {
+            String applicableField;
+            String associationResource = this.getClass().getSimpleName().replace("Revenue","");
+            if(this.getClass().getSimpleName().startsWith("Market")) {
+                applicableField = Constants.MARKET_ID;
+            } else if(this.getClass().getSimpleName().startsWith("Product")) {
+                applicableField = Constants.PRODUCT_ID;
+
+            } else if(this.getClass().getSimpleName().startsWith("Company")) {
+                applicableField = Constants.COMPANY_ID;
+            } else {
+                throw new RuntimeException("Unknown revenue type exception.");
+            }
+            return form().with(
+                    label(associationResource).with(
+                            br(),
+                            select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName(applicableField)
+                                    .attr("data-url", "/ajax/resources/"+associationResource+"/"+this.getClass().getSimpleName()+"/-1")
+                    ), br(),
+                    label(Constants.humanAttrFor(Constants.YEAR)).with(
+                            br(),
+                            input().attr("value", String.valueOf(LocalDate.now().getYear())).withClass("form-control").withName(Constants.YEAR).withType("number")
+                    ), br(),
+                    label(Constants.humanAttrFor(Constants.VALUE)).with(
+                            br(),
+                            input().withClass("form-control").withName(Constants.VALUE).withType("number")
+                    ), br(),
+                    label(Constants.humanAttrFor(Constants.SOURCE)).with(
+                            br(),
+                            input().withClass("form-control").withName(Constants.SOURCE).withType("text")
+                    ), br(),
+                    label(Constants.humanAttrFor(Constants.IS_ESTIMATE)).with(
+                            br(),
+                            input().withName(Constants.IS_ESTIMATE).withType("checkbox").attr("value", "true")
+                    ), br(),
+                    label(Constants.humanAttrFor(Constants.IS_PERCENTAGE)).with(
+                            br(),
+                            input().withName(Constants.IS_PERCENTAGE).withType("checkbox").attr("value", "true")
+                    ), br(),
+                    label(Constants.humanAttrFor(Constants.ESTIMATE_TYPE)).with(
+                            br(),
+                            select().withClass("multiselect").withName(Constants.ESTIMATE_TYPE).with(
+                                    option().attr("selected", "selected"),
+                                    option("Low").withValue("0"),
+                                    option("Medium").withValue("1"),
+                                    option("High").withValue("2")
+                            )
+                    ), br(),
+                    label(Constants.humanAttrFor(Constants.NOTES)).with(
+                            br(),
+                            textarea().withClass("form-control").withName(Constants.NOTES)
+                    ), br(),
+                    button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+            );
+        } else {
+            return form().with(
+                    label(Constants.humanAttrFor(Constants.NAME)).with(
+                            br(),
+                            input().withClass("form-control").withName(Constants.NAME).withType("text")
+                    ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+            );
+        }
+    }
 
     public ContainerTag loadNestedAssociations() {
         if(data==null) {
@@ -72,7 +146,7 @@ public abstract class Model implements Serializable {
         ContainerTag inner = ul();
         String revenueClass = "resource-revenue-"+this.getClass().getSimpleName()+id;
         ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
-                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(revenueClass)).attr("style", "list-style: none;").with(
+                li().withClass("stop-delete-prop").with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(revenueClass)).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
@@ -82,7 +156,7 @@ public abstract class Model implements Serializable {
     };
 
     private ContainerTag getRevenueAsSpan(String updateClass) {
-        Object revenueStr = getData().getOrDefault(Constants.REVENUE, "");
+        /*Object revenueStr = getData().getOrDefault(Constants.REVENUE, "");
         if(revenueStr==null) revenueStr = "";
         revenueStr = "Revenue: "+revenueStr;
         String fullId = "resource-revenue-"+getClass().getSimpleName()+getId();
@@ -95,6 +169,8 @@ public abstract class Model implements Serializable {
                 .attr("data-id", id.toString())
                 .attr("data-update-class", updateClass)
                 .withClass("resource-data-field editable "+fullId).attr("style","margin-left: 10px; display: inline;");
+                */
+        return span("Revenue: ");
     }
 
     private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original) {
@@ -106,13 +182,6 @@ public abstract class Model implements Serializable {
         double totalRevenueOfLevel = 0;
         for(Association association : associationsMeta) {
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
-            for(Model assoc : assocModels) {
-                assoc.loadAttributesFromDatabase();
-                Number rev = (Number)assoc.getData().get(Constants.REVENUE);
-                if(rev!=null) {
-                    totalRevenueOfLevel += rev.doubleValue();
-                }
-            }
             modelMap.put(association, assocModels);
         }
         final double _totalRevenue = totalRevenueOfLevel;
@@ -274,7 +343,7 @@ public abstract class Model implements Serializable {
         ContainerTag button;
         if(back) {
             String previousTarget = "#"+tableName+"_index_btn";
-            button = button("Back to "+capitalize(tableName)).attr("data-target", previousTarget)
+            button = button("Back to "+Constants.pluralizeAssociationName(Constants.humanAttrFor(this.getClass().getSimpleName()))).attr("data-target", previousTarget)
                     .withClass("btn btn-outline-secondary btn-sm back-button");
         } else {
             button = span();
@@ -307,7 +376,7 @@ public abstract class Model implements Serializable {
                 )
         ).with(
                 div().withClass("col-12").with(
-                        button("Diagram this "+this.getClass().getSimpleName())
+                        button("Diagram this "+Constants.humanAttrFor(this.getClass().getSimpleName()))
                                 .attr("data-id", id.toString())
                                 .attr("data-resource", this.getClass().getSimpleName())
                                 .withClass("btn btn-outline-secondary btn-sm diagram-button")
@@ -317,9 +386,10 @@ public abstract class Model implements Serializable {
                         div().with(
                                 ul().withClass("nav nav-tabs").attr("role", "tablist").with(
                                         associationsMeta.stream().map(association-> {
+                                            boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
                                             String assocId = "tab-link-"+association.getAssociationName().toLowerCase().replace(" ","-");
                                             return li().withClass("nav-item").with(
-                                                    a(association.getAssociationName()).withClass("nav-link").attr("data-toggle", "tab").withHref("#" + assocId).attr("role", "tab")
+                                                    a(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName()).withClass("nav-link").attr("data-toggle", "tab").withHref("#" + assocId).attr("role", "tab")
                                             );
                                         }).collect(Collectors.toList())
                                 )

@@ -53,6 +53,18 @@ public class Main {
                 model = new Company(id, null);
                 break;
             }
+            case MarketRevenue: {
+                model = new MarketRevenue(id, null);
+                break;
+            }
+            case CompanyRevenue: {
+                model = new CompanyRevenue(id, null);
+                break;
+            }
+            case ProductRevenue: {
+                model = new ProductRevenue(id, null);
+                break;
+            }
             default: {
                 model = null;
                 break;
@@ -147,7 +159,10 @@ public class Main {
                                                                             div().withClass("col-12 btn-group-vertical options").with(
                                                                                     button("Markets").attr("data-resource", "Market").withId("markets_index_btn").withClass("btn btn-outline-secondary"),
                                                                                     button("Companies").attr("data-resource", "Company").withId("companies_index_btn").withClass("btn btn-outline-secondary"),
-                                                                                    button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary")
+                                                                                    button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary"),
+                                                                                    button("Market Revenues").attr("data-resource", "MarketRevenue").withId("market_revenues_index_btn").withClass("btn btn-outline-secondary"),
+                                                                                    button("Company Revenues").attr("data-resource", "CompanyRevenue").withId("company_revenues_index_btn").withClass("btn btn-outline-secondary"),
+                                                                                    button("Product Revenues").attr("data-resource", "ProductRevenue").withId("product_revenues_index_btn").withClass("btn btn-outline-secondary")
                                                                             )
                                                                     )
                                                             )
@@ -179,17 +194,21 @@ public class Main {
         get("/ajax/resources/:resource/:from_resource/:from_id", (req, res)->{
             String resource = req.params("resource");
             String fromResource = req.params("from_resource");
-            int fromId;
+            Integer _fromId;
             Association.Model fromType;
             Association.Model type;
             try {
                 type = Association.Model.valueOf(resource);
                 fromType = Association.Model.valueOf(fromResource);
-                fromId = Integer.valueOf(req.params("from_id"));
+                _fromId = Integer.valueOf(req.params("from_id"));
+                if(_fromId < 0) {
+                    _fromId = null;
+                }
             } catch(Exception e) {
                 e.printStackTrace();
                 return null;
             }
+            final Integer fromId = _fromId;
             Model model = getModelByType(type);
             Map<String,String> idToNameMap = new HashMap<>();
             Function<String,List<String>> resultsSearchFunction = search -> {
@@ -197,7 +216,7 @@ public class Main {
                     if(search!=null&&search.trim().length()==0) {
                         search = null;
                     }
-                    List<Model> models = Database.selectAll(type, model.getTableName(), Collections.singletonList(Constants.NAME), search).stream().filter(m->!(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
+                    List<Model> models = Database.selectAll(type, model.getTableName(), Collections.singletonList(Constants.NAME), search).stream().filter(m->fromId==null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
                     models.forEach(m->idToNameMap.put(m.getId().toString(),(String)m.getData().get(Constants.NAME)));
                     return models.stream().map(m->m.getId().toString()).collect(Collectors.toList());
                 } catch(Exception e) {
@@ -270,14 +289,26 @@ public class Main {
                     }
                 }
                 for(Association association : model.getAssociationsMeta()) {
-                    headers.add(association.getAssociationName().toLowerCase().replace(" ", "-"));
-                    humanHeaders.add(association.getAssociationName());
+                    if(model.isRevenueModel()) {
+                        headers.add(0, association.getAssociationName().toLowerCase().replace(" ", "-"));
+                        boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
+                        humanHeaders.add(0, pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName());
+                    } else {
+                        headers.add(association.getAssociationName().toLowerCase().replace(" ", "-"));
+                        boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
+                        humanHeaders.add(pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName());
+                    }
                 }
 
                 for(String header : headers) {
                     if(Constants.fieldTypeForAttr(header).equals(Constants.NUMBER_FIELD_TYPE)) {
                         numericAttrs.add(header);
                     }
+                }
+
+                if(model.isRevenueModel()) {
+                    humanHeaders.add(0, "");
+                    headers.add(0, Constants.NAME);
                 }
 
                 List<Map<String,String>> data = Database.selectAll(type, model.getTableName(), model.getAvailableAttributes())
@@ -287,7 +318,11 @@ public class Main {
                                 map.put(k,v==null?"":v.toString());
                             });
                             map.put(Constants.NAME, m.getSimpleLink().render());
-                            map.put(Constants.NAME+Constants.TEXT_ONLY, (String)m.getData().get(Constants.NAME));
+                            if(model.isRevenueModel()) {
+                                map.put(Constants.NAME + Constants.TEXT_ONLY, "");
+                            } else {
+                                map.put(Constants.NAME + Constants.TEXT_ONLY, (String) m.getData().get(Constants.NAME));
+                            }
                             m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
                                 List<Model> assocModel = m.getAssociations().get(assoc);
@@ -318,7 +353,9 @@ public class Main {
                                 )
                         )
                 );
-                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+                Map<String,Object> result = new HashMap<>();
+                result.put("result", html.render());
+                return new Gson().toJson(result);
             }
             return null;
         });
@@ -458,9 +495,9 @@ public class Main {
                 return null;
             }
             Model model = getModelByType(type);
-            return new Gson().toJson(
-                    Database.selectAll(type, model.getTableName(), model.getAvailableAttributes())
-            );
+            Map<String,Object> result = new HashMap<>();
+            result.put("new_form", model.getCreateNewForm().attr("style", "display: none;").render());
+            return new Gson().toJson(result);
         });
 
         post("/new_association/:resource/:association/:resource_id/:association_id", (req,res)->{

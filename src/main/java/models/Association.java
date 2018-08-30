@@ -16,7 +16,10 @@ public class Association implements Serializable {
     public enum Model {
         Company,
         Market,
-        Product
+        Product,
+        MarketRevenue,
+        CompanyRevenue,
+        ProductRevenue
     }
 
     @Getter
@@ -42,6 +45,7 @@ public class Association implements Serializable {
     public Association(Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent, String reverseAssociationName) {
         this(model.toString(), model, parentTableName, childTableName, joinTableName, type, parentIdField, childIdField, dependent, reverseAssociationName);
     }
+
     public Association(String associationName, Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent, String reverseAssociationName) {
         this.parentIdField = parentIdField;
         this.reverseAssociationName=reverseAssociationName;

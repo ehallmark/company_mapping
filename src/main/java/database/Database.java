@@ -36,7 +36,15 @@ public class Database {
                 qs.add("?::date");
                 data.put(keys.get(i), ((LocalDate) data.get(keys.get(i))).format(DateTimeFormatter.ISO_DATE));
             } else {
-                qs.add("?");
+                if (Constants.fieldTypeForAttr(keys.get(i)).equals(Constants.NUMBER_FIELD_TYPE)) {
+                    qs.add("?::integer");
+
+                } else if (Constants.fieldTypeForAttr(keys.get(i)).equals(Constants.BOOL_FIELD_TYPE)) {
+                    qs.add("?::boolean");
+
+                } else {
+                    qs.add("?");
+                }
             }
         }
         PreparedStatement ps = conn.prepareStatement("insert into "+tableName+" ("+String.join(",",keys)+") values ("+ String.join(",",qs) + ") returning id");
@@ -226,6 +234,19 @@ public class Database {
                     m = new Market(id, data);
                     break;
                 }
+                case MarketRevenue: {
+                    m = new MarketRevenue(id, data);
+                    break;
+                }
+                case CompanyRevenue: {
+                    m = new CompanyRevenue(id, data);
+                    break;
+                }
+                case ProductRevenue: {
+                    m = new ProductRevenue(id, data);
+                    break;
+                }
+
             }
             models.add(m);
 

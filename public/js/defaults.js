@@ -332,7 +332,7 @@ var onShowResourceFunction = function($topElem) {
                 association_id: associationId
             },
             success: function(showData) {
-                $this.closest('div').remove();
+                $this.closest('.stop-delete-prop').remove();
             },
             error: function() {
                 alert("An error occurred.");
@@ -357,13 +357,24 @@ var onShowResourceFunction = function($topElem) {
         }
     });
 
+
+    $topElem.find('.multiselect').select2({
+        minimumResultsForSearch: 5,
+        closeOnSelect: true
+    });
+
     $topElem.find('.resource-show-link').click(showResourceByClickFunction);
 };
 
 
-var createNewResourceForm = function(resourceId, resourceName) {
+var createNewResourceForm = function(resourceId, resourceName, data) {
     var $new = $('<a href="#">(New)</a>');
-    var $form = $('<form style="display: none;"><label>Name:<br /><input class="form-control" type="text" name="name"/ ></label><button class="btn btn-outline-secondary btn-sm" type="submit">Create</button></form>')
+    var $form = null;
+    if(data.hasOwnProperty('new_form')) {
+        $form = $(data.new_form);
+    } else {
+        $form = $('<form style="display: none;"><label>Name:<br /><input class="form-control" type="text" name="name"/ ></label><button class="btn btn-outline-secondary btn-sm" type="submit">Create</button></form>')
+    }
     $form.submit(function(e) {
         e.preventDefault();
         $.ajax({
@@ -411,48 +422,9 @@ var showResourceByClickFunction = function(e) {
 
 
 var createResourceList = function(resourceId, resourceName, data) {
-    /*var $ul = $('<div></div>');
-    for(var i = 0; i < data.length; i++) {
-        var obj = data[i];
-        var $li = $('<div><a href="#" style="cursor: pointer;">'+obj.data.name+"</a><span style='cursor: pointer;'>X</span></div>");
-        $li.attr('data-id', obj.id);
-        $li.attr('data-resource', resourceId);
-        var $a = $li.find('a');
-        $a.attr('data-id', obj.id);
-        $a.attr('data-resource', resourceId);
-        $a.click(showResourceByClickFunction);
-        $li.find('span').click(function() {
-            var $this = $(this);
-            var id = $this.closest('div').attr('data-id');
-            var url = '/resources/'+resourceId+'/'+id;
-            $.ajax({
-                url: url,
-                dataType: 'json',
-                type: 'DELETE',
-                success: function(showData) {
-                    $this.closest('div').remove();
-                    var dynatable = $('table.dynatable').data('dynatable');
-                    if(dynatable) {
-                        $.ajax({
-                            url: '/clear_dynatable',
-                            dataType: 'json',
-                            type: 'POST',
-                            success: function() {
-                                createResourceDynatable(resourceId);
-                            }
-                        });
-                    }
-                },
-                error: function() {
-                    alert("An error occurred.");
-                }
-            });
-        });
-        $ul.append($li);
-    }*/
     var $result = $('<div class="col-12"></div>');
     $result.append('<h3>'+resourceName+'</h3>');
-    var $new = createNewResourceForm(resourceId, resourceName);
+    var $new = createNewResourceForm(resourceId, resourceName, data);
     $result.append($new);
     //$result.append($ul);
     var $outer = $('<div class="row"></div>');
