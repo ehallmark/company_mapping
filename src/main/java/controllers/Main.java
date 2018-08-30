@@ -218,6 +218,9 @@ public class Main {
                                             nav().withClass("sidebar col-3").attr("style","z-index: 2; overflow-y: auto; height: 100%; position: fixed; padding-top: 75px;").with(
                                                     div().withClass("row").with(
                                                             div().withClass("col-12").with(
+                                                                authorized?a("Sign Out").withHref("/logout"):span()
+                                                            ),
+                                                            div().withClass("col-12").with(
                                                                     h4("Company Mapping App")
                                                             ),
                                                             div().withClass("col-12").withId("main-menu").with(
