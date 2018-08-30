@@ -123,6 +123,10 @@ public abstract class Model implements Serializable {
                             br(),
                             input().withClass("form-control").withName(Constants.VALUE).withType("number")
                     ), br(),
+                    label(Constants.humanAttrFor(Constants.CAGR)).with(
+                            br(),
+                            input().withClass("form-control").withName(Constants.CAGR).withType("number")
+                    ), br(),
                     label(Constants.humanAttrFor(Constants.SOURCE)).with(
                             br(),
                             input().withClass("form-control").withName(Constants.SOURCE).withType("text")
