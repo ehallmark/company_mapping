@@ -241,6 +241,21 @@ var onShowResourceFunction = function($topElem) {
                     type: 'POST',
                     success: function(showData) {
                         if(showData.hasOwnProperty('error')) {
+                            // delete resource
+                            var url = '/resources/'+associationId+'/'+newId;
+                            $.ajax({
+                                url: url,
+                                dataType: 'json',
+                                type: 'DELETE',
+                                success: function(showData) {
+                                    if(showData.hasOwnProperty('error')) {
+                                        alert('Warning... '+showData.error);
+                                    }
+                                },
+                                error: function() {
+                                    alert("An error occurred.");
+                                }
+                            });
                             alert(showData.error);
                         } else {
                             if(refresh==='refresh') {
