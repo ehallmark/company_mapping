@@ -37,6 +37,7 @@ create table markets (
     id serial primary key,
     name text not null,
     revenue double precision,
+    notes text,
     parent_market_id integer,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),

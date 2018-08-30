@@ -368,7 +368,12 @@ var onShowResourceFunction = function($topElem) {
                 association_id: associationId
             },
             success: function(showData) {
-                $this.closest('.stop-delete-prop').remove();
+                var $deleteProp = $this.closest('.stop-delete-prop');
+                if($deleteProp.parent().is('li')) {
+                    $deleteProp.parent().remove();
+                } else {
+                    $deleteProp.remove();
+                }
             },
             error: function() {
                 alert("An error occurred.");

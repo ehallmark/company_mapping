@@ -210,14 +210,39 @@ public class Main {
             }
             final Integer fromId = _fromId;
             Model model = getModelByType(type);
+            Set<Integer> idsToAvoid = new HashSet<>();
+            if(fromId!=null) { // remove existing associations
+                Model actualModel = loadModel(fromType, fromId);
+                if(actualModel!=null) {
+                    actualModel.loadAttributesFromDatabase();
+                    actualModel.loadAssociations();
+                    for(Association association : actualModel.getAssociationsMeta()) {
+                        if(association.getModel().equals(type)) {
+                            // found
+                            List<Model> assocs = actualModel.getAssociations().get(association);
+                            if(assocs!=null && assocs.size()>0) {
+                                assocs.forEach(assoc->{
+                                    idsToAvoid.add(assoc.getId());
+                                });
+                            }
+                        }
+                    }
+                }
+            }
             Map<String,String> idToNameMap = new HashMap<>();
             Function<String,List<String>> resultsSearchFunction = search -> {
                 try {
                     if(search!=null&&search.trim().length()==0) {
                         search = null;
                     }
-                    List<Model> models = Database.selectAll(type, model.getTableName(), Collections.singletonList(Constants.NAME), search).stream().filter(m->fromId==null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
-                    models.forEach(m->idToNameMap.put(m.getId().toString(),(String)m.getData().get(Constants.NAME)));
+                    final String fieldToUse = Constants.NAME;
+                    List<Model> models;
+                    if(model.isRevenueModel()) {
+                        models = Database.selectAllFromRevenueModel(type, model.getTableName(), model.getAssociationsMeta().get(0), search);
+                    } else {
+                        models = Database.selectAll(type, model.getTableName(), Collections.singletonList(fieldToUse), search).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
+                    }
+                    models.forEach(m -> idToNameMap.put(m.getId().toString(), (String) m.getData().get(fieldToUse)));
                     return models.stream().map(m->m.getId().toString()).collect(Collectors.toList());
                 } catch(Exception e) {
                     e.printStackTrace();
@@ -501,7 +526,7 @@ public class Main {
             }
             Model model = getModelByType(type);
             Map<String,Object> result = new HashMap<>();
-            result.put("new_form", model.getCreateNewForm().attr("style", "display: none;").render());
+            result.put("new_form", model.getCreateNewForm(type).attr("style", "display: none;").render());
             return new Gson().toJson(result);
         });
 

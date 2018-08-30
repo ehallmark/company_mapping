@@ -62,6 +62,7 @@ public class Database {
         return id;
     }
 
+
     public static synchronized List<Model> loadOneToManyAssociation(@NonNull Association.Model associationType, @NonNull Model baseModel, @NonNull String associationTableName, @NonNull String parentIdField) throws SQLException {
         if(!baseModel.existsInDatabase()) {
             System.out.println("Trying to load association of model that does not exist in the database.");
@@ -83,6 +84,18 @@ public class Database {
                 }
                 case Product: {
                     models.add(new Product(id, null));
+                    break;
+                }
+                case ProductRevenue: {
+                    models.add(new ProductRevenue(id, null));
+                    break;
+                }
+                case CompanyRevenue: {
+                    models.add(new CompanyRevenue(id, null));
+                    break;
+                }
+                case MarketRevenue: {
+                    models.add(new MarketRevenue(id, null));
                     break;
                 }
             }
@@ -115,6 +128,18 @@ public class Database {
                     models.add(new Product(id, null));
                     break;
                 }
+                case CompanyRevenue: {
+                    models.add(new CompanyRevenue(id, null));
+                    break;
+                }
+                case MarketRevenue: {
+                    models.add(new MarketRevenue(id, null));
+                    break;
+                }
+                case ProductRevenue: {
+                    models.add(new ProductRevenue(id, null));
+                    break;
+                }
             }
         }
         rs.close();
@@ -144,6 +169,19 @@ public class Database {
                 model = new Product(parentId, null);
                 break;
             }
+            case CompanyRevenue: {
+                model = new CompanyRevenue(parentId, null);
+                break;
+            }
+            case MarketRevenue: {
+                model = new MarketRevenue(parentId, null);
+                break;
+            }
+            case ProductRevenue: {
+                model = new ProductRevenue(parentId, null);
+                break;
+            }
+
         }
         return model;
     }
@@ -179,8 +217,8 @@ public class Database {
         ps.close();
     }
 
-    public static synchronized void nullifyByFieldName(@NonNull String tableName, @NonNull String fieldName, int id) throws SQLException {
-        PreparedStatement ps = conn.prepareStatement("update "+tableName+" set "+fieldName+"=null where "+fieldName+"=?");
+    public static synchronized void nullifyFieldName(@NonNull String tableName, @NonNull String fieldName, int id) throws SQLException {
+        PreparedStatement ps = conn.prepareStatement("update "+tableName+" set "+fieldName+"=null where id = ?");
         ps.setObject(1, id);
         ps.executeUpdate();
         ps.close();
@@ -200,6 +238,57 @@ public class Database {
         rs.close();
         ps.close();
         return data;
+    }
+
+
+    public static synchronized List<Model> selectAllFromRevenueModel(@NonNull Association.Model model, @NonNull String tableName, Association association, String searchName) throws SQLException {
+        List<String> attrList = Collections.singletonList(Constants.NAME);
+        PreparedStatement ps = conn.prepareStatement("select r.id as id,j.name||' Revenue ('||r.year::text||')' as name from "+tableName+" as r join "+association.getParentTableName()+" as j on (r."+association.getParentIdField()+"=j.id) " + (searchName==null?"" : ( " where lower(j.name) like '%'||?||'%' order by lower(j.name)")));
+        if(searchName!=null) {
+            ps.setString(1, searchName);
+        }
+        ResultSet rs = ps.executeQuery();
+        List<Model> models = new ArrayList<>();
+        while(rs.next()) {
+            Map<String, Object> data = new HashMap<>();
+            int id = rs.getInt(1);
+            for (int i = 0; i < attrList.size(); i++) {
+                data.put(attrList.get(i), rs.getObject(i + 2));
+            }
+            Model m = null;
+            switch (model) {
+                case Company: {
+                    m = new Company(id, data);
+                    break;
+                }
+                case Product: {
+                    m = new Product(id, data);
+                    break;
+                }
+                case Market: {
+                    m = new Market(id, data);
+                    break;
+                }
+                case MarketRevenue: {
+                    m = new MarketRevenue(id, data);
+                    break;
+                }
+                case CompanyRevenue: {
+                    m = new CompanyRevenue(id, data);
+                    break;
+                }
+                case ProductRevenue: {
+                    m = new ProductRevenue(id, data);
+                    break;
+                }
+
+            }
+            models.add(m);
+
+        }
+        rs.close();
+        ps.close();
+        return models;
     }
 
     public static synchronized List<Model> selectAll(@NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes) throws SQLException {

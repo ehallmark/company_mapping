@@ -81,15 +81,21 @@ public abstract class Model implements Serializable {
     public ContainerTag getSimpleLink(@NonNull String... additionalClasses) {
         String name;
         if(isRevenueModel) {
-            name = "(View)";
-        } else {
-            name = (String)data.get(Constants.NAME);
+            // TODO speed up this query
+            if(!data.containsKey(Constants.NAME)) {
+                loadAssociations();
+                List<Model> parent = associations.get(associationsMeta.get(0));
+                if(parent!=null && parent.size()>0) {
+                    data.put(Constants.NAME, ((String)parent.get(0).getData().get(Constants.NAME)) + " Revenue ("+data.get(Constants.YEAR)+")");
+                }
+            }
         }
+        name = (String)data.get(Constants.NAME);
         return a(name).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+String.join(" ", additionalClasses));
     }
 
-    public ContainerTag getCreateNewForm() {
-        if(this.getClass().getSimpleName().endsWith("Revenue")) {
+    public ContainerTag getCreateNewForm(Association.Model type) {
+        if(type.toString().endsWith("Revenue")) {
             String applicableField;
             String associationResource = this.getClass().getSimpleName().replace("Revenue","");
             if(this.getClass().getSimpleName().startsWith("Market")) {
@@ -161,7 +167,7 @@ public abstract class Model implements Serializable {
         ContainerTag inner = ul();
         String revenueClass = "resource-revenue-"+this.getClass().getSimpleName()+id;
         ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
-                li().withClass("stop-delete-prop").with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(revenueClass)).attr("style", "list-style: none;").with(
+                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(revenueClass)).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
@@ -327,16 +333,13 @@ public abstract class Model implements Serializable {
             }
         }
         ContainerTag panel = div().with(a(createText).withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
-                form().attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-association", association.getModel().toString())
+                getCreateNewForm(association.getModel()).attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-association", association.getModel().toString())
                         .attr("data-resource", this.getClass().getSimpleName())
                         .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
                         .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")
                         .attr("data-original-resource",diagramModel!=null ? diagramModel.getClass().getSimpleName() : "f")
                         .attr("data-id", id.toString()).withClass("association").with(
-                        input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
-                        label("Name:").with(
-                                input().withType("text").withClass("form-control").withName(Constants.NAME)
-                        ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+                        input().withType("hidden").withName("_association_name").withValue(association.getAssociationName())
                 ),form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
                         .attr("data-resource", this.getClass().getSimpleName())
                         .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
@@ -572,11 +575,11 @@ public abstract class Model implements Serializable {
             try {
                 Integer idToUse;
                 if(association.getType().equals(Association.Type.ManyToOne)) {
-                    idToUse = assocId;
-                } else {
                     idToUse = id;
+                } else {
+                    idToUse = assocId;
                 }
-                Database.nullifyByFieldName(association.getChildTableName(), association.getParentIdField(), idToUse);
+                Database.nullifyFieldName(association.getChildTableName(), association.getParentIdField(), idToUse);
             } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("Error deleting record from database: " + e.getMessage());
