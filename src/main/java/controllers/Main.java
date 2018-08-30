@@ -551,7 +551,7 @@ public class Main {
             Association associationModel = baseModel.getAssociationsMeta().stream().filter(m->m.getAssociationName().equals(associationName)).findAny().orElse(null);
 
             try {
-                // can only assign company to leaf node of market
+                /*// can only assign company to leaf node of market
                 if(type.equals(Association.Model.Company) && relatedType.equals(Association.Model.Market)) {
                     if(relatedModel.hasSubMarkets()) {
                         throw new RuntimeException("Cannot assign a company to a market that has sub markets. Please assign the company to a market without sub markets.");
@@ -560,7 +560,7 @@ public class Main {
                     if(baseModel.hasSubMarkets()) {
                         throw new RuntimeException("Cannot assign a company to a market that has sub markets. Please assign the company to a market without sub markets.");
                     }
-                }
+                }*/
 
                 baseModel.removeManyToOneAssociations(associationName);
                 baseModel.associateWith(relatedModel, associationName);

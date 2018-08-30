@@ -20,7 +20,7 @@ create index products_name_idx on products (name);
 drop table companies cascade;
 create table companies (
     id serial primary key,
-    name text not null,
+    name text not null unique,
     revenue double precision,
     notes text,
     parent_company_id integer,
@@ -35,7 +35,7 @@ create index companies_name_idx on companies (name);
 drop table markets cascade;
 create table markets (
     id serial primary key,
-    name text not null,
+    name text not null unique,
     revenue double precision,
     notes text,
     parent_market_id integer,

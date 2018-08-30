@@ -56,7 +56,7 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
-        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).withClass("stop-delete-prop").with(
+        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).withClass("stop-delete-prop").attr("style", "display: inline;").with(
                 getSimpleLink(),
                 span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
@@ -191,7 +191,7 @@ public abstract class Model implements Serializable {
                 .attr("data-update-class", updateClass)
                 .withClass("resource-data-field editable "+fullId).attr("style","margin-left: 10px; display: inline;");
                 */
-        return span("Revenue: ");
+        return span("Revenue: ").attr("style","margin-left: 10px;");
     }
 
     private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original) {
@@ -202,6 +202,12 @@ public abstract class Model implements Serializable {
         Map<Association,List<Model>> modelMap = new HashMap<>();
         double totalRevenueOfLevel = 0;
         for(Association association : associationsMeta) {
+            if(association.getModel().toString().endsWith("Revenue")) {
+                continue;
+            }
+            if(association.getAssociationName().startsWith("Parent ")||association.getAssociationName().equals("Sub Company")) {
+                continue;
+            }
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
             modelMap.put(association, assocModels);
         }
@@ -210,11 +216,16 @@ public abstract class Model implements Serializable {
             // recurse
             modelMap.forEach((association, models) -> {
                 boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
-                ContainerTag tag =  ul().with(
+                List<ContainerTag> tag =  new ArrayList<>();
+                ContainerTag ul = ul();
+                String display = original==this ? "block;" : "none;";
+                tag.add(
                         li().attr("style", "list-style: none;").with(
                                 h6(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName()).attr("style", "cursor: pointer; display: inline;")
-                                .attr("onclick", "$(this).parent().nextAll().slideToggle();"),
+                                .attr("onclick", "$(this).nextAll().slideToggle();"),
                                 span("Revenue: "+_totalRevenue).withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
+                        ).with(
+                                ul.attr("style", "display: "+display)
                         )
                 );
                 for(Model model : models) {
@@ -222,7 +233,7 @@ public abstract class Model implements Serializable {
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
                     String revenueClass = "resource-revenue-"+_id;
-                    tag.with(li().attr("style", "display: none;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id), model.getRevenueAsSpan(revenueClass), inner));
+                    ul.with(li().attr("style", "display: inline;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id), model.getRevenueAsSpan(revenueClass), inner));
                     if(!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
                         model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
@@ -230,7 +241,9 @@ public abstract class Model implements Serializable {
                     alreadySeen.add(_id);
                 }
                 String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-")+cnt.getAndIncrement();
-                container.with(tag.with(li().attr("style", "display: none;").with(getAddAssociationPanel(association, listRef, original))));
+
+                ul.with(li().attr("style", "display: inline;").with(getAddAssociationPanel(association, listRef, original)));
+                container.with(tag);
             });
         }
     }
