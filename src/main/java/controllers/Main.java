@@ -258,7 +258,7 @@ public class Main {
                                                                                     button("Company Revenues").attr("data-resource", "CompanyRevenue").withId("company_revenues_index_btn").withClass("btn btn-outline-secondary"),
                                                                                     button("Product Revenues").attr("data-resource", "ProductRevenue").withId("product_revenues_index_btn").withClass("btn btn-outline-secondary")
                                                                             ) : div().withClass("col-12").with(
-                                                                                form().withClass("form-group").withMethod("POST").withAction("/login").attr("style", "margin-top: 100px;").with(
+                                                                                form().withClass("form-group").withMethod("POST").withAction("/login").with(
                                                                                         p("Log in"),
                                                                                         label("Username").with(
                                                                                                 input().withType("text").withClass("form-control").withName("username")
