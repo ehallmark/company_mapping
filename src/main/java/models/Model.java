@@ -56,7 +56,7 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
-        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).withClass("stop-delete-prop").attr("style", "display: inline;").with(
+        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).withClass("stop-delete-prop").with(
                 getSimpleLink(),
                 span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
@@ -233,7 +233,7 @@ public abstract class Model implements Serializable {
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
                     String revenueClass = "resource-revenue-"+_id;
-                    ul.with(li().attr("style", "display: inline;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id), model.getRevenueAsSpan(revenueClass), inner));
+                    ul.with(li().attr("style", "display: inline;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;"), model.getRevenueAsSpan(revenueClass), inner));
                     if(!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
                         model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
