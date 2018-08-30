@@ -258,7 +258,7 @@ var onShowResourceFunction = function($topElem) {
                                 });
                             }
                         }
-                    }
+                    },
                     error: function() {
                         alert('An error occurred.');
                     }
