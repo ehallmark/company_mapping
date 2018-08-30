@@ -64,6 +64,20 @@ public abstract class Model implements Serializable {
         );
     }
 
+    public boolean hasSubMarkets() {
+        if(associations==null) loadAssociations();
+
+        for(Association association : associationsMeta) {
+            if(association.getAssociationName().equals("Sub Market")) {
+                List<Model> subMarkets = associations.get(association);
+                if(subMarkets!=null && subMarkets.size()>0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public ContainerTag getSimpleLink(@NonNull String... additionalClasses) {
         String name;
         if(isRevenueModel) {
@@ -522,7 +536,13 @@ public abstract class Model implements Serializable {
             throw new RuntimeException("Trying to delete a record that does not exist in the database...");
         }
         loadAssociations();
+        // cannot delete a market that has submarkets
         for(Map.Entry<Association,List<Model>> entry : associations.entrySet()) {
+            if(entry.getKey().getAssociationName().equals("Sub Market")) {
+                if(entry.getValue()!=null&&entry.getValue().size()>0) {
+                    throw new RuntimeException("Cannot delete a market that has sub markets. Please delete the sub markets first.");
+                }
+            }
             for(Model association : entry.getValue()) {
                 if(cascade && entry.getKey().isDependent()) {
                     association.deleteFromDatabase(true);

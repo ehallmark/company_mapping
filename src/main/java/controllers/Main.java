@@ -447,8 +447,13 @@ public class Main {
         delete("/resources/:resource/:id", (req, res) -> {
             Model model = loadModel(req);
             if(model != null) {
-                model.deleteFromDatabase(false);
-                return new Gson().toJson(Collections.singletonMap("result", "success"));
+                try {
+                    model.deleteFromDatabase(false);
+                    return new Gson().toJson(Collections.singletonMap("result", "success"));
+                } catch(Exception e) {
+                    e.printStackTrace();
+                    return new Gson().toJson(Collections.singletonMap("error", "Error: "+e.getMessage()));
+                }
             }
             else return null;
         });
@@ -525,11 +530,22 @@ public class Main {
             Association associationModel = baseModel.getAssociationsMeta().stream().filter(m->m.getAssociationName().equals(associationName)).findAny().orElse(null);
 
             try {
+                // can only assign company to leaf node of market
+                if(type.equals(Association.Model.Company) && relatedType.equals(Association.Model.Market)) {
+                    if(relatedModel.hasSubMarkets()) {
+                        throw new RuntimeException("Cannot assign a company to a market that has sub markets. Please assign the company to a market without sub markets.");
+                    }
+                } else if(type.equals(Association.Model.Market) && relatedType.equals(Association.Model.Company)) {
+                    if(baseModel.hasSubMarkets()) {
+                        throw new RuntimeException("Cannot assign a company to a market that has sub markets. Please assign the company to a market without sub markets.");
+                    }
+                }
+
                 baseModel.removeManyToOneAssociations(associationName);
                 baseModel.associateWith(relatedModel, associationName);
             } catch(Exception e) {
                 e.printStackTrace();
-                return new Gson().toJson(Collections.singletonMap("template", div().withText("Error: "+e.getMessage()).withClass("server-error").attr("style", "color: red;").with(span("X").attr("style", "cursor: pointer; color: black;").attr("onclick", "$(this).parent().remove();")).render()));
+                return new Gson().toJson(Collections.singletonMap("error", "Error: "+e.getMessage()));
             }
             return new Gson().toJson(Collections.singletonMap("template", relatedModel.getLink(associationModel.getReverseAssociationName(), baseModel.getClass().getSimpleName(), baseModel.getId()).render()));
         });

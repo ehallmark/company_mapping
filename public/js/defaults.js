@@ -102,7 +102,11 @@ var onShowResourceFunction = function($topElem) {
                 dataType: 'json',
                 type: 'DELETE',
                 success: function(showData) {
-                    $('.back-button').trigger('click');
+                    if(showData.hasOwnProperty('error')) {
+                        alert(showData.error);
+                    } else {
+                        $('.back-button').trigger('click');
+                    }
                 },
                 error: function() {
                     alert("An error occurred.");
@@ -236,20 +240,27 @@ var onShowResourceFunction = function($topElem) {
                     data: formData,
                     type: 'POST',
                     success: function(showData) {
-                        if(refresh==='refresh') {
-                            showDiagramFunction(originalId,originalResourceId);
+                        if(showData.hasOwnProperty('error')) {
+                            alert(showData.error);
                         } else {
-                            if(prepend==='prepend') {
-                                $(listRef).prepend(showData.template);
+                            if(refresh==='refresh') {
+                                showDiagramFunction(originalId,originalResourceId);
                             } else {
-                                $(listRef).html(showData.template);
+                                if(prepend==='prepend') {
+                                    $(listRef).prepend(showData.template);
+                                } else {
+                                    $(listRef).html(showData.template);
+                                }
+                                $form.find('input.form-control').val(null);
+                                onShowResourceFunction($(listRef));
+                                $('.resource-new-link').filter(':visible').each(function() {
+                                    $(this).next().hide();
+                                });
                             }
-                            $form.find('input.form-control').val(null);
-                            onShowResourceFunction($(listRef));
-                            $('.resource-new-link').filter(':visible').each(function() {
-                                $(this).next().hide();
-                            });
                         }
+                    }
+                    error: function() {
+                        alert('An error occurred.');
                     }
                 });
 
