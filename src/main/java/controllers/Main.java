@@ -1,5 +1,6 @@
 package controllers;
 
+import auth.PasswordException;
 import auth.PasswordHandler;
 import com.google.gson.Gson;
 import database.Database;
@@ -176,9 +177,24 @@ public class Main {
             return null;
         });
 
+        post("/update_password", (req, res) -> {
+            authorize(req, res);
+            String username = req.session(false).attribute("username");
+            String newPassword = extractString(req, "password", "");
+            try {
+                passwordHandler.forceChangePassword(username, newPassword);
+                req.session(false).attribute("password", newPassword);
+                return new Gson().toJson(Collections.singletonMap("success", "Successfully updated password."));
+            } catch(PasswordException e) {
+                e.printStackTrace();
+                return new Gson().toJson(Collections.singletonMap("result", "Error: "+e.getMessage()));
+            }
+        });
+
         get("/logout", (req,res)->{
             req.session(true).attribute("authorized",false);
             req.session().removeAttribute("username");
+            req.session().removeAttribute("password");
             res.redirect("/");
             res.status(200);
             return null;
@@ -219,6 +235,15 @@ public class Main {
                                                     div().withClass("row").with(
                                                             div().withClass("col-12").with(
                                                                 authorized?a("Sign Out").withHref("/logout"):span()
+                                                            ),
+                                                            div().withClass("col-12").with(
+                                                                    authorized?div().with(
+                                                                            a("Change Password").withClass("change-password-link").withHref("/edit_user"),
+                                                                            form().withClass("change-password-form").attr("style", "display: none;").with(
+                                                                                    input().withType("password").withClass("form-control").withName("password"),
+                                                                                    br(), button("Update").withType("submit").withClass("btn btn-outline-secondary")
+                                                                            )
+                                                                    ):span()
                                                             ),
                                                             div().withClass("col-12").with(
                                                                     h4("Company Mapping App")
@@ -484,6 +509,7 @@ public class Main {
 
 
         get("/resources/:resource/:id", (req, res) -> {
+            authorize(req, res);
             Model model = loadModel(req);
             if(model != null) {
                 model.loadAssociations();

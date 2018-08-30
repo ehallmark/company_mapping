@@ -20,6 +20,32 @@ $(document).ready(function() {
         });
     });
 
+    $('.change-password-link').click(function(e) {
+        e.preventDefault();
+        $(this).next().slideToggle();
+    });
+
+    $('.change-password-form').submit(function(e) {
+        e.preventDefault();
+        var $form = $(this);
+        $.ajax({
+            url: '/update_password',
+            dataType: 'json',
+            data: $form.serialize(),
+            type: 'POST',
+            success: function(data) {
+                if(data.hasOwnProperty('success')) {
+                    $form.hide();
+                    $form.find('input').val(null);
+                } else {
+                    alert(data.result);
+                }
+            },
+            error: function() {
+                alert("Error changing password.");
+            }
+        });
+    });
 });
 
 var createResourceDynatable = function(resource) {
