@@ -157,8 +157,41 @@ public class Main {
         return true;
     }
 
+    public static List<Model> selectAll(Model model, Association.Model type, List<String> headers, List<String> humanHeaders, Set<String> numericAttrs) throws Exception {
+        for(String header : model.getAvailableAttributes()) {
+            if (!Constants.isHiddenAttr(header) && !Arrays.asList(Constants.UPDATED_AT,Constants.CREATED_AT).contains(header)) {
+                headers.add(header);
+                humanHeaders.add(Constants.humanAttrFor(header));
+            }
+        }
+        for(Association association : model.getAssociationsMeta()) {
+            if(model.isRevenueModel()) {
+                headers.add(0, association.getAssociationName().toLowerCase().replace(" ", "-"));
+                boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
+                humanHeaders.add(0, pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName());
+            } else {
+                headers.add(association.getAssociationName().toLowerCase().replace(" ", "-"));
+                boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
+                humanHeaders.add(pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName());
+            }
+        }
 
-    public static void main(String[] args) throws Exception {
+        for(String header : headers) {
+            if(Constants.fieldTypeForAttr(header).equals(Constants.NUMBER_FIELD_TYPE)) {
+                numericAttrs.add(header);
+            }
+        }
+
+        if(model.isRevenueModel()) {
+            humanHeaders.add(0, Constants.humanAttrFor(Constants.NAME));
+            headers.add(0, Constants.NAME);
+        }
+
+        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes());
+    }
+
+
+    public static void main(String[] args)  {
         staticFiles.externalLocation(new File("public").getAbsolutePath());
         final PasswordHandler passwordHandler = new PasswordHandler();
         port(6969);
@@ -436,36 +469,7 @@ public class Main {
                 List<String> headers = new ArrayList<>();
                 Set<String> numericAttrs = new HashSet<>();
                 List<String> humanHeaders = new ArrayList<>();
-                for(String header : model.getAvailableAttributes()) {
-                    if (!Constants.isHiddenAttr(header) && !Arrays.asList(Constants.UPDATED_AT,Constants.CREATED_AT).contains(header)) {
-                        headers.add(header);
-                        humanHeaders.add(Constants.humanAttrFor(header));
-                    }
-                }
-                for(Association association : model.getAssociationsMeta()) {
-                    if(model.isRevenueModel()) {
-                        headers.add(0, association.getAssociationName().toLowerCase().replace(" ", "-"));
-                        boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
-                        humanHeaders.add(0, pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName());
-                    } else {
-                        headers.add(association.getAssociationName().toLowerCase().replace(" ", "-"));
-                        boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
-                        humanHeaders.add(pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName());
-                    }
-                }
-
-                for(String header : headers) {
-                    if(Constants.fieldTypeForAttr(header).equals(Constants.NUMBER_FIELD_TYPE)) {
-                        numericAttrs.add(header);
-                    }
-                }
-
-                if(model.isRevenueModel()) {
-                    humanHeaders.add(0, Constants.humanAttrFor(Constants.NAME));
-                    headers.add(0, Constants.NAME);
-                }
-
-                List<Map<String,String>> data = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes())
+                List<Map<String,String>> data = selectAll(model, type, headers, humanHeaders, numericAttrs)
                         .stream().map(m->{
                             Map<String,String> map = new HashMap<>(m.getData().size()+m.getAssociationsMeta().size());
                             m.getData().forEach((k,v)->{
@@ -529,6 +533,43 @@ public class Main {
                         diagram
                 );
 
+                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+            }
+            return null;
+        });
+
+        // diagram all
+
+        post("/diagram/:resource", (req, res)-> {
+            authorize(req,res);
+            Association.Model type;
+            String resource = req.params("resource");
+            try {
+                type = Association.Model.valueOf(resource);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+            Model _model = loadModel(type, null);
+            if(_model!=null) {
+                List<String> headers = new ArrayList<>();
+                Set<String> numericAttrs = new HashSet<>();
+                List<String> humanHeaders = new ArrayList<>();
+                List<Model> data = selectAll(_model, type, headers, humanHeaders, numericAttrs);
+                ContainerTag html  = div().withClass("col-12").with(
+                        h3("Diagram of All "+Constants.pluralizeAssociationName(Constants.humanAttrFor(_model.getClass().getSimpleName())))
+                );
+                for(Model model : data) {
+                    if(!model.getClass().getSimpleName().equals(Association.Model.Market.toString()) || model.getData().get(Constants.PARENT_MARKET_ID)==null) {
+                        ContainerTag diagram = model.loadNestedAssociations();
+                        html.with(div().withClass("col-12").with(
+                                h4("Diagram of " + model.getData().get(Constants.NAME)).attr("style", "cursor: pointer;")
+                                .attr("onclick", "$(this).next().slideToggle();"),
+                                diagram
+                                )
+                        );
+                    }
+                }
                 return new Gson().toJson(Collections.singletonMap("result", html.render()));
             }
             return null;

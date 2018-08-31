@@ -169,7 +169,7 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         ContainerTag inner = ul();
-        ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
+        ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
                         br(),inner
                 )
@@ -463,7 +463,7 @@ public abstract class Model implements Serializable {
                     }).collect(Collectors.toList())
                 )
         ).with(
-                div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
+                div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Product,Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
                         button("Diagram this "+Constants.humanAttrFor(this.getClass().getSimpleName()))
                                 .attr("data-id", id.toString())
                                 .attr("data-resource", this.getClass().getSimpleName())

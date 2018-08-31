@@ -504,6 +504,26 @@ var createResourceList = function(resourceId, resourceName, data) {
     var $result = $('<div class="col-12"></div>');
     $result.append('<h3>'+resourceName+'</h3>');
     var $new = createNewResourceForm(resourceId, resourceName, data);
+    if(!resourceId.includes('Revenue')) {
+        var $diagram = $('<div><a href="#" >(Diagram)</a></div>');
+        $result.append($diagram);
+        $diagram.find('a').click(function(e) {
+            e.preventDefault();
+            var $a = $(this);
+            $.ajax({
+                url: '/diagram/'+resourceId,
+                dataType: 'json',
+                type: 'POST',
+                success: function(data) {
+                    $('#results').html(data.result);
+                    onShowResourceFunction($('#results'));
+                },
+                error: function() {
+                    alert("An error occurred.");
+                }
+            });
+        });
+    }
     $result.append($new);
     //$result.append($ul);
     return $result;
