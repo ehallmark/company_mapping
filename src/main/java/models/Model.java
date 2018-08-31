@@ -135,10 +135,6 @@ public abstract class Model implements Serializable {
                             br(),
                             input().withName(Constants.IS_ESTIMATE).withType("checkbox").attr("value", "true")
                     ), br(),
-                    label(Constants.humanAttrFor(Constants.IS_PERCENTAGE)).with(
-                            br(),
-                            input().withName(Constants.IS_PERCENTAGE).withType("checkbox").attr("value", "true")
-                    ), br(),
                     label(Constants.humanAttrFor(Constants.ESTIMATE_TYPE)).with(
                             br(),
                             select().withClass("multiselect").withName(Constants.ESTIMATE_TYPE).with(

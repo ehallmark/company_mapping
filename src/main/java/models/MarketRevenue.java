@@ -17,7 +17,6 @@ public class MarketRevenue extends Model {
             Constants.YEAR,
             Constants.NOTES,
             Constants.SOURCE,
-            Constants.IS_PERCENTAGE,
             Constants.IS_ESTIMATE,
             Constants.ESTIMATE_TYPE,
             Constants.CAGR,

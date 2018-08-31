@@ -18,7 +18,6 @@ public class Constants {
     public static final String VALUE = "value";
     public static final String YEAR = "year";
     public static final String SOURCE = "source";
-    public static final String IS_PERCENTAGE = "is_percentage";
     public static final String IS_ESTIMATE = "is_estimate";
     public static final String ESTIMATE_TYPE = "estimate_type";
     public static final String CAGR = "cagr";
@@ -51,7 +50,6 @@ public class Constants {
         ATTR_MAP.put(SOURCE, "Source");
         ATTR_MAP.put(YEAR, "Applicable Year");
         ATTR_MAP.put(IS_ESTIMATE, "Is Estimate?");
-        ATTR_MAP.put(IS_PERCENTAGE, "Is Percentage?");
         ATTR_MAP.put(ESTIMATE_TYPE, "Estimate Quality (High/Medium/Low)");
         ATTR_MAP.put(UPDATED_AT, "Last Updated");
         ATTR_MAP.put(CREATED_AT, "Date Created");
@@ -77,7 +75,6 @@ public class Constants {
     static {
         FIELD_TYPE_MAP.put(NAME, TEXT_FIELD_TYPE);
         FIELD_TYPE_MAP.put(SOURCE, TEXT_FIELD_TYPE);
-        FIELD_TYPE_MAP.put(IS_PERCENTAGE, BOOL_FIELD_TYPE);
         FIELD_TYPE_MAP.put(IS_ESTIMATE, BOOL_FIELD_TYPE);
         FIELD_TYPE_MAP.put(ESTIMATE_TYPE, NUMBER_FIELD_TYPE);
         FIELD_TYPE_MAP.put(YEAR, NUMBER_FIELD_TYPE);
