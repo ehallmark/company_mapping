@@ -266,13 +266,18 @@ public abstract class Model implements Serializable {
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
+            String display = original==this ? "block;" : "none;";
+            String displayPlus = original==this ? "none;" : "block;";
+            container.with(
+                    li().attr("style", "list-style: none; cursor: pointer; display: "+displayPlus).withText("+")
+                            .attr("onclick", "$(this).nextAll().slideToggle();")
+            );
             modelMap.forEach((association, models) -> {
                 boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
                 List<ContainerTag> tag =  new ArrayList<>();
                 ContainerTag ul = ul();
-                String display = original==this ? "block;" : "none;";
                 tag.add(
-                        li().attr("style", "list-style: none;").with(
+                        li().attr("style", "list-style: none; display: "+display).with(
                                 h6(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName()).attr("style", "cursor: pointer; display: inline;")
                                 .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
                                 span("Revenue: "+_totalRevenue).withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
@@ -284,7 +289,6 @@ public abstract class Model implements Serializable {
                     String _id = model.getClass().getSimpleName() + model.getId();
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
-                    String revenueClass = "resource-revenue-"+_id;
                     ul.with(li().attr("style", "display: inline;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
                     if(!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
