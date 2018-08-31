@@ -21,14 +21,13 @@ create index products_name_idx on products (name);
 drop table companies cascade;
 create table companies (
     id serial primary key,
-    name text not null,
+    name text not null unique,
     revenue double precision,
     notes text,
     parent_company_id integer,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),
-    foreign key (parent_company_id) references companies (id) on delete set null,
-    unique (parent_company_id, name)
+    foreign key (parent_company_id) references companies (id) on delete set null
 );
 
 create index companies_parent_company_id_idx on companies (parent_company_id);
@@ -118,8 +117,21 @@ create index product_revenues_product_id_idx on product_revenues (product_id);
 
 drop table companies_markets;
 create table companies_markets (
-    company_id integer not null references companies (id) on delete cascade,
-    market_id integer not null references markets (id) on delete cascade,
-    primary key (company_id, market_id)
+    id serial primary key,
+    value double precision not null,
+    year integer not null,
+    notes text,
+    source text,
+    is_estimate boolean not null default ('f'),
+    estimate_type integer check (estimate_type is null or estimate_type in (0, 1, 2)),
+    cagr double precision,
+    company_id integer not null references companies (id) on delete restrict,
+    market_id integer not null references markets (id) on delete restrict,
+    updated_at timestamp not null default now(),
+    created_at timestamp not null default now(),
+    check (notes is not null OR source is not null),
+    check (is_estimate OR (source is not null)),
+    check ((not is_estimate) OR estimate_type is not null),
+    unique (market_id, company_id, year)
 );
 

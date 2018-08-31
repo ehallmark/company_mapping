@@ -16,9 +16,9 @@ public class Company extends Model {
             new Association("Sub Company", Association.Model.Company, Constants.COMPANY_TABLE,
                     Constants.COMPANY_TABLE, null, Association.Type.OneToMany,
                     Constants.PARENT_COMPANY_ID, Constants.COMPANY_ID, false, "Parent Company"),
-            new Association(Association.Model.Market, Constants.COMPANY_TABLE,
-                    Constants.MARKET_TABLE, Constants.COMPANY_MARKETS_JOIN_TABLE, Association.Type.ManyToMany,
-                    Constants.COMPANY_ID, Constants.MARKET_ID, false, "Company")
+            new Association("Market Share", Association.Model.MarketShareRevenue, Constants.COMPANY_TABLE,
+                    Constants.COMPANY_MARKETS_JOIN_TABLE, null, Association.Type.OneToMany,
+                    Constants.COMPANY_ID, Constants.MARKET_SHARE_ID, false, "Company")
     );
     private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
             Constants.NAME,

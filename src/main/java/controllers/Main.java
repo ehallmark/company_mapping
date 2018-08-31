@@ -5,7 +5,6 @@ import auth.PasswordHandler;
 import com.google.gson.Gson;
 import database.Database;
 import j2html.tags.ContainerTag;
-import j2html.tags.Tag;
 import models.*;
 import spark.QueryParamsMap;
 import spark.Request;
@@ -69,6 +68,10 @@ public class Main {
             }
             case ProductRevenue: {
                 model = new ProductRevenue(id, null);
+                break;
+            }
+            case MarketShareRevenue: {
+                model = new MarketShareRevenue(id, null);
                 break;
             }
             default: {
@@ -751,7 +754,7 @@ public class Main {
                 }*/
 
                 baseModel.removeManyToOneAssociations(associationName);
-                baseModel.associateWith(relatedModel, associationName);
+                baseModel.associateWith(relatedModel, associationName, Collections.emptyMap());
             } catch(Exception e) {
                 e.printStackTrace();
                 return new Gson().toJson(Collections.singletonMap("error", "Error: "+e.getMessage()));

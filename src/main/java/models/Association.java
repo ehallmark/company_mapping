@@ -1,8 +1,11 @@
 package models;
 
 import lombok.Getter;
+import lombok.NonNull;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 
 public class Association implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -19,7 +22,8 @@ public class Association implements Serializable {
         Product,
         MarketRevenue,
         CompanyRevenue,
-        ProductRevenue
+        ProductRevenue,
+        MarketShareRevenue
     }
 
     @Getter
@@ -42,12 +46,19 @@ public class Association implements Serializable {
     private String associationName;
     @Getter
     private String reverseAssociationName;
+    @Getter
+    private final List<String> joinAttributes;
     public Association(Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent, String reverseAssociationName) {
         this(model.toString(), model, parentTableName, childTableName, joinTableName, type, parentIdField, childIdField, dependent, reverseAssociationName);
     }
 
     public Association(String associationName, Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent, String reverseAssociationName) {
+        this(associationName, model, parentTableName, childTableName, joinTableName, type, parentIdField, childIdField, dependent, reverseAssociationName, Collections.emptyList());
+    }
+
+    public Association(String associationName, Model model, String parentTableName, String childTableName, String joinTableName, Type type, String parentIdField, String childIdField, boolean dependent, String reverseAssociationName, @NonNull List<String> joinAttributes) {
         this.parentIdField = parentIdField;
+        this.joinAttributes = joinAttributes;
         this.reverseAssociationName=reverseAssociationName;
         this.dependent = dependent;
         this.associationName=associationName;

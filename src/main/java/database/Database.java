@@ -99,6 +99,10 @@ public class Database {
                     models.add(new MarketRevenue(id, null));
                     break;
                 }
+                case MarketShareRevenue: {
+                    models.add(new MarketShareRevenue(id, null));
+                    break;
+                }
             }
         }
         rs.close();
@@ -106,39 +110,51 @@ public class Database {
         return models;
     }
 
-    public static synchronized List<Model> loadManyToManyAssociation(@NonNull Association.Model associationType, @NonNull Model baseModel, @NonNull String joinTableName, @NonNull String parentIdField, @NonNull String childIdField) throws SQLException {
+    public static synchronized Map<Model, Map<String,Object>> loadManyToManyAssociation(@NonNull Association.Model associationType, @NonNull Model baseModel, @NonNull String joinTableName, @NonNull String parentIdField, @NonNull String childIdField, List<String> joinAttributes) throws SQLException {
         if(!baseModel.existsInDatabase()) {
             System.out.println("Trying to load association of model that does not exist in the database.");
         }
-        PreparedStatement ps = conn.prepareStatement("select "+childIdField+" from "+joinTableName+" where "+parentIdField+"=?");
+        String select = joinAttributes==null||joinAttributes.isEmpty() ? childIdField : (childIdField+","+String.join(",",joinAttributes));
+        PreparedStatement ps = conn.prepareStatement("select "+select+" from "+joinTableName+" where "+parentIdField+"=?");
         ps.setObject(1, baseModel.getId());
         ResultSet rs = ps.executeQuery();
-        List<Model> models = new ArrayList<>();
+        Map<Model, Map<String,Object>> models = new HashMap<>();
         while(rs.next()) {
             final int id = rs.getInt(1);
+            Map<String,Object> joinData = new HashMap<>();
+            if(joinAttributes!=null) {
+                for(int i = 0; i < joinAttributes.size(); i++) {
+                    String attr = joinAttributes.get(i);
+                    joinData.put(attr, rs.getObject(2+i));
+                }
+            }
             switch(associationType) {
                 case Company: {
-                    models.add(new Company(id, null));
+                    models.put(new Company(id, null), joinData);
                     break;
                 }
                 case Market: {
-                    models.add(new Market(id, null));
+                    models.put(new Market(id, null), joinData);
                     break;
                 }
                 case Product: {
-                    models.add(new Product(id, null));
+                    models.put(new Product(id, null), joinData);
                     break;
                 }
                 case CompanyRevenue: {
-                    models.add(new CompanyRevenue(id, null));
+                    models.put(new CompanyRevenue(id, null), joinData);
                     break;
                 }
                 case MarketRevenue: {
-                    models.add(new MarketRevenue(id, null));
+                    models.put(new MarketRevenue(id, null), joinData);
                     break;
                 }
                 case ProductRevenue: {
-                    models.add(new ProductRevenue(id, null));
+                    models.put(new ProductRevenue(id, null), joinData);
+                    break;
+                }
+                case MarketShareRevenue: {
+                    models.put(new MarketShareRevenue(id, null), joinData);
                     break;
                 }
             }
@@ -182,7 +198,10 @@ public class Database {
                 model = new ProductRevenue(parentId, null);
                 break;
             }
-
+            case MarketShareRevenue: {
+                model = new MarketShareRevenue(parentId, null);
+                break;
+            }
         }
         return model;
     }
@@ -282,7 +301,10 @@ public class Database {
                     m = new ProductRevenue(id, data);
                     break;
                 }
-
+                case MarketShareRevenue: {
+                    m = new MarketShareRevenue(id, data);
+                    break;
+                }
             }
             models.add(m);
 
@@ -303,16 +325,27 @@ public class Database {
         }
         PreparedStatement ps;
         if(isRevenueModel) {
-            String parentTableName = tableName.replace("_revenue","");
-            if(parentTableName.equals("companys")) {
-                parentTableName = "companies"; // handle weird english language
+            if(model.equals(Association.Model.MarketShareRevenue)) {
+                String attrStr = String.join(",", attrList.stream().map(a -> "r." + a).collect(Collectors.toList()));
+                if(attrList.size()>0) {
+                    attrStr = ","+attrStr;
+                }
+                ps = conn.prepareStatement("select r.id as id,c.name||' share of ' || m.name||' ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join companies as c on (c.id=r.company_id) join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' order by c.name")));
+
+            } else {
+                String parentTableName;
+                String parentIdField;
+                parentTableName = tableName.replace("_revenue", "");
+                if (parentTableName.equals("companys")) {
+                    parentTableName = "companies"; // handle weird english language
+                }
+                parentIdField = model.toString().replace("Revenue", "").toLowerCase() + "_id";
+                String attrStr = String.join(",", attrList.stream().map(a -> "r." + a).collect(Collectors.toList()));
+                if(attrList.size()>0) {
+                    attrStr = ","+attrStr;
+                }
+                ps = conn.prepareStatement("select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' order by lower(j.name)")));
             }
-            String parentIdField = model.toString().replace("Revenue","").toLowerCase()+"_id";
-            String attrStr = String.join(",", attrList.stream().map(a -> "r." + a).collect(Collectors.toList()));
-            if(attrList.size()>0) {
-                attrStr = ","+attrStr;
-            }
-            ps = conn.prepareStatement("select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' order by lower(j.name)")));
 
         } else {
             ps = conn.prepareStatement("select id,"+String.join(",", attrList)+" from "+tableName+"" + (searchName==null?"" : ( " where lower(name) like '%'||?||'%' order by lower(name)")));
@@ -357,7 +390,10 @@ public class Database {
                     m = new ProductRevenue(id, data);
                     break;
                 }
-
+                case MarketShareRevenue: {
+                    m = new MarketShareRevenue(id, data);
+                    break;
+                }
             }
             models.add(m);
 

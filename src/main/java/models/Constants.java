@@ -33,7 +33,7 @@ public class Constants {
     public static final String BOOL_FIELD_TYPE = "boolean";
     public static final String NUMBER_FIELD_TYPE = "number";
     public static final String TEXT_ONLY = "_TEXTONLY";
-
+    public static final String MARKET_SHARE_ID = "company_share_id";
     private static final Map<String, String> ATTR_MAP = Collections.synchronizedMap(new HashMap<>());
     static {
         ATTR_MAP.put(NOTES, "Notes");
@@ -44,6 +44,7 @@ public class Constants {
         ATTR_MAP.put(Association.Model.MarketRevenue.toString(), "Market Revenue");
         ATTR_MAP.put(Association.Model.ProductRevenue.toString(), "Product Revenue");
         ATTR_MAP.put(Association.Model.CompanyRevenue.toString(), "Company Revenue");
+        ATTR_MAP.put(Association.Model.MarketShareRevenue.toString(), "Market Share");
         ATTR_MAP.put(PARENT_MARKET_ID, "Parent Market");
         ATTR_MAP.put(PARENT_COMPANY_ID, "Parent Company");
         ATTR_MAP.put(VALUE, "Revenue ($)");

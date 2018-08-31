@@ -1,7 +1,9 @@
 package models;
 
+import com.google.gson.Gson;
 import database.Database;
 import j2html.tags.ContainerTag;
+import j2html.tags.Tag;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -101,7 +103,12 @@ public abstract class Model implements Serializable {
         if(type.toString().endsWith("Revenue")) {
             String applicableField;
             String associationResource = this.getClass().getSimpleName().replace("Revenue","");
-            if(this.getClass().getSimpleName().startsWith("Market")) {
+            boolean isMarketShare = false;
+            if(type.equals(Association.Model.MarketShareRevenue)) {
+                isMarketShare = true;
+                applicableField = this.getClass().getSimpleName().startsWith("Company") ? Constants.MARKET_ID : Constants.COMPANY_ID;
+                associationResource = this.getClass().getSimpleName().startsWith("Company") ? "Market" : "Company";
+            } else if(this.getClass().getSimpleName().startsWith("Market")) {
                 applicableField = Constants.MARKET_ID;
             } else if(this.getClass().getSimpleName().startsWith("Product")) {
                 applicableField = Constants.PRODUCT_ID;
@@ -111,14 +118,22 @@ public abstract class Model implements Serializable {
             } else {
                 throw new RuntimeException("Unknown revenue type exception.");
             }
+            ContainerTag associationTag;
+            if(!isMarketShare && associationId!=null) {
+                associationTag = span();
+            } else {
+                associationTag = label(associationResource).with(
+                        br(),
+                        (isMarketShare?input().withType("hidden")
+                                .withValue(id.toString())
+                                .withName( this.getClass().getSimpleName().startsWith("Company") ? Constants.COMPANY_ID : Constants.MARKET_ID) : span()),
+                        select().withClass("multiselect-ajax")
+                                .withName(applicableField)
+                                .attr("data-url", "/ajax/resources/"+associationResource+"/"+this.getClass().getSimpleName()+"/-1")
+                );
+            }
             return form().with(
-                    (associationId!=null ? span() : (
-                    label(associationResource).with(
-                            br(),
-                            select().withClass("multiselect-ajax")
-                                    .withName(applicableField)
-                                    .attr("data-url", "/ajax/resources/"+associationResource+"/"+this.getClass().getSimpleName()+"/-1")
-                    ))), br(),
+                    associationTag, br(),
                     label(Constants.humanAttrFor(Constants.YEAR)).with(
                             br(),
                             input().attr("value", String.valueOf(LocalDate.now().getYear())).withClass("form-control").withName(Constants.YEAR).withType("number")
@@ -159,7 +174,8 @@ public abstract class Model implements Serializable {
                     label(Constants.humanAttrFor(Constants.NAME)).with(
                             br(),
                             input().withClass("form-control").withName(Constants.NAME).withType("text")
-                    ), br(), button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+                    ), br(),
+                    button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
             );
         }
     }
@@ -185,10 +201,10 @@ public abstract class Model implements Serializable {
         if(isRevenueModel) {
             updateRev = span();
         } else {
-            if(associationsMeta==null) loadAssociations();
-            Association association = associationsMeta.stream().filter(a->a.getModel().toString().contains("Revenue")).findAny().orElse(null);
+            if(associations==null) loadAssociations();
+            Association association = associationsMeta.stream().filter(a->!a.getModel().equals(Association.Model.MarketShareRevenue) && a.getModel().toString().contains("Revenue")).findAny().orElse(null);
             if(association!=null && associations.getOrDefault(association, Collections.emptyList()).size()==0) {
-                updateRev = getAddAssociationPanel(association,null,originalModel).attr("style", "display: inline;");
+                updateRev = getAddAssociationPanel(association,null,originalModel,revenue!=null?"(Override)":"(New)").attr("style", "display: inline;");
             } else {
                 updateRev = span();
             }
@@ -196,7 +212,7 @@ public abstract class Model implements Serializable {
                 return revenueLink.with(updateRev);
             }
         }
-        return span("Revenue: "+(revenue==null?"":revenue)).with(revenue==null?updateRev:span()).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
+        return span("Revenue: "+(revenue==null?"":revenue)).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
     public double calculateRevenue() {
@@ -208,15 +224,32 @@ public abstract class Model implements Serializable {
             // find revenues
             if(associations==null) loadAssociations();
             double totalRevenueOfLevel = 0d;
+            double totalRevenueFromMarketShares = 0d;
             boolean foundRevenueInSubMarket = false;
+            boolean foundRevenueInMarketShares = false;
             for(Association association : associationsMeta) {
                 if(association.getModel().toString().contains("Revenue")) {
                     // found actual revenue data
-                    List<Model> revenues = associations.get(association);
-                    if(revenues!=null && revenues.size()>0) {
-                        Model revenueModel = revenues.stream().max((e1,e2)->((Integer)e2.getData().get(Constants.YEAR)).compareTo((Integer)e1.getData().get(Constants.YEAR))).orElse(null);
-                        revenue = (Double)revenueModel.getData().get(Constants.VALUE);
-                        revenueLink = revenueModel.getSimpleLink("resource-data-field").with(span(revenue.toString()).attr("style", "margin-left: 10px; color: black;")).attr("data-val", revenue).attr("style","margin-left: 10px;");
+                    if(this.getClass().getSimpleName().equals(Association.Model.Company.toString()) && association.getModel().equals(Association.Model.MarketShareRevenue)) {
+                        // backup company revenue = (sum of market shares)
+                        List<Model> revenues = associations.get(association);
+                        if (revenues != null && revenues.size() > 0) {
+                            // group
+                            Map<Integer,List<Model>> revenueGroups = revenues.stream().collect(Collectors.groupingBy(e->(Integer)e.getData().get(Constants.MARKET_ID),Collectors.toList()));
+                            totalRevenueFromMarketShares = revenueGroups.values().stream().map(list->list.stream().max((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).orElse(null)).filter(e->e!=null)
+                                    .mapToDouble(d->(Double)d.getData().get(Constants.VALUE)).sum();
+                            foundRevenueInMarketShares = true;
+                        }
+                    } else {
+                        // only non market shares for other models
+                        if(!association.getModel().equals(Association.Model.MarketShareRevenue)) {
+                            List<Model> revenues = associations.get(association);
+                            if (revenues != null && revenues.size() > 0) {
+                                Model revenueModel = revenues.stream().max((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).orElse(null);
+                                revenue = (Double) revenueModel.getData().get(Constants.VALUE);
+                                revenueLink = revenueModel.getSimpleLink("resource-data-field").with(span(revenue.toString()).attr("style", "margin-left: 10px; color: black;")).attr("data-val", revenue).attr("style", "margin-left: 10px;");
+                            }
+                        }
                     }
                 }
                 if (this.getClass().getSimpleName().equals(Association.Model.Market.toString())) {
@@ -234,6 +267,9 @@ public abstract class Model implements Serializable {
             }
             if(foundRevenueInSubMarket && this.getClass().getSimpleName().equals(Association.Model.Market.toString()) && revenue==null) {
                 revenue = totalRevenueOfLevel;
+            }
+            if(foundRevenueInMarketShares && this.getClass().getSimpleName().equals(Association.Model.Company.toString()) && revenue==null) {
+                revenue = totalRevenueFromMarketShares;
             }
         }
 
@@ -253,7 +289,7 @@ public abstract class Model implements Serializable {
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
         for(Association association : associationsMeta) {
-            if(association.getModel().toString().endsWith("Revenue")) {
+            if(!association.getModel().equals(Association.Model.MarketShareRevenue) && association.getModel().toString().endsWith("Revenue")) {
                 continue;
             }
             if(association.getAssociationName().startsWith("Parent ")||association.getAssociationName().equals("Sub Company")) {
@@ -320,7 +356,7 @@ public abstract class Model implements Serializable {
         }
     }
 
-    public void associateWith(Model otherModel, String associationName) {
+    public void associateWith(@NonNull Model otherModel,@NonNull String associationName, @NonNull Map<String,Object> joinData) {
         // find association
         for(Association association : associationsMeta) {
             if(association.getAssociationName().equals(associationName)) {
@@ -351,9 +387,20 @@ public abstract class Model implements Serializable {
                             // need to add to join table
                             Connection conn = Database.getConn();
                             PreparedStatement ps = null;
-                            ps = conn.prepareStatement("insert into "+association.getJoinTableName() + " ("+association.getParentIdField()+","+association.getChildIdField()+") values (?,?) on conflict do nothing");
+                            String valueStr = "?,?";
+                            String fieldStr = association.getParentIdField()+","+association.getChildIdField();
+                            for(int i = 0; i < association.getJoinAttributes().size(); i++) {
+                                valueStr += ",?";
+                                fieldStr += ","+association.getJoinAttributes().get(i);
+                            }
+                            ps = conn.prepareStatement("insert into "+association.getJoinTableName() + " ("+fieldStr+") values ("+valueStr+") on conflict do nothing");
                             ps.setInt(1, id);
                             ps.setInt(2, otherModel.getId());
+                            for(int i = 0; i < association.getJoinAttributes().size(); i++) {
+                                ps.setObject(3 + i, joinData.get(association.getJoinAttributes().get(i)));
+                            }
+                            System.out.println("JOIN: "+new Gson().toJson(joinData));
+                            System.out.println("PS: "+ps);
                             ps.executeUpdate();
                             ps.close();
                         } catch(Exception e) {
@@ -376,6 +423,9 @@ public abstract class Model implements Serializable {
     }
 
     private ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel) {
+        return getAddAssociationPanel(association, listRef, diagramModel, null);
+    }
+    private ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel, String overrideCreateText) {
         Association.Type type = association.getType();
         String prepend = "false";
         String createText = "(New)";
@@ -401,6 +451,14 @@ public abstract class Model implements Serializable {
                 break;
             }
         }
+        if(overrideCreateText!=null) {
+            createText = overrideCreateText;
+        }
+        Collection<Tag> inputs = new ArrayList<>(Arrays.asList(input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
+                label(association.getAssociationName()+" Name:").with(
+                        select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName("id")
+                                .attr("data-url", "/ajax/resources/"+association.getModel()+"/"+this.getClass().getSimpleName()+"/"+id)
+                ), br()));
         ContainerTag panel = div().with(a(createText).withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
                 getCreateNewForm(association.getModel(),id).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("#"+listRef)).attr("data-association", association.getModel().toString())
                         .attr("data-resource", this.getClass().getSimpleName())
@@ -415,11 +473,9 @@ public abstract class Model implements Serializable {
                         .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")
                         .attr("data-original-resource",diagramModel!=null ? diagramModel.getClass().getSimpleName() : "f")
                         .with(
-                                input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
-                                label(association.getAssociationName()+" Name:").with(
-                                        select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName("id")
-                                                .attr("data-url", "/ajax/resources/"+association.getModel()+"/"+this.getClass().getSimpleName()+"/"+id)
-                                ), br(), button("Assign").withClass("btn btn-outline-secondary btn-sm").withType("submit")
+                                inputs
+                        ).with(
+                                button("Assign").withClass("btn btn-outline-secondary btn-sm").withType("submit")
 
                         )
         ));
@@ -540,9 +596,10 @@ public abstract class Model implements Serializable {
                     }
                     throw new RuntimeException("One to one associations are not yet implemented.");
                 } else if (association.getType().equals(Association.Type.ManyToMany)) {
-                    List<Model> children = Database.loadManyToManyAssociation(association.getModel(), this, association.getJoinTableName(), association.getParentIdField(), association.getChildIdField());
-                    data.put(association.getModel().toString(), children);
-                    associations.put(association, children);
+                    Map<Model,Map<String,Object>> children = Database.loadManyToManyAssociation(association.getModel(), this, association.getJoinTableName(), association.getParentIdField(), association.getChildIdField(), association.getJoinAttributes());
+                    List<Model> childrenList = new ArrayList<>(children.keySet());
+                    data.put(association.getModel().toString(), childrenList);
+                    associations.put(association, childrenList);
                 }
             } catch(Exception e) {
                 e.printStackTrace();
