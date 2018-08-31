@@ -585,20 +585,43 @@ public abstract class Model implements Serializable {
         if(existsInDatabase()) {
             throw new RuntimeException("Trying to create a record that already exists in the database...");
         }
+        if(isRevenueModel) {
+            List<String> fieldsToHave = Arrays.asList(
+                    Constants.YEAR,
+                    Constants.VALUE
+            );
+            for(String field : fieldsToHave) {
+                if(data.get(field)==null) {
+                    throw new RuntimeException(Constants.humanAttrFor(field)+" must be present");
+                }
+            }
+            // make sure both notes and source are not null
+            if(data.get(Constants.NOTES)==null && data.get(Constants.SOURCE)==null) {
+                throw new RuntimeException("Must enter a source (for non-estimates) or notes (for estimates)");
+            }
+            // if note an estimate, a source must exist
+            if((data.get(Constants.IS_ESTIMATE)==null || !data.get(Constants.IS_ESTIMATE).toString().toLowerCase().startsWith("t")) && data.get(Constants.SOURCE)==null) {
+                throw new RuntimeException("Must enter a source for non-estimates");
+            }
+            // if is_estimate, we need to have an estimate_type
+            if((data.get(Constants.IS_ESTIMATE)!=null && data.get(Constants.IS_ESTIMATE).toString().toLowerCase().startsWith("t")) && data.get(Constants.ESTIMATE_TYPE)==null) {
+                throw new RuntimeException("Must enter an estimate type for estimates");
+            }
+            if((data.get(Constants.ESTIMATE_TYPE)!=null && !Arrays.asList("0","1","2").contains(data.get(Constants.ESTIMATE_TYPE).toString()))) {
+                throw new RuntimeException("Invalid value for estimate type.");
+            }
+
+        } else {
+            if(data.get(Constants.NAME)==null) {
+                throw new RuntimeException("Name must be present");
+            }
+        }
+
         try {
             id = Database.insert(tableName, data);
         } catch(Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error inserting record into database: "+e.getMessage());
-        }
-    }
-
-    // upsert to the database
-    public void upsertInDatabase() {
-        if(existsInDatabase()) {
-            updateInDatabase();
-        } else {
-            createInDatabase();
         }
     }
 

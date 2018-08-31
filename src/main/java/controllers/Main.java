@@ -568,8 +568,12 @@ public class Main {
                         model.updateAttribute(attr, val);
                     }
                 });
-                model.updateInDatabase();
-                return new Gson().toJson(model);
+                try {
+                    model.updateInDatabase();
+                    return new Gson().toJson(model);
+                } catch(Exception e) {
+                    return new Gson().toJson(Collections.singletonMap("error", e.getMessage()));
+                }
             }
             else return null;
         });
@@ -593,8 +597,13 @@ public class Main {
                         model.updateAttribute(attr, val);
                     }
                 });
-                model.createInDatabase();
-                return new Gson().toJson(model);
+                try {
+                    model.createInDatabase();
+                    return new Gson().toJson(model);
+                } catch(Exception e) {
+                    e.printStackTrace();
+                    return new Gson().toJson(Collections.singletonMap("error", e.getMessage()));
+                }
             }
             else return null;
         });

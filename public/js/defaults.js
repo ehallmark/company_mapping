@@ -102,7 +102,7 @@ var updateAssociationTotals = function() {
         var $this = $(this);
         var sum = 0.0;
         $this.next().children().each(function() {
-            $(this).children().filter('span.resource-data-field').each(function() {
+            $(this).children().filter('.resource-data-field').each(function() {
                 var $field = $(this);
                 if($field.attr('data-val')) {
                     sum += parseFloat($field.attr('data-val'));
@@ -261,52 +261,55 @@ var onShowResourceFunction = function($topElem) {
             data: formData,
             type: 'POST',
             success: function(showData) {
-                var newId = showData.id;
-                $.ajax({
-                    url: '/new_association/'+resourceId+'/'+associationId+'/'+id+'/'+newId,
-                    dataType: 'json',
-                    data: formData,
-                    type: 'POST',
-                    success: function(showData) {
-                        if(showData.hasOwnProperty('error')) {
-                            // delete resource
-                            var url = '/resources/'+associationId+'/'+newId;
-                            $.ajax({
-                                url: url,
-                                dataType: 'json',
-                                type: 'DELETE',
-                                success: function(showData) {
-                                    if(showData.hasOwnProperty('error')) {
-                                        alert('Warning... '+showData.error);
+                if(showData.hasOwnProperty('error')) {
+                    alert(showData.error);
+                } else {
+                    var newId = showData.id;
+                    $.ajax({
+                        url: '/new_association/'+resourceId+'/'+associationId+'/'+id+'/'+newId,
+                        dataType: 'json',
+                        data: formData,
+                        type: 'POST',
+                        success: function(showData) {
+                            if(showData.hasOwnProperty('error')) {
+                                // delete resource
+                                var url = '/resources/'+associationId+'/'+newId;
+                                $.ajax({
+                                    url: url,
+                                    dataType: 'json',
+                                    type: 'DELETE',
+                                    success: function(showData) {
+                                        if(showData.hasOwnProperty('error')) {
+                                            alert('Warning... '+showData.error);
+                                        }
+                                    },
+                                    error: function() {
+                                        alert("An error occurred.");
                                     }
-                                },
-                                error: function() {
-                                    alert("An error occurred.");
-                                }
-                            });
-                            alert(showData.error);
-                        } else {
-                            if(!listRef || refresh==='refresh') {
-                                showDiagramFunction(originalId,originalResourceId);
-                            } else {
-                                if(prepend==='prepend') {
-                                    $(listRef).prepend(showData.template);
-                                } else {
-                                    $(listRef).html(showData.template);
-                                }
-                                $form.find('input.form-control').val(null);
-                                onShowResourceFunction($(listRef));
-                                $('.resource-new-link').filter(':visible').each(function() {
-                                    $(this).next().hide();
                                 });
+                                alert(showData.error);
+                            } else {
+                                if(!listRef || refresh==='refresh') {
+                                    showDiagramFunction(originalId,originalResourceId);
+                                } else {
+                                    if(prepend==='prepend') {
+                                        $(listRef).prepend(showData.template);
+                                    } else {
+                                        $(listRef).html(showData.template);
+                                    }
+                                    $form.find('input.form-control').val(null);
+                                    onShowResourceFunction($(listRef));
+                                    $('.resource-new-link').filter(':visible').each(function() {
+                                        $(this).next().hide();
+                                    });
+                                }
                             }
+                        },
+                        error: function() {
+                            alert('An error occurred.');
                         }
-                    },
-                    error: function() {
-                        alert('An error occurred.');
-                    }
-                });
-
+                    });
+                }
             }
         });
 
@@ -455,8 +458,12 @@ var createNewResourceForm = function(resourceId, resourceName, data) {
             data: $form.serialize(),
             type: 'POST',
             success: function(showData) {
-                var id = showData.id;
-                showResourceFunction(resourceId, id);
+                if(showData.hasOwnProperty('error')) {
+                    alert(showData.error);
+                } else {
+                    var id = showData.id;
+                    showResourceFunction(resourceId, id);
+                }
             }
         });
         return false;
