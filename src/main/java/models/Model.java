@@ -35,6 +35,8 @@ public abstract class Model implements Serializable {
     private Set<String> allReferences;
     @Getter
     private final boolean isRevenueModel;
+    private Double revenue;
+    private ContainerTag revenueLink;
     protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data, boolean isRevenueModel) {
         this.tableName = tableName;
         this.data = data;
@@ -81,12 +83,13 @@ public abstract class Model implements Serializable {
     public ContainerTag getSimpleLink(@NonNull String... additionalClasses) {
         String name;
         if(isRevenueModel) {
+            boolean removePrefix = additionalClasses.length>0 && additionalClasses[0].equals("resource-data-field");
             // TODO speed up this query
             if(!data.containsKey(Constants.NAME)) {
                 loadAssociations();
                 List<Model> parent = associations.get(associationsMeta.get(0));
                 if(parent!=null && parent.size()>0) {
-                    data.put(Constants.NAME, ((String)parent.get(0).getData().get(Constants.NAME)) + " Revenue ("+data.get(Constants.YEAR)+")");
+                    data.put(Constants.NAME, (removePrefix ? "" : (((String)parent.get(0).getData().get(Constants.NAME)) + " ")) + "Revenue ("+data.get(Constants.YEAR)+")");
                 }
             }
         }
@@ -94,7 +97,7 @@ public abstract class Model implements Serializable {
         return a(name).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+String.join(" ", additionalClasses));
     }
 
-    public ContainerTag getCreateNewForm(Association.Model type) {
+    public ContainerTag getCreateNewForm(Association.Model type, Integer associationId) {
         if(type.toString().endsWith("Revenue")) {
             String applicableField;
             String associationResource = this.getClass().getSimpleName().replace("Revenue","");
@@ -109,12 +112,13 @@ public abstract class Model implements Serializable {
                 throw new RuntimeException("Unknown revenue type exception.");
             }
             return form().with(
+                    (associationId!=null ? span() : (
                     label(associationResource).with(
                             br(),
                             select().withClass("multiselect-ajax")
                                     .withName(applicableField)
                                     .attr("data-url", "/ajax/resources/"+associationResource+"/"+this.getClass().getSimpleName()+"/-1")
-                    ), br(),
+                    ))), br(),
                     label(Constants.humanAttrFor(Constants.YEAR)).with(
                             br(),
                             input().attr("value", String.valueOf(LocalDate.now().getYear())).withClass("form-control").withName(Constants.YEAR).withType("number")
@@ -165,9 +169,8 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         ContainerTag inner = ul();
-        String revenueClass = "resource-revenue-"+this.getClass().getSimpleName()+id;
         ContainerTag tag = ul().attr("style", "float: left !important; text-align: left !important;").with(
-                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(revenueClass)).attr("style", "list-style: none;").with(
+                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
@@ -176,31 +179,79 @@ public abstract class Model implements Serializable {
         return tag;
     };
 
-    private ContainerTag getRevenueAsSpan(String updateClass) {
-        /*Object revenueStr = getData().getOrDefault(Constants.REVENUE, "");
-        if(revenueStr==null) revenueStr = "";
-        revenueStr = "Revenue: "+revenueStr;
-        String fullId = "resource-revenue-"+getClass().getSimpleName()+getId();
-        return span(revenueStr.toString())
-                .attr("data-field-type", Constants.NUMBER_FIELD_TYPE)
-                .attr("data-resource", this.getClass().getSimpleName())
-                .attr("data-val", this.getData().get(Constants.REVENUE))
-                .attr("data-attr", Constants.REVENUE)
-                .attr("data-attrname", Constants.humanAttrFor(Constants.REVENUE))
-                .attr("data-id", id.toString())
-                .attr("data-update-class", updateClass)
-                .withClass("resource-data-field editable "+fullId).attr("style","margin-left: 10px; display: inline;");
-                */
-        return span("Revenue: ").attr("style","margin-left: 10px;");
+    private ContainerTag getRevenueAsSpan(Model originalModel) {
+        calculateRevenue();
+        ContainerTag updateRev;
+        if(isRevenueModel) {
+            updateRev = span();
+        } else {
+            if(associationsMeta==null) loadAssociations();
+            Association association = associationsMeta.stream().filter(a->a.getModel().toString().contains("Revenue")).findAny().orElse(null);
+            if(association!=null && associations.getOrDefault(association, Collections.emptyList()).size()==0) {
+                updateRev = getAddAssociationPanel(association,null,originalModel).attr("style", "display: inline;");
+            } else {
+                updateRev = span();
+            }
+            if(revenueLink!=null) {
+                return revenueLink.with(updateRev);
+            }
+        }
+        return span("Revenue: "+(revenue==null?"":revenue)).with(revenue==null?updateRev:span()).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
+    public double calculateRevenue() {
+        if(revenue!=null) return revenue;
+
+        if(isRevenueModel) {
+            revenue = ((Number)data.get(Constants.VALUE)).doubleValue();
+        } else {
+            // find revenues
+            if(associations==null) loadAssociations();
+            double totalRevenueOfLevel = 0d;
+            boolean foundRevenueInSubMarket = false;
+            for(Association association : associationsMeta) {
+                if(association.getModel().toString().contains("Revenue")) {
+                    // found actual revenue data
+                    List<Model> revenues = associations.get(association);
+                    if(revenues!=null && revenues.size()>0) {
+                        Model revenueModel = revenues.stream().max((e1,e2)->((Integer)e2.getData().get(Constants.YEAR)).compareTo((Integer)e1.getData().get(Constants.YEAR))).orElse(null);
+                        revenue = (Double)revenueModel.getData().get(Constants.VALUE);
+                        revenueLink = revenueModel.getSimpleLink("resource-data-field").with(span(revenue.toString()).attr("style", "margin-left: 10px; color: black;")).attr("data-val", revenue).attr("style","margin-left: 10px;");
+                    }
+                }
+                if (this.getClass().getSimpleName().equals(Association.Model.Market.toString())) {
+                    List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
+                    // look for sub markets
+                    if (association.getAssociationName().equals("Sub Market")) {
+                        if (assocModels!=null && assocModels.size() > 0) {
+                            for (Model assoc : assocModels) {
+                                foundRevenueInSubMarket = true;
+                                totalRevenueOfLevel += assoc.calculateRevenue();
+                            }
+                        }
+                    }
+                }
+            }
+            if(foundRevenueInSubMarket && this.getClass().getSimpleName().equals(Association.Model.Market.toString()) && revenue==null) {
+                revenue = totalRevenueOfLevel;
+            }
+        }
+
+        return revenue==null ? 0. : revenue;
+    }
+
+    /*
+        To calculate revenue, use the latest attached revenue, unless one is not present, in which case
+            if it is a market, then calculate revenue from the total of all the sub children of that type (sub markets).
+         If no revenue is present for a company, do nothing. If no revenue is present for a product, do nothing.
+         Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
+     */
     private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original) {
         if(associations==null) {
             loadAssociations();
         }
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
-        double totalRevenueOfLevel = 0;
         for(Association association : associationsMeta) {
             if(association.getModel().toString().endsWith("Revenue")) {
                 continue;
@@ -211,7 +262,8 @@ public abstract class Model implements Serializable {
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
             modelMap.put(association, assocModels);
         }
-        final double _totalRevenue = totalRevenueOfLevel;
+        calculateRevenue();
+        final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
             modelMap.forEach((association, models) -> {
@@ -233,7 +285,7 @@ public abstract class Model implements Serializable {
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
                     String revenueClass = "resource-revenue-"+_id;
-                    ul.with(li().attr("style", "display: inline;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;"), model.getRevenueAsSpan(revenueClass), inner));
+                    ul.with(li().attr("style", "display: inline;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
                     if(!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
                         model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
@@ -319,7 +371,7 @@ public abstract class Model implements Serializable {
         return in.substring(0, 1).toUpperCase() + in.substring(1);
     }
 
-    private ContainerTag getAddAssociationPanel(Association association, String listRef, Model diagramModel) {
+    private ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel) {
         Association.Type type = association.getType();
         String prepend = "false";
         String createText = "(New)";
@@ -346,14 +398,14 @@ public abstract class Model implements Serializable {
             }
         }
         ContainerTag panel = div().with(a(createText).withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
-                getCreateNewForm(association.getModel()).attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-association", association.getModel().toString())
+                getCreateNewForm(association.getModel(),id).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("#"+listRef)).attr("data-association", association.getModel().toString())
                         .attr("data-resource", this.getClass().getSimpleName())
                         .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
                         .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")
                         .attr("data-original-resource",diagramModel!=null ? diagramModel.getClass().getSimpleName() : "f")
                         .attr("data-id", id.toString()).withClass("association").with(
                         input().withType("hidden").withName("_association_name").withValue(association.getAssociationName())
-                ),form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref","#"+listRef).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
+                ),form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("#"+listRef)).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
                         .attr("data-resource", this.getClass().getSimpleName())
                         .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
                         .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")

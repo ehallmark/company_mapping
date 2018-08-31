@@ -101,11 +101,13 @@ var updateAssociationTotals = function() {
     $('.association-revenue-totals').each(function() {
         var $this = $(this);
         var sum = 0.0;
-        $this.parent().nextAll().children().filter('span.resource-data-field').each(function() {
-            var $field = $(this);
-            if($field.attr('data-val')) {
-                sum += parseFloat($field.attr('data-val'));
-            }
+        $this.next().children().each(function() {
+            $(this).children().filter('span.resource-data-field').each(function() {
+                var $field = $(this);
+                if($field.attr('data-val')) {
+                    sum += parseFloat($field.attr('data-val'));
+                }
+            });
         });
         $this.text('Revenue: '+sum.toString());
     });
@@ -284,7 +286,7 @@ var onShowResourceFunction = function($topElem) {
                             });
                             alert(showData.error);
                         } else {
-                            if(refresh==='refresh') {
+                            if(!listRef || refresh==='refresh') {
                                 showDiagramFunction(originalId,originalResourceId);
                             } else {
                                 if(prepend==='prepend') {
@@ -337,7 +339,7 @@ var onShowResourceFunction = function($topElem) {
             type: 'POST',
             success: function(showData) {
                 var $oldRef = $(oldRef);
-                if(refresh==='refresh') {
+                if(!listRef || refresh==='refresh') {
                     if($(showData.template).hasClass('server-error')) {
                         alert('A cycle has been detected. Unable to assign '+associationId+' to '+resourceId);
                     };

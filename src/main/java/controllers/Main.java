@@ -659,7 +659,7 @@ public class Main {
             }
             Model model = getModelByType(type);
             Map<String,Object> result = new HashMap<>();
-            result.put("new_form", model.getCreateNewForm(type).attr("style", "display: none;").render());
+            result.put("new_form", model.getCreateNewForm(type, null).attr("style", "display: none;").render());
             return new Gson().toJson(result);
         });
 
