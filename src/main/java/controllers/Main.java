@@ -180,7 +180,7 @@ public class Main {
                             input().withType("password").withClass("form-control").withName("password")
                     ), br(), br(), button("Create User").withClass("btn btn-outline-secondary")
             );
-            return templateWrapper(form);
+            return templateWrapper(form).render();
         });
 
         post("/new_user", (req,res)->{
@@ -190,10 +190,9 @@ public class Main {
             }
             String username = extractString(req, "username", null);
             String password = extractString(req, "password", null);
-            String role = extractString(req, "role",null);
             String redirect;
             String message = null;
-            if(password == null || username == null || role == null) {
+            if(password == null || username == null) {
                 message = "Please enter a username and password.";
             }
             if(message == null) {
