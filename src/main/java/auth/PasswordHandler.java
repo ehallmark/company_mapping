@@ -64,15 +64,15 @@ public class PasswordHandler {
     public synchronized void forceChangePassword(String username, String newPassword) throws PasswordException {
         // validate password
         validatePassword(newPassword);
-        saveUserToFile(username, newPassword,null);
+        saveUserToFile(username, newPassword);
     }
 
-    public synchronized void createUser(String username, String password, String role) throws PasswordException {
+    public synchronized void createUser(String username, String password) throws PasswordException {
         // validate
         validateUsername(username);
         validatePassword(password);
         // encrypt and save
-        saveUserToFile(username, password, role);
+        saveUserToFile(username, password);
     }
 
     public synchronized void deleteUser(String username) throws PasswordException {
@@ -96,7 +96,7 @@ public class PasswordHandler {
 
 
     // HELPER METHODS
-    private static void saveUserToFile(String username, String password, String role) throws PasswordException{
+    private static void saveUserToFile(String username, String password) throws PasswordException{
         // encrypt
         File passwordFile = new File(passwordFolder+username);
         String encryptedPassword = encrypt(password);

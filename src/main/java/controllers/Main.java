@@ -5,6 +5,7 @@ import auth.PasswordHandler;
 import com.google.gson.Gson;
 import database.Database;
 import j2html.tags.ContainerTag;
+import j2html.tags.Tag;
 import models.*;
 import spark.QueryParamsMap;
 import spark.Request;
@@ -162,6 +163,58 @@ public class Main {
         final PasswordHandler passwordHandler = new PasswordHandler();
         port(6969);
 
+        get("/create_user", (req, res)->{
+            authorize(req,res);
+            if(!req.session(false).attribute("username").equals("ehallmark")) {
+                halt("Error");
+            }
+            String message = req.session().attribute("message");
+            req.session().removeAttribute("message");
+            ContainerTag form = form().withId("create-user-form").withAction("/new_user").withMethod("POST").attr("style","margin-top: 100px;").with(
+                    (message == null ? span() : div().withClass("not-implemented").withText(
+                            message
+                    )),br(),
+                    label("Username").with(
+                            input().withType("text").withClass("form-control").withName("username")
+                    ), br(), br(), label("Password").with(
+                            input().withType("password").withClass("form-control").withName("password")
+                    ), br(), br(), button("Create User").withClass("btn btn-outline-secondary")
+            );
+            return templateWrapper(form);
+        });
+
+        post("/new_user", (req,res)->{
+            authorize(req,res);
+            if(!req.session(false).attribute("username").equals("ehallmark")) {
+                halt("Error");
+            }
+            String username = extractString(req, "username", null);
+            String password = extractString(req, "password", null);
+            String role = extractString(req, "role",null);
+            String redirect;
+            String message = null;
+            if(password == null || username == null || role == null) {
+                message = "Please enter a username and password.";
+            }
+            if(message == null) {
+                try {
+                    passwordHandler.createUser(username, password);
+                    redirect = "/";
+                    message = "Successfully created user "+username+".";
+                } catch (Exception e) {
+                    System.out.println("Error while creating user...");
+                    e.printStackTrace();
+                    redirect = "/create_user";
+                    message = e.getMessage();
+                }
+            } else {
+                redirect = "/create_user";
+            }
+            res.redirect(redirect);
+            req.session().attribute("message", message);
+            return null;
+        });
+
         post("/login", (req,res)->{
             Session session = req.session(true);
             String username = extractString(req, "username", "");
@@ -204,81 +257,56 @@ public class Main {
             // home page
             req.session(true);
             boolean authorized = softAuthorize(req, res);
-            return html().with(
-                    head().with(
-                            title("GTT Group"),
-                            link().withRel("icon").withType("image/png").attr("sizes", "32x32").withHref("/images/favicon-32x32.png"),
-                            link().withRel("icon").withType("image/png").attr("sizes", "16x16").withHref("/images/favicon-16x16.png"),
-                            script().withSrc("/js/jquery-3.3.1.min.js"),
-                            script().withSrc("/js/jquery-ui-1.12.1.min.js"),
-                            script().withSrc("/js/popper.min.js"),
-                            script().withSrc("/js/jquery.dynatable.js"),
-                            script().withSrc("/js/defaults.js"),
-                            script().withSrc("/js/jquery.miniTip.js"),
-                            script().withSrc("/js/jstree.min.js"),
-                            script().withSrc("/js/jstree.misc.js"),
-                            script().withSrc("/js/select2.min.js"),
-                            script().withSrc("/js/bootstrap.min.js"),
-                            script().withSrc("/js/tether.min.js"),
-                            script().withSrc("/js/notify.min.js"),
-                            link().withRel("stylesheet").withHref("/css/bootstrap.min.css"),
-                            link().withRel("stylesheet").withHref("/css/select2.min.css"),
-                            link().withRel("stylesheet").withHref("/css/defaults.css"),
-                            link().withRel("stylesheet").withHref("/css/jquery.dynatable.css"),
-                            link().withRel("stylesheet").withHref("/css/jquery-ui.min.css")
-
-                    ),
-                    body().with(
-                           div().withClass("container-fluid text-center").attr("style","height: 100%; z-index: 1;").with(
-                                    div().withClass("row").attr("style","height: 100%;").with(
-                                            nav().withClass("sidebar col-3").attr("style","z-index: 2; overflow-y: auto; height: 100%; position: fixed; padding-top: 75px;").with(
-                                                    div().withClass("row").with(
-                                                            div().withClass("col-12").with(
-                                                                authorized?a("Sign Out").withHref("/logout"):span()
-                                                            ),
-                                                            div().withClass("col-12").with(
-                                                                    authorized?div().with(
-                                                                            a("Change Password").withClass("change-password-link").withHref("/edit_user"),
-                                                                            form().withClass("change-password-form").attr("style", "display: none;").with(
-                                                                                    input().withType("password").withClass("form-control").withName("password"),
-                                                                                    br(), button("Update").withType("submit").withClass("btn btn-outline-secondary")
-                                                                            )
-                                                                    ):span()
-                                                            ),
-                                                            div().withClass("col-12").with(
-                                                                    h4("Company Mapping App")
-                                                            ),
-                                                            div().withClass("col-12").withId("main-menu").with(
-                                                                    div().withClass("row").with( authorized ?
-                                                                            div().withClass("col-12 btn-group-vertical options").with(
-                                                                                    button("Markets").attr("data-resource", "Market").withId("markets_index_btn").withClass("btn btn-outline-secondary"),
-                                                                                    button("Companies").attr("data-resource", "Company").withId("companies_index_btn").withClass("btn btn-outline-secondary"),
-                                                                                    button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary"),
-                                                                                    button("Market Revenues").attr("data-resource", "MarketRevenue").withId("market_revenues_index_btn").withClass("btn btn-outline-secondary"),
-                                                                                    button("Company Revenues").attr("data-resource", "CompanyRevenue").withId("company_revenues_index_btn").withClass("btn btn-outline-secondary"),
-                                                                                    button("Product Revenues").attr("data-resource", "ProductRevenue").withId("product_revenues_index_btn").withClass("btn btn-outline-secondary")
-                                                                            ) : div().withClass("col-12").with(
-                                                                                form().withClass("form-group").withMethod("POST").withAction("/login").with(
-                                                                                        p("Log in"),
-                                                                                        label("Username").with(
-                                                                                                input().withType("text").withClass("form-control").withName("username")
-                                                                                        ), br(), br(), label("Password").with(
-                                                                                                input().withType("password").withClass("form-control").withName("password")
-                                                                                        ), br(), br(), button("Login").withType("submit").withClass("btn btn-outline-secondary")
-                                                                                )
-                                                                            )
+            return templateWrapper(
+                   div().withClass("container-fluid text-center").attr("style","height: 100%; z-index: 1;").with(
+                            div().withClass("row").attr("style","height: 100%;").with(
+                                    nav().withClass("sidebar col-3").attr("style","z-index: 2; overflow-y: auto; height: 100%; position: fixed; padding-top: 75px;").with(
+                                            div().withClass("row").with(
+                                                    div().withClass("col-12").with(
+                                                        authorized?a("Sign Out").withHref("/logout"):span()
+                                                    ),
+                                                    div().withClass("col-12").with(
+                                                            authorized?div().with(
+                                                                    a("Change Password").withClass("change-password-link").withHref("/edit_user"),
+                                                                    form().withClass("change-password-form").attr("style", "display: none;").with(
+                                                                            input().withType("password").withClass("form-control").withName("password"),
+                                                                            br(), button("Update").withType("submit").withClass("btn btn-outline-secondary")
+                                                                    )
+                                                            ):span()
+                                                    ),
+                                                    div().withClass("col-12").with(
+                                                            h4("Company Mapping App")
+                                                    ),
+                                                    div().withClass("col-12").withId("main-menu").with(
+                                                            div().withClass("row").with( authorized ?
+                                                                    div().withClass("col-12 btn-group-vertical options").with(
+                                                                            button("Markets").attr("data-resource", "Market").withId("markets_index_btn").withClass("btn btn-outline-secondary"),
+                                                                            button("Companies").attr("data-resource", "Company").withId("companies_index_btn").withClass("btn btn-outline-secondary"),
+                                                                            button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary"),
+                                                                            button("Market Revenues").attr("data-resource", "MarketRevenue").withId("market_revenues_index_btn").withClass("btn btn-outline-secondary"),
+                                                                            button("Company Revenues").attr("data-resource", "CompanyRevenue").withId("company_revenues_index_btn").withClass("btn btn-outline-secondary"),
+                                                                            button("Product Revenues").attr("data-resource", "ProductRevenue").withId("product_revenues_index_btn").withClass("btn btn-outline-secondary")
+                                                                    ) : div().withClass("col-12").with(
+                                                                        form().withClass("form-group").withMethod("POST").withAction("/login").with(
+                                                                                p("Log in"),
+                                                                                label("Username").with(
+                                                                                        input().withType("text").withClass("form-control").withName("username")
+                                                                                ), br(), br(), label("Password").with(
+                                                                                        input().withType("password").withClass("form-control").withName("password")
+                                                                                ), br(), br(), button("Login").withType("submit").withClass("btn btn-outline-secondary")
+                                                                        )
                                                                     )
                                                             )
+                                                    )
 
-                                                    ), hr()
-                                            ), div().withClass("col-9 offset-3").attr("style","padding-top: 58px; padding-left:0px; padding-right:0px;").with(
-                                                    div().withId("results").attr("style", "margin-bottom: 200px;").with(
+                                            ), hr()
+                                    ), div().withClass("col-9 offset-3").attr("style","padding-top: 58px; padding-left:0px; padding-right:0px;").with(
+                                            div().withId("results").attr("style", "margin-bottom: 200px;").with(
 
-                                                    ),
-                                                    br(),
-                                                    br(),
-                                                    br()
-                                            )
+                                            ),
+                                            br(),
+                                            br(),
+                                            br()
                                     )
                             )
                     )
@@ -684,6 +712,35 @@ public class Main {
 
     }
 
+
+    private static ContainerTag templateWrapper(ContainerTag inner) {
+        return html().with(
+                head().with(
+                        title("GTT Group"),
+                        link().withRel("icon").withType("image/png").attr("sizes", "32x32").withHref("/images/favicon-32x32.png"),
+                        link().withRel("icon").withType("image/png").attr("sizes", "16x16").withHref("/images/favicon-16x16.png"),
+                        script().withSrc("/js/jquery-3.3.1.min.js"),
+                        script().withSrc("/js/jquery-ui-1.12.1.min.js"),
+                        script().withSrc("/js/popper.min.js"),
+                        script().withSrc("/js/jquery.dynatable.js"),
+                        script().withSrc("/js/defaults.js"),
+                        script().withSrc("/js/jquery.miniTip.js"),
+                        script().withSrc("/js/jstree.min.js"),
+                        script().withSrc("/js/jstree.misc.js"),
+                        script().withSrc("/js/select2.min.js"),
+                        script().withSrc("/js/bootstrap.min.js"),
+                        script().withSrc("/js/tether.min.js"),
+                        script().withSrc("/js/notify.min.js"),
+                        link().withRel("stylesheet").withHref("/css/bootstrap.min.css"),
+                        link().withRel("stylesheet").withHref("/css/select2.min.css"),
+                        link().withRel("stylesheet").withHref("/css/defaults.css"),
+                        link().withRel("stylesheet").withHref("/css/jquery.dynatable.css"),
+                        link().withRel("stylesheet").withHref("/css/jquery-ui.min.css")
+
+                ),
+                body().with(inner)
+        );
+    }
 
 
 }
