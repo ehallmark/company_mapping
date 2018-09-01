@@ -553,6 +553,19 @@ public abstract class Model implements Serializable {
                         form().withClass("update-model-form").attr("data-id", id.toString()).attr("data-resource", this.getClass().getSimpleName()).with(
                             availableAttributes.stream().filter(attr->!Constants.isHiddenAttr(attr)).map(attr->{
                                 Object val = data.get(attr);
+                                Object valOriginal = val;
+                                if(attr.equals(Constants.ESTIMATE_TYPE)) {
+                                    if(val!=null) {
+                                        String v = val.toString().trim();
+                                        if(v.equals("0")) {
+                                            val = "Low";
+                                        } else if (v.equals("1")) {
+                                            val = "Medium";
+                                        } else if (v.equals("2")) {
+                                            val = "High";
+                                        }
+                                    }
+                                }
                                 String orginalAttr = attr;
                                 boolean editable = !Arrays.asList(Constants.CREATED_AT, Constants.UPDATED_AT).contains(attr);
                                 attr = Constants.humanAttrFor(attr);
@@ -560,7 +573,8 @@ public abstract class Model implements Serializable {
                                 return div().with(
                                         div().attr("data-attr", orginalAttr)
                                                 .attr("data-attrname", attr)
-                                                .attr("data-val", val.toString())
+                                                .attr("data-val-text", val)
+                                                .attr("data-val", valOriginal)
                                                 .attr("data-id", id.toString())
                                                 .attr("data-resource", this.getClass().getSimpleName())
                                                 .attr("data-field-type", orginalAttr.equals(Constants.ESTIMATE_TYPE)?Constants.ESTIMATE_TYPE:Constants.fieldTypeForAttr(orginalAttr))

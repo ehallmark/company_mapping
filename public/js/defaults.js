@@ -113,6 +113,49 @@ var updateAssociationTotals = function() {
     });
 };
 
+var isListening = false;
+var updateResourceFormHelper = function($this) {
+    $('.resource-data-field.editable').attr('data-opened', 'false');
+    if(!isListening) {
+        return;
+    }
+    isListening=false;
+    var resourceId = $this.attr('data-resource');
+    var id = $this.attr("data-id");
+    var $form = $this;
+    var data = $form.serialize();
+    if(data.length==0) {
+        data = {};
+    }
+    var $checkboxes = $('.form-checkbox');
+    if($checkboxes.length>0) {
+        $checkboxes.each(function() {
+            data[$(this).attr('name')]=$(this).is(":checked");
+        });
+    }
+    $.ajax({
+        url: '/resources/'+resourceId+'/'+id,
+        dataType: 'json',
+        type: 'POST',
+        data: data,
+        success: function(showData) {
+            if(showData.hasOwnProperty('error')) {
+                alert(showData.error);
+                showResourceFunction(resourceId, id);
+
+            } else {
+                $(document.body).off('dblclick');
+                // refresh
+                showResourceFunction(resourceId, id);
+            }
+        },
+        error: function() {
+            alert("An error occurred.");
+        }
+    });
+}
+
+
 var onShowResourceFunction = function($topElem) {
     updateAssociationTotals();
 
@@ -155,7 +198,6 @@ var onShowResourceFunction = function($topElem) {
         showDiagramFunction(id,resourceId);
     });
 
-    var isListening = false;
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
         var $this = $(this);
         if($this.attr('data-opened')!='true') {
@@ -167,6 +209,7 @@ var onShowResourceFunction = function($topElem) {
         var fieldType = $this.attr('data-field-type');
         var resourceId = $this.attr('data-resource');
         var val = $this.attr('data-val');
+        var origText = $this.attr('data-val-text');
         var attr = $this.attr('data-attr');
         var attrName = $this.attr('data-attrname');
         var id = $this.attr('data-id');
@@ -183,9 +226,9 @@ var onShowResourceFunction = function($topElem) {
             input = "<input type='number' class='form-control' />";
             inputTag = "input";
         } else if (fieldType==='boolean') {
-            input = "<input type='checkbox' value='t' />";
+            input = "<input class='form-checkbox' type='checkbox' value='t' />";
             if(val && val!='false' && val != '') {
-                input = "<input type='checkbox' checked='true' value='true' />";
+                input = "<input class='form-checkbox' type='checkbox' checked='true' value='true' />";
             }
             inputTag = "input";
         } else if (fieldType==='estimate_type') {
@@ -195,7 +238,7 @@ var onShowResourceFunction = function($topElem) {
         $this.html('<label>'+attrName+":"+input+"</label><span style='cursor: pointer;'>X</span><br />");
         $this.find('span').click(function(e) {
             e.preventDefault();
-            $this.html(attrName+": "+val);
+            $this.html(attrName+": "+origText);
             $this.attr('data-opened', 'false')
         });
         var $input = $this.find(inputTag);
@@ -206,45 +249,23 @@ var onShowResourceFunction = function($topElem) {
                 });
         }
         $input.attr('name', attr);
-        $input.val(val);
+        $input.val(val).filter('select').trigger('change');
         $this.find('input,select,textarea,label').dblclick(function(e) {
             e.stopPropagation();
         });
         if(!isListening) {
             $(document.body).dblclick(function() {
-                $this.closest('form').trigger('submit');
                 $(this).off('dblclick');
-                isListening = false;
-                $('.resource-data-field.editable').attr('data-opened', 'false');
+                updateResourceFormHelper($this);
             });
         }
         isListening = true;
     });
 
+    $topElem.find('form.update-model-form').off('submit');
     $topElem.find('form.update-model-form').submit(function(e) {
         e.preventDefault();
-        var resourceId = $(this).attr('data-resource');
-        var id = $(this).attr("data-id");
-        var $form = $(this);
-        var data = $form.serialize();
-        $.ajax({
-            url: '/resources/'+resourceId+'/'+id,
-            dataType: 'json',
-            type: 'POST',
-            data: data,
-            success: function(showData) {
-                if(showData.hasOwnProperty('error')) {
-                    alert(showData.error);
-                } else {
-                    $(document.body).off('dblclick');
-                    // refresh
-                    showResourceFunction(resourceId, id);
-                }
-            },
-            error: function() {
-                alert("An error occurred.");
-            }
-        });
+        updateResourceFormHelper($(this));
     });
 
     $topElem.find('.back-button').click(function(e) {
@@ -312,7 +333,7 @@ var onShowResourceFunction = function($topElem) {
                                     } else {
                                         $(listRef).html(showData.template);
                                     }
-                                    $form.find('input.form-control').val(null);
+                                    $form.find('input,textarea,select').val(null).trigger('change');
                                     onShowResourceFunction($(listRef));
                                     $('.resource-new-link').filter(':visible').each(function() {
                                         $(this).next().hide();
