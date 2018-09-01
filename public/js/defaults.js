@@ -195,7 +195,7 @@ var onShowResourceFunction = function($topElem) {
         $this.html('<label>'+attrName+":"+input+"</label><span style='cursor: pointer;'>X</span><br />");
         $this.find('span').click(function(e) {
             e.preventDefault();
-            $this.html(attr+": "+val);
+            $this.html(attrName+": "+val);
             $this.attr('data-opened', 'false')
         });
         var $input = $this.find(inputTag);
