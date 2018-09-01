@@ -1,3 +1,12 @@
+function objectifyForm(formArray) {//serialize data function
+
+  var returnArray = {};
+  for (var i = 0; i < formArray.length; i++){
+    returnArray[formArray[i]['name']] = formArray[i]['value'];
+  }
+  return returnArray;
+}
+
 
 $(document).ready(function() {
     $('#main-menu .options button').each(function() {
@@ -123,14 +132,14 @@ var updateResourceFormHelper = function($this) {
     var resourceId = $this.attr('data-resource');
     var id = $this.attr("data-id");
     var $form = $this;
-    var data = $form.serialize();
-    if(data.length==0) {
+    var data = objectifyForm($form.serializeArray());
+    if(!data) {
         data = {};
     }
-    var $checkboxes = $('.form-checkbox');
+    var $checkboxes = $('input.form-checkbox');
     if($checkboxes.length>0) {
         $checkboxes.each(function() {
-            data[$(this).attr('name')]=$(this).is(":checked");
+            data[$(this).attr('name')]=$(this).prop('checked');
         });
     }
     $.ajax({
@@ -256,7 +265,7 @@ var onShowResourceFunction = function($topElem) {
         if(!isListening) {
             $(document.body).dblclick(function() {
                 $(this).off('dblclick');
-                updateResourceFormHelper($this);
+                updateResourceFormHelper($this.closest('form'));
             });
         }
         isListening = true;
