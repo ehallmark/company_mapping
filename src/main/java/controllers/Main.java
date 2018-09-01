@@ -600,7 +600,7 @@ public class Main {
             Model model = loadModel(req);
             if(model != null) {
                 model.getAvailableAttributes().forEach(attr->{
-                    Object val = req.queryParams(attr);
+                    Object val = extractString(req,attr,null);
                     if(val != null) {
                         String fieldType = Constants.fieldTypeForAttr(attr);
                         val = val.toString().trim();

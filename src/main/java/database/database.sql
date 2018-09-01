@@ -11,7 +11,8 @@ create table products (
     market_id integer references markets (id) on delete set null,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),
-    unique (name, company_id, market_id)
+    unique (name, company_id, market_id),
+    check (name != '')
 );
 
 create index products_company_id_idx on products (company_id);
@@ -27,7 +28,8 @@ create table companies (
     parent_company_id integer,
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),
-    foreign key (parent_company_id) references companies (id) on delete set null
+    foreign key (parent_company_id) references companies (id) on delete set null,
+    check (name != '')
 );
 
 create index companies_parent_company_id_idx on companies (parent_company_id);
@@ -43,7 +45,8 @@ create table markets (
     updated_at timestamp not null default now(),
     created_at timestamp not null default now(),
     foreign key (parent_market_id) references markets (id) on delete restrict,
-    unique (parent_market_id, name)
+    unique (parent_market_id, name),
+    check (name != '')
 );
 
 create index markets_name_idx on markets (name);
