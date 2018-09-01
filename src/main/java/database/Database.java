@@ -330,7 +330,9 @@ public class Database {
                 if(attrList.size()>0) {
                     attrStr = ","+attrStr;
                 }
-                ps = conn.prepareStatement("select r.id as id,c.name||' share of ' || m.name||' ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join companies as c on (c.id=r.company_id) join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' order by c.name")));
+                String sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join companies as c on (c.id=r.company_id) join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) +" order by c.name";
+                System.out.println("Market share sql str: "+sqlStr);
+                ps = conn.prepareStatement(sqlStr);
 
             } else {
                 String parentTableName;
@@ -344,11 +346,11 @@ public class Database {
                 if(attrList.size()>0) {
                     attrStr = ","+attrStr;
                 }
-                ps = conn.prepareStatement("select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' order by lower(j.name)")));
+                ps = conn.prepareStatement("select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)");
             }
 
         } else {
-            ps = conn.prepareStatement("select id,"+String.join(",", attrList)+" from "+tableName+"" + (searchName==null?"" : ( " where lower(name) like '%'||?||'%' order by lower(name)")));
+            ps = conn.prepareStatement("select id,"+String.join(",", attrList)+" from "+tableName+"" + (searchName==null?"" : ( " where lower(name) like '%'||?||'%' ")) + " order by lower(name)");
         }
         if(searchName!=null) {
             ps.setString(1, searchName);

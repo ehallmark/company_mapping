@@ -320,7 +320,8 @@ public class Main {
                                                                             button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary"),
                                                                             button("Market Revenues").attr("data-resource", "MarketRevenue").withId("market_revenues_index_btn").withClass("btn btn-outline-secondary"),
                                                                             button("Company Revenues").attr("data-resource", "CompanyRevenue").withId("company_revenues_index_btn").withClass("btn btn-outline-secondary"),
-                                                                            button("Product Revenues").attr("data-resource", "ProductRevenue").withId("product_revenues_index_btn").withClass("btn btn-outline-secondary")
+                                                                            button("Product Revenues").attr("data-resource", "ProductRevenue").withId("product_revenues_index_btn").withClass("btn btn-outline-secondary"),
+                                                                            button("Company Market Shares").attr("data-resource", "MarketShareRevenue").withId("companies_markets_index_btn").withClass("btn btn-outline-secondary")
                                                                     ) : div().withClass("col-12").with(
                                                                         form().withClass("form-group").withMethod("POST").withAction("/login").with(
                                                                                 p("Log in"),
@@ -493,6 +494,10 @@ public class Main {
                                     map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList())));
                                 }
                             });
+                            // check for estimate type field
+                            if(m.getData().get(Constants.ESTIMATE_TYPE)!=null) {
+                                map.put(Constants.ESTIMATE_TYPE, Constants.estimateTypeForNumber((Integer)m.getData().get(Constants.ESTIMATE_TYPE)));
+                            }
                             return map;
                         }).collect(Collectors.toList());
                 DataTable.registerDataTabe(req, headers, data, numericAttrs);

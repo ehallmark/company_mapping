@@ -156,8 +156,9 @@ var onShowResourceFunction = function($topElem) {
     });
 
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
-        e.stopPropagation();
         var $this = $(this);
+        e.stopPropagation();
+        $this.attr('data-opened', 'true');
         var fieldType = $this.attr('data-field-type');
         var resourceId = $this.attr('data-resource');
         var val = $this.attr('data-val');
@@ -165,10 +166,6 @@ var onShowResourceFunction = function($topElem) {
         var attrName = $this.attr('data-attrname');
         var id = $this.attr('data-id');
         var updateOtherFieldsByClassName = $this.attr('data-update-class');
-        $(document.body).dblclick(function() {
-            $this.html(attrName+": "+val);
-            $(this).off('dblclick');
-        });
         var input = null;
         var inputTag = null;
         if (fieldType==='textarea') {
@@ -190,7 +187,11 @@ var onShowResourceFunction = function($topElem) {
             input = "<select class='multiselect'><option selected='true'></option><option value='0'>Low</option><option value='1'>Medium</option><option value='2'>High</option></select>";
             inputTag = "select";
         }
-        $this.html('<form><label>'+attrName+":"+input+"</label><span onclick='$(document.body).dblclick();' style='cursor: pointer;'>X</span><br /><button type='submit' class='btn btn-outline-secondary btn-sm'>Update</button></form>");
+        $this.html('<label>'+attrName+":"+input+"</label><span style='cursor: pointer;'>X</span><br />");
+        $this.find('span').click(function(e) {
+            e.preventDefault();
+            $this.html(attr+": "+val);
+        });
         var $input = $this.find(inputTag);
         if(fieldType==='estimate_type') {
             $input.select2({
@@ -198,38 +199,41 @@ var onShowResourceFunction = function($topElem) {
                     closeOnSelect: true
                 });
         }
-        var $form = $this.find('form');
-        var $btn = $this.find('button');
+        $input.attr('name', attr);
         $input.val(val);
-        $form.submit(function(attr, attrName, $this, $input) {
-            return function(e) {
-                e.preventDefault();
-                var value = $input.val();
-                if(fieldType==='boolean') {
-                    value = $input.is(':checked');
+        $this.find('input,select,textarea,label').dblclick(function(e) {
+            e.stopPropagation();
+        });
+        $(document.body).dblclick(function() {
+            $this.closest('form').trigger('submit');
+            $(this).off('dblclick');
+        });
+    });
+
+    $topElem.find('form.update-model-form').submit(function(e) {
+        e.preventDefault();
+        var resourceId = $(this).attr('data-resource');
+        var id = $(this).attr("data-id");
+        var $form = $(this);
+        var data = $form.serialize();
+        $.ajax({
+            url: '/resources/'+resourceId+'/'+id,
+            dataType: 'json',
+            type: 'POST',
+            data: data,
+            success: function(showData) {
+                if(showData.hasOwnProperty('error')) {
+                    alert(showData.error);
+                } else {
+                    $(document.body).off('dblclick');
+                    // refresh
+                    showResourceFunction(resourceId, id);
                 }
-                var data = {};
-                data[attr] = value;
-                $.ajax({
-                    url: '/resources/'+resourceId+'/'+id,
-                    dataType: 'json',
-                    type: 'POST',
-                    data: data,
-                    success: function(showData) {
-                        $this.html(attrName+": "+value);
-                        if(updateOtherFieldsByClassName) {
-                            $('.'+updateOtherFieldsByClassName).html(attrName+': '+value);
-                        }
-                        $(document.body).off('dblclick');
-                        $this.attr('data-val', value);
-                        updateAssociationTotals();
-                    },
-                    error: function() {
-                        alert("An error occurred.");
-                    }
-                });
-            };
-        }(attr, attrName, $this, $input));
+            },
+            error: function() {
+                alert("An error occurred.");
+            }
+        });
     });
 
     $topElem.find('.back-button').click(function(e) {

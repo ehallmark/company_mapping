@@ -60,8 +60,17 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
+        String[] additionalClasses = new String[]{};
+        if(this.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
+            // check association
+            if(associationModel.equals(Market.class.getSimpleName())) {
+                additionalClasses = new String[]{"market-share-market"};
+            } else if(associationModel.equals(Company.class.getSimpleName())) {
+                additionalClasses = new String[]{"market-share-company"};
+            }
+        }
         return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).withClass("stop-delete-prop").with(
-                getSimpleLink(),
+                getSimpleLink(additionalClasses),
                 span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
                         .attr("data-association-id", associationId.toString()).attr("style","cursor: pointer;").withClass("delete-node").attr("data-resource", this.getClass().getSimpleName()).attr("data-id", id)
@@ -83,19 +92,44 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag getSimpleLink(@NonNull String... additionalClasses) {
-        String name;
         if(isRevenueModel) {
+            boolean isMarketShare = this.getClass().getSimpleName().equals(Association.Model.MarketShareRevenue.toString());
             boolean removePrefix = additionalClasses.length>0 && additionalClasses[0].equals("resource-data-field");
             // TODO speed up this query
             if(!data.containsKey(Constants.NAME)) {
                 loadAssociations();
-                List<Model> parent = associations.get(associationsMeta.get(0));
-                if(parent!=null && parent.size()>0) {
-                    data.put(Constants.NAME, (removePrefix ? "" : (((String)parent.get(0).getData().get(Constants.NAME)) + " ")) + "Revenue ("+data.get(Constants.YEAR)+")");
+                if(isMarketShare) {
+                    String companyName = "";
+                    String marketName = "";
+                    for(Association association : associationsMeta) {
+                        if(association.getModel().equals(Association.Model.Company)) {
+                            companyName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
+                        } else if (association.getModel().equals(Association.Model.Market)) {
+                            marketName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
+                        }
+                    }
+                    String name;
+                    if(removePrefix) {
+                        name = "Share of " + marketName + " market (" + data.get(Constants.YEAR) + ")";
+                    } else {
+                        if (additionalClasses.length > 0 && additionalClasses[0].equals("market-share-market")) {
+                            name = companyName + "'s market share (" + data.get(Constants.YEAR) + ")";
+                        } else if (additionalClasses.length > 0 && additionalClasses[0].equals("market-share-company")) {
+                            name = "Share of " + marketName + " market (" + data.get(Constants.YEAR) + ")";
+                        } else {
+                            name = companyName + "'s share of " + marketName + " market (" + data.get(Constants.YEAR) + ")";
+                        }
+                    }
+                    data.put(Constants.NAME, name);
+                } else {
+                    List<Model> parent = associations.get(associationsMeta.get(0));
+                    if (parent != null && parent.size() > 0) {
+                        data.put(Constants.NAME, (removePrefix ? "" : (((String) parent.get(0).getData().get(Constants.NAME)) + " ")) + "Revenue (" + data.get(Constants.YEAR) + ")");
+                    }
                 }
             }
         }
-        name = (String)data.get(Constants.NAME);
+        String name = (String)data.get(Constants.NAME);
         return a(name).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+String.join(" ", additionalClasses));
     }
 
@@ -122,18 +156,34 @@ public abstract class Model implements Serializable {
             if(!isMarketShare && associationId!=null) {
                 associationTag = span();
             } else {
-                associationTag = label(associationResource).with(
+                // some funky logic that basically chooses which model is not yet associated with a market share
+                // if none are associated, then it provides both select dropdowns
+                // default does nothing different if the model type is not a market share
+                associationTag = div().with(label(associationResource).with(
                         br(),
-                        (isMarketShare?input().withType("hidden")
-                                .withValue(id.toString())
-                                .withName( this.getClass().getSimpleName().startsWith("Company") ? Constants.COMPANY_ID : Constants.MARKET_ID) : span()),
                         select().withClass("multiselect-ajax")
                                 .withName(applicableField)
                                 .attr("data-url", "/ajax/resources/"+associationResource+"/"+this.getClass().getSimpleName()+"/-1")
-                );
+
+                ),br());
+                if(isMarketShare && id!=null) {
+                    associationTag.with(
+                            input().withType("hidden")
+                                    .withValue(id.toString())
+                                    .withName( this.getClass().getSimpleName().startsWith("Company") ? Constants.COMPANY_ID : Constants.MARKET_ID)
+                    );
+                } else if (isMarketShare) {
+                    associationTag.with(
+                            label(Association.Model.Market.toString()).with(br(),
+                                    select().withClass("multiselect-ajax")
+                                            .withName(Constants.MARKET_ID)
+                                            .attr("data-url", "/ajax/resources/"+Association.Model.Market+"/"+this.getClass().getSimpleName()+"/-1")),
+                            br()
+                    );
+                }
             }
             return form().with(
-                    associationTag, br(),
+                    associationTag,
                     label(Constants.humanAttrFor(Constants.YEAR)).with(
                             br(),
                             input().attr("value", String.valueOf(LocalDate.now().getYear())).withClass("form-control").withName(Constants.YEAR).withType("number")
@@ -500,23 +550,25 @@ public abstract class Model implements Serializable {
                         .attr("data-resource", this.getClass().getSimpleName())
                         .attr("data-resource-name", Constants.humanAttrFor(this.getClass().getSimpleName()))
                 ).with(
-                    availableAttributes.stream().filter(attr->!Constants.isHiddenAttr(attr)).map(attr->{
-                        Object val = data.get(attr);
-                        String orginalAttr = attr;
-                        boolean editable = !Arrays.asList(Constants.CREATED_AT, Constants.UPDATED_AT).contains(attr);
-                        attr = Constants.humanAttrFor(attr);
-                        if(val==null || val.toString().trim().length()==0) val = "(empty)";
-                        return div().with(
-                                div().attr("data-attr", orginalAttr)
-                                        .attr("data-attrname", attr)
-                                        .attr("data-val", val.toString())
-                                        .attr("data-id", id.toString())
-                                        .attr("data-resource", this.getClass().getSimpleName())
-                                        .attr("data-field-type", orginalAttr.equals(Constants.ESTIMATE_TYPE)?Constants.ESTIMATE_TYPE:Constants.fieldTypeForAttr(orginalAttr))
-                                        .withClass("resource-data-field" + (editable ? " editable" : ""))
-                                        .withText(attr+": "+val.toString())
-                        );
-                    }).collect(Collectors.toList())
+                        form().withClass("update-model-form").attr("data-id", id.toString()).attr("data-resource", this.getClass().getSimpleName()).with(
+                            availableAttributes.stream().filter(attr->!Constants.isHiddenAttr(attr)).map(attr->{
+                                Object val = data.get(attr);
+                                String orginalAttr = attr;
+                                boolean editable = !Arrays.asList(Constants.CREATED_AT, Constants.UPDATED_AT).contains(attr);
+                                attr = Constants.humanAttrFor(attr);
+                                if(val==null || val.toString().trim().length()==0) val = "(empty)";
+                                return div().with(
+                                        div().attr("data-attr", orginalAttr)
+                                                .attr("data-attrname", attr)
+                                                .attr("data-val", val.toString())
+                                                .attr("data-id", id.toString())
+                                                .attr("data-resource", this.getClass().getSimpleName())
+                                                .attr("data-field-type", orginalAttr.equals(Constants.ESTIMATE_TYPE)?Constants.ESTIMATE_TYPE:Constants.fieldTypeForAttr(orginalAttr))
+                                                .withClass("resource-data-field" + (editable ? " editable" : ""))
+                                                .withText(attr+": "+val.toString())
+                                );
+                            }).collect(Collectors.toList())
+                        )
                 )
         ).with(
                 div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Product,Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?

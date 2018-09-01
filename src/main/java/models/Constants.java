@@ -106,4 +106,17 @@ public class Constants {
             return associationName + "s";
         }
     }
+
+    public static String estimateTypeForNumber(int num) {
+        if(num == 0) {
+            return "Low";
+        }
+        if(num == 1) {
+            return "Medium";
+        }
+        if(num==2) {
+            return "High";
+        }
+        return "";
+    }
 }
