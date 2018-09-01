@@ -556,7 +556,7 @@ public abstract class Model implements Serializable {
                                 String orginalAttr = attr;
                                 boolean editable = !Arrays.asList(Constants.CREATED_AT, Constants.UPDATED_AT).contains(attr);
                                 attr = Constants.humanAttrFor(attr);
-                                if(val==null || val.toString().trim().length()==0) val = "(empty)";
+                                if(val==null || val.toString().trim().length()==0) val = "";
                                 return div().with(
                                         div().attr("data-attr", orginalAttr)
                                                 .attr("data-attrname", attr)
@@ -671,11 +671,25 @@ public abstract class Model implements Serializable {
         }
     }
 
-
     public void updateInDatabase() {
         // update database
         if(!existsInDatabase()) {
             throw new RuntimeException("Trying to update a record that does not exist in the database...");
+        }
+        if(isRevenueModel) {
+            List<String> fieldsToHave = Arrays.asList(
+                    Constants.YEAR,
+                    Constants.VALUE
+            );
+            for(String field : fieldsToHave) {
+                if(data.get(field)==null) {
+                    throw new RuntimeException(Constants.humanAttrFor(field)+" must be present");
+                }
+            }
+        } else {
+            if(data.get(Constants.NAME)==null) {
+                throw new RuntimeException("Name must be present");
+            }
         }
         try {
             Map<String,Object> dataCopy = new HashMap<>(data);

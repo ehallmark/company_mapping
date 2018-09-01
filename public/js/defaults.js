@@ -157,8 +157,11 @@ var onShowResourceFunction = function($topElem) {
 
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
         var $this = $(this);
-        e.stopPropagation();
+        if($this.attr('data-opened')=='true') {
+            return;
+        }
         $this.attr('data-opened', 'true');
+        e.stopPropagation();
         var fieldType = $this.attr('data-field-type');
         var resourceId = $this.attr('data-resource');
         var val = $this.attr('data-val');
@@ -179,7 +182,7 @@ var onShowResourceFunction = function($topElem) {
             inputTag = "input";
         } else if (fieldType==='boolean') {
             input = "<input type='checkbox' value='t' />";
-            if(val && val!='false' && val != '(empty)') {
+            if(val && val!='false' && val != '') {
                 input = "<input type='checkbox' checked='true' value='true' />";
             }
             inputTag = "input";
@@ -191,6 +194,7 @@ var onShowResourceFunction = function($topElem) {
         $this.find('span').click(function(e) {
             e.preventDefault();
             $this.html(attr+": "+val);
+            $this.attr('data-opened', 'false')
         });
         var $input = $this.find(inputTag);
         if(fieldType==='estimate_type') {
@@ -204,6 +208,7 @@ var onShowResourceFunction = function($topElem) {
         $this.find('input,select,textarea,label').dblclick(function(e) {
             e.stopPropagation();
         });
+        $(document.body).off('dblclick');
         $(document.body).dblclick(function() {
             $this.closest('form').trigger('submit');
             $(this).off('dblclick');
