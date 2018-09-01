@@ -479,8 +479,8 @@ public class Main {
                             m.getData().forEach((k,v)->{
                                 map.put(k,v==null?"":v.toString());
                             });
-                            map.put(Constants.NAME, m.getSimpleLink().render());
                             map.put(Constants.NAME + Constants.TEXT_ONLY, (String) m.getData().get(Constants.NAME));
+                            map.put(Constants.NAME, m.getSimpleLink().render());
                             m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
                                 List<Model> assocModel = m.getAssociations().get(assoc);

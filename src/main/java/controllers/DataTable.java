@@ -95,11 +95,11 @@ public class DataTable {
                                 Double v1 = null;
                                 Double v2 = null;
                                 try {
-                                    v1 = Double.valueOf(d1.get(k));
+                                    v1 = Double.valueOf(d1.getOrDefault(k+Constants.TEXT_ONLY, d1.get(k)));
                                 } catch (Exception nfe) {
                                 }
                                 try {
-                                    v2 = Double.valueOf(d2.get(k));
+                                    v2 = Double.valueOf(d1.getOrDefault(k+Constants.TEXT_ONLY, d2.get(k)));
                                 } catch (Exception e) {
                                 }
                                 if (v1 == null && v2 == null) return 0;
@@ -107,7 +107,8 @@ public class DataTable {
                                 if (v2 == null) return -1;
                                 return v1.compareTo(v2) * (reversed ? -1 : 1);
                             } else {
-                                return d1.get(k).compareTo(d2.get(k)) * (reversed ? -1 : 1);
+                                return d1.getOrDefault(k+Constants.TEXT_ONLY, d1.get(k)).
+                                        compareTo(d2.getOrDefault(k+Constants.TEXT_ONLY, d2.get(k))) * (reversed ? -1 : 1);
                             }
                         };
                         queriedData.sort(comp);
