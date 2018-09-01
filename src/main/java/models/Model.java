@@ -38,7 +38,6 @@ public abstract class Model implements Serializable {
     @Getter
     private final boolean isRevenueModel;
     private Double revenue;
-    private ContainerTag revenueLink;
     protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data, boolean isRevenueModel) {
         this.tableName = tableName;
         this.data = data;
@@ -69,7 +68,7 @@ public abstract class Model implements Serializable {
                 additionalClasses = new String[]{"market-share-company"};
             }
         }
-        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).withClass("stop-delete-prop").with(
+        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
                 getSimpleLink(additionalClasses),
                 span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
@@ -245,23 +244,39 @@ public abstract class Model implements Serializable {
         return tag;
     };
 
+
+    public ContainerTag loadReport() {
+        if(data==null) {
+            loadAttributesFromDatabase();
+        }
+        ContainerTag inner = ul();
+        ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
+                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
+                        br(),inner
+                )
+        );
+        this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
+        loadNestedAssociationHelper(inner, allReferences, new AtomicInteger(0), this);
+        return tag;
+    };
+
     private ContainerTag getRevenueAsSpan(Model originalModel) {
         calculateRevenue();
-        ContainerTag updateRev;
-        if(isRevenueModel) {
+        ContainerTag updateRev = span();
+        /*if(isRevenueModel) {
             updateRev = span();
         } else {
             if(associations==null) loadAssociations();
             Association association = associationsMeta.stream().filter(a->!a.getModel().equals(Association.Model.MarketShareRevenue) && a.getModel().toString().contains("Revenue")).findAny().orElse(null);
-            if(association!=null && associations.getOrDefault(association, Collections.emptyList()).size()==0) {
-                updateRev = getAddAssociationPanel(association,null,originalModel,revenue!=null?"(Override)":"(New)").attr("style", "display: inline;");
+            if(association!=null) {
+                updateRev = getAddAssociationPanel(association,null,originalModel,"(New)").attr("style", "display: inline; margin-left: 10px;");
             } else {
                 updateRev = span();
             }
             if(revenueLink!=null) {
-                return revenueLink.with(updateRev);
+                return revenueLink.with(li().attr("style","list-style: none;").with(updateRev));
             }
-        }
+        }*/
         return span("Revenue: "+(revenue==null?"":revenue)).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
@@ -295,9 +310,8 @@ public abstract class Model implements Serializable {
                         if(!association.getModel().equals(Association.Model.MarketShareRevenue)) {
                             List<Model> revenues = associations.get(association);
                             if (revenues != null && revenues.size() > 0) {
-                                Model revenueModel = revenues.stream().max((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).orElse(null);
-                                revenue = (Double) revenueModel.getData().get(Constants.VALUE);
-                                revenueLink = revenueModel.getSimpleLink("resource-data-field").with(span(revenue.toString()).attr("style", "margin-left: 10px; color: black;")).attr("data-val", revenue).attr("style", "margin-left: 10px;");
+                                List<Model> revenueModelsSorted = revenues.stream().sorted((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).collect(Collectors.toList());
+                                revenue = (Double) revenueModelsSorted.get(0).getData().get(Constants.VALUE);
                             }
                         }
                     }
@@ -339,9 +353,9 @@ public abstract class Model implements Serializable {
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
         for(Association association : associationsMeta) {
-            if(!association.getModel().equals(Association.Model.MarketShareRevenue) && association.getModel().toString().endsWith("Revenue")) {
-                continue;
-            }
+           // if(!association.getModel().equals(Association.Model.MarketShareRevenue) && association.getModel().toString().endsWith("Revenue")) {
+           //     continue;
+           // }
             if(association.getAssociationName().startsWith("Parent ")||association.getAssociationName().equals("Sub Company")) {
                 continue;
             }
@@ -358,35 +372,45 @@ public abstract class Model implements Serializable {
                     li().attr("style", "list-style: none; cursor: pointer; display: "+displayPlus).withText("+")
                             .attr("onclick", "$(this).nextAll().slideToggle();")
             );
-            modelMap.forEach((association, models) -> {
+            for(Association association : associationsMeta) {
+                List<Model> models = modelMap.get(association);
+                if(models==null) {
+                    continue;
+                }
                 boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
-                List<ContainerTag> tag =  new ArrayList<>();
+                List<ContainerTag> tag = new ArrayList<>();
                 ContainerTag ul = ul();
+                String name;
+                if (association.getModel().toString().contains("Revenue") && !association.getModel().toString().equals(MarketShareRevenue.class.getSimpleName())) {
+                    name = pluralize ? "Revenues" : "Revenue";
+                } else {
+                    name = pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName();
+                }
                 tag.add(
-                        li().attr("style", "list-style: none; display: "+display).with(
-                                h6(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName()).attr("style", "cursor: pointer; display: inline;")
-                                .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
-                                span("Revenue: "+_totalRevenue).withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
+                        li().attr("style", "list-style: none; display: " + display).with(
+                                h6(name).attr("style", "cursor: pointer; display: inline;")
+                                        .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
+                                span("Revenue: " + _totalRevenue).withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
                         ).with(
-                                ul.attr("style", "display: "+display)
+                                ul.attr("style", "display: " + display)
                         )
                 );
-                for(Model model : models) {
+                for (Model model : models) {
                     String _id = model.getClass().getSimpleName() + model.getId();
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
                     ul.with(li().attr("style", "display: inline;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
-                    if(!sameModel && !alreadySeen.contains(_id)) {
+                    if (!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
                         model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
                     }
                     alreadySeen.add(_id);
                 }
-                String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-")+cnt.getAndIncrement();
+                String listRef = "association-" + association.getAssociationName().toLowerCase().replace(" ", "-") + cnt.getAndIncrement();
 
                 ul.with(li().attr("style", "display: inline;").with(getAddAssociationPanel(association, listRef, original)));
                 container.with(tag);
-            });
+            }
         }
     }
 
@@ -585,11 +609,18 @@ public abstract class Model implements Serializable {
                         )
                 )
         ).with(
-                div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Product,Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
-                        button("Diagram this "+Constants.humanAttrFor(this.getClass().getSimpleName()))
-                                .attr("data-id", id.toString())
-                                .attr("data-resource", this.getClass().getSimpleName())
-                                .withClass("btn btn-outline-secondary btn-sm diagram-button") : div()
+                div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Product.toString(),Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
+                        div().withClass("btn-group").attr("style", "display: inline;").with(
+                                button("Diagram")
+                                        .attr("data-id", id.toString())
+                                        .attr("data-resource", this.getClass().getSimpleName())
+                                        .withClass("btn btn-outline-secondary btn-md diagram-button"),
+                                button("Report")
+                                        .attr("data-id", id.toString())
+                                        .attr("data-resource", this.getClass().getSimpleName())
+                                        .withClass("btn btn-outline-secondary btn-md report-button")
+
+                                ): div()
                 ),
                 div().withClass("col-12").with(
                         h5("Associations"),
@@ -690,21 +721,7 @@ public abstract class Model implements Serializable {
         if(!existsInDatabase()) {
             throw new RuntimeException("Trying to update a record that does not exist in the database...");
         }
-        if(isRevenueModel) {
-            List<String> fieldsToHave = Arrays.asList(
-                    Constants.YEAR,
-                    Constants.VALUE
-            );
-            for(String field : fieldsToHave) {
-                if(data.get(field)==null) {
-                    throw new RuntimeException(Constants.humanAttrFor(field)+" must be present");
-                }
-            }
-        } else {
-            if(data.get(Constants.NAME)==null) {
-                throw new RuntimeException("Name must be present");
-            }
-        }
+        validateState();
         try {
             Map<String,Object> dataCopy = new HashMap<>(data);
             List<String> keys = new ArrayList<>(availableAttributes);
@@ -717,11 +734,8 @@ public abstract class Model implements Serializable {
         }
     }
 
-    // save to database for the first time
-    public void createInDatabase() {
-        if(existsInDatabase()) {
-            throw new RuntimeException("Trying to create a record that already exists in the database...");
-        }
+
+    private void validateState() {
         if(isRevenueModel) {
             List<String> fieldsToHave = Arrays.asList(
                     Constants.YEAR,
@@ -754,6 +768,15 @@ public abstract class Model implements Serializable {
             }
         }
 
+    }
+
+
+    // save to database for the first time
+    public void createInDatabase() {
+        if(existsInDatabase()) {
+            throw new RuntimeException("Trying to create a record that already exists in the database...");
+        }
+        validateState();
         try {
             id = Database.insert(tableName, data);
         } catch(Exception e) {

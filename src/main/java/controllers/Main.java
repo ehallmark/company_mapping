@@ -546,6 +546,26 @@ public class Main {
             return null;
         });
 
+
+        post("/report/:resource/:id", (req, res)-> {
+            authorize(req,res);
+            Model model = loadModel(req);
+            if(model!=null) {
+
+                ContainerTag html = div().withClass("col-12").with(
+                        model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
+                        h3("Report of "+model.getData().get(Constants.NAME)),
+                        form().with(
+                                
+                        ),
+                        div().withId("#inner-results")
+                );
+
+                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+            }
+            return null;
+        });
+
         // diagram all
 
         post("/diagram/:resource", (req, res)-> {

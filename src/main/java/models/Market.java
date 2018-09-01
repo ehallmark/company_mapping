@@ -4,9 +4,6 @@ import java.util.*;
 
 public class Market extends Model {
     private static final List<Association> ASSOCIATIONS = Arrays.asList(
-            new Association(Association.Model.Product, Constants.MARKET_TABLE,
-                    Constants.PRODUCT_TABLE, null, Association.Type.OneToMany,
-                    Constants.MARKET_ID, Constants.PRODUCT_ID, false, "Market"),
             new Association("Market Revenue", Association.Model.MarketRevenue, Constants.MARKET_TABLE,
                     Constants.MARKET_REVENUE_TABLE, null, Association.Type.OneToMany,
                     Constants.MARKET_ID, Constants.MARKET_REVENUE_ID, false, "Market"),
@@ -18,7 +15,10 @@ public class Market extends Model {
                     Constants.PARENT_MARKET_ID, Constants.MARKET_ID, false, "Sub Market"),
             new Association("Market Share", Association.Model.MarketShareRevenue, Constants.MARKET_TABLE,
                     Constants.COMPANY_MARKETS_JOIN_TABLE, null, Association.Type.OneToMany,
-                    Constants.MARKET_ID, Constants.MARKET_SHARE_ID, false, "Market")
+                    Constants.MARKET_ID, Constants.MARKET_SHARE_ID, false, "Market"),
+            new Association(Association.Model.Product, Constants.MARKET_TABLE,
+                    Constants.PRODUCT_TABLE, null, Association.Type.OneToMany,
+                    Constants.MARKET_ID, Constants.PRODUCT_ID, false, "Market")
     );
     private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
             Constants.NAME,

@@ -106,6 +106,23 @@ var showDiagramFunction = function(id,resourceId) {
     });
 };
 
+
+var showReportFunction = function(id,resourceId) {
+    $.ajax({
+        url: '/report/'+resourceId+'/'+id,
+        dataType: 'json',
+        type: 'POST',
+        success: function(data) {
+            $('#results').html(data.result);
+            onShowResourceFunction($('#results'));
+        },
+        error: function() {
+            alert("An error occurred.");
+        }
+    });
+};
+
+
 var updateAssociationTotals = function() {
     $('.association-revenue-totals').each(function() {
         var $this = $(this);
@@ -168,6 +185,9 @@ var updateResourceFormHelper = function($this) {
 var onShowResourceFunction = function($topElem) {
     updateAssociationTotals();
 
+    //$('.resource-data-field').not('.editable').css('cursor', 'not-allowed');
+    $('.resource-data-field.editable').css('cursor', 'cell');
+
     // delete node
     $('.delete-button').click(function(e) {
         e.preventDefault();
@@ -205,6 +225,14 @@ var onShowResourceFunction = function($topElem) {
         var id = $this.attr('data-id');
         var resourceId = $this.attr('data-resource');
         showDiagramFunction(id,resourceId);
+    });
+
+    $topElem.find('.report-button').click(function(e) {
+        e.preventDefault();
+        var $this = $(this);
+        var id = $this.attr('data-id');
+        var resourceId = $this.attr('data-resource');
+        showReportFunction(id,resourceId);
     });
 
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
@@ -446,11 +474,10 @@ var onShowResourceFunction = function($topElem) {
                     association_id: associationId
                 },
                 success: function(showData) {
-                    var $deleteProp = $this.closest('.stop-delete-prop');
-                    if($deleteProp.parent().is('li')) {
-                        $deleteProp.parent().remove();
+                    if(showData.hasOwnProperty('error')) {
+                        alert(showData.error);
                     } else {
-                        $deleteProp.remove();
+                        showDiagramFunction(associationId,associationName);
                     }
                 },
                 error: function() {

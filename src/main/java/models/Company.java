@@ -4,21 +4,21 @@ import java.util.*;
 
 public class Company extends Model {
     private static final List<Association> ASSOCIATIONS = Arrays.asList(
-            new Association(Association.Model.Product, Constants.COMPANY_TABLE,
-                    Constants.PRODUCT_TABLE, null, Association.Type.OneToMany,
-                    Constants.COMPANY_ID, Constants.PRODUCT_ID, false, "Company"),
             new Association("Company Revenue", Association.Model.CompanyRevenue, Constants.COMPANY_TABLE,
                     Constants.COMPANY_REVENUE_TABLE, null, Association.Type.OneToMany,
                     Constants.COMPANY_ID, Constants.COMPANY_REVENUE_ID, false, "Company"),
+            new Association("Market Share", Association.Model.MarketShareRevenue, Constants.COMPANY_TABLE,
+                    Constants.COMPANY_MARKETS_JOIN_TABLE, null, Association.Type.OneToMany,
+                    Constants.COMPANY_ID, Constants.MARKET_SHARE_ID, false, "Company"),
+            new Association(Association.Model.Product, Constants.COMPANY_TABLE,
+                    Constants.PRODUCT_TABLE, null, Association.Type.OneToMany,
+                    Constants.COMPANY_ID, Constants.PRODUCT_ID, false, "Company"),
             new Association("Parent Company", Association.Model.Company, Constants.COMPANY_TABLE,
                     Constants.COMPANY_TABLE, null, Association.Type.ManyToOne,
                     Constants.PARENT_COMPANY_ID, Constants.COMPANY_ID, true, "Sub Company"),
             new Association("Sub Company", Association.Model.Company, Constants.COMPANY_TABLE,
                     Constants.COMPANY_TABLE, null, Association.Type.OneToMany,
-                    Constants.PARENT_COMPANY_ID, Constants.COMPANY_ID, false, "Parent Company"),
-            new Association("Market Share", Association.Model.MarketShareRevenue, Constants.COMPANY_TABLE,
-                    Constants.COMPANY_MARKETS_JOIN_TABLE, null, Association.Type.OneToMany,
-                    Constants.COMPANY_ID, Constants.MARKET_SHARE_ID, false, "Company")
+                    Constants.PARENT_COMPANY_ID, Constants.COMPANY_ID, false, "Parent Company")
     );
     private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
             Constants.NAME,
