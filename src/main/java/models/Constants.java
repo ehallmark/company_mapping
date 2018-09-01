@@ -51,7 +51,7 @@ public class Constants {
         ATTR_MAP.put(SOURCE, "Source");
         ATTR_MAP.put(YEAR, "Applicable Year");
         ATTR_MAP.put(IS_ESTIMATE, "Is Estimate?");
-        ATTR_MAP.put(ESTIMATE_TYPE, "Estimate Quality (High/Medium/Low)");
+        ATTR_MAP.put(ESTIMATE_TYPE, "Estimate/Source Quality (High/Medium/Low)");
         ATTR_MAP.put(UPDATED_AT, "Last Updated");
         ATTR_MAP.put(CREATED_AT, "Date Created");
         ATTR_MAP.put(MARKET_REVENUE_ID, "Company Revenue");
