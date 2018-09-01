@@ -155,13 +155,15 @@ var onShowResourceFunction = function($topElem) {
         showDiagramFunction(id,resourceId);
     });
 
+    var isListening = false;
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
         var $this = $(this);
-        if($this.attr('data-opened')=='true') {
+        if($this.attr('data-opened')!='true') {
+            e.stopPropagation();
+        } else {
             return;
         }
         $this.attr('data-opened', 'true');
-        e.stopPropagation();
         var fieldType = $this.attr('data-field-type');
         var resourceId = $this.attr('data-resource');
         var val = $this.attr('data-val');
@@ -208,11 +210,15 @@ var onShowResourceFunction = function($topElem) {
         $this.find('input,select,textarea,label').dblclick(function(e) {
             e.stopPropagation();
         });
-        $(document.body).off('dblclick');
-        $(document.body).dblclick(function() {
-            $this.closest('form').trigger('submit');
-            $(this).off('dblclick');
-        });
+        if(!isListening) {
+            $(document.body).dblclick(function() {
+                $this.closest('form').trigger('submit');
+                $(this).off('dblclick');
+                isListening = false;
+                $('.resource-data-field.editable').attr('data-opened', 'false');
+            });
+        }
+        isListening = true;
     });
 
     $topElem.find('form.update-model-form').submit(function(e) {

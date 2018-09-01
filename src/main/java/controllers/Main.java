@@ -601,10 +601,12 @@ public class Main {
             if(model != null) {
                 model.getAvailableAttributes().forEach(attr->{
                     Object val = extractString(req,attr,null);
-                    if(val != null) {
+                    if(req.queryParams().contains(attr)) {
                         String fieldType = Constants.fieldTypeForAttr(attr);
-                        val = val.toString().trim();
-                        if(fieldType.equals(Constants.NUMBER_FIELD_TYPE)) {
+                        if(val!=null) {
+                            val = val.toString().trim();
+                        }
+                        if(val!=null && fieldType.equals(Constants.NUMBER_FIELD_TYPE)) {
                             try {
                                 val = Double.valueOf(val.toString().trim());
                             } catch(Exception e) {
@@ -612,7 +614,7 @@ public class Main {
                                 val = 0;
                             }
                         } else if(fieldType.equals(Constants.BOOL_FIELD_TYPE)) {
-                            val = val.toString().toLowerCase().trim().startsWith("t");
+                            val = val!=null && val.toString().toLowerCase().trim().startsWith("t");
                         }
                         model.updateAttribute(attr, val);
                     }
