@@ -1,6 +1,7 @@
 package models;
 
 import com.google.gson.Gson;
+import com.googlecode.wickedcharts.highcharts.options.Options;
 import database.Database;
 import j2html.tags.ContainerTag;
 import j2html.tags.Tag;
@@ -76,6 +77,78 @@ public abstract class Model implements Serializable {
                         .attr("data-association-name", associationName)
                         .attr("data-association-id", associationId.toString()).attr("style","cursor: pointer;").withClass("delete-node").attr("data-resource", this.getClass().getSimpleName()).attr("data-id", id)
         );
+    }
+
+    public Options buildChart(@NonNull String associationName, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option) {
+        Association association = associationsMeta.stream().filter(a->a.getAssociationName().equals(associationName)).findAny().orElse(null);
+        if(association==null) {
+            return null;
+        }
+        if(this instanceof Market) {
+            switch(association.getModel()) {
+                case MarketRevenue: {
+                    // yearly timeline
+
+                    break;
+                }
+                case Market: {
+                    if(associationName.startsWith("Sub")) {
+                        // graph of this market's submarkets
+
+                    } else {
+                        // graph of all submarkets of this market's parent market
+
+                    }
+                }
+                case MarketShareRevenue: {
+                    // graph of all companies associated with this market
+
+                    break;
+                }
+            }
+        } else if(this instanceof Company) {
+            switch (association.getModel()) {
+                case CompanyRevenue: {
+                    // yearly timeline
+
+                    break;
+                }
+                case Company: {
+                    // check sub company or parent company
+                    if (association.getAssociationName().startsWith("Sub")) {
+                        // graph of this company's subsidiaries
+
+                    } else {
+                        // parent company (graph of all subsidiaries of this companies parent)
+                    }
+                    break;
+                }
+                case MarketShareRevenue: {
+                    // graph of all markets associated with this company
+                }
+            }
+
+        } else if(this instanceof Product) {
+            switch (association.getModel()) {
+                case ProductRevenue: {
+                    // yearly timeline
+
+                    break;
+                }
+                case Company: {
+                    // graph of all products of this product's company
+
+                    break;
+                }
+                case Market: {
+                    // graph of all products of this product's market
+
+                    break;
+                }
+            }
+        }
+
+        return null;
     }
 
     public boolean hasSubMarkets() {
@@ -623,7 +696,9 @@ public abstract class Model implements Serializable {
                 }
                 String listRef = "association-" + association.getAssociationName().toLowerCase().replace(" ", "-") + cnt.getAndIncrement();
 
-                ul.with(li().attr("style", "display: inline;").with(getAddAssociationPanel(association, listRef, original)));
+                ul.with(li().attr("style", "display: inline;")
+                        //.with(getAddAssociationPanel(association, listRef, original))
+                );
                 container.with(tag);
             }
         }

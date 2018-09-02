@@ -3,6 +3,7 @@ package controllers;
 import auth.PasswordException;
 import auth.PasswordHandler;
 import com.google.gson.Gson;
+import com.googlecode.wickedcharts.highcharts.options.Options;
 import database.Database;
 import j2html.tags.ContainerTag;
 import models.*;
@@ -543,6 +544,21 @@ public class Main {
                 );
 
                 return new Gson().toJson(Collections.singletonMap("result", html.render()));
+            }
+            return null;
+        });
+
+        post("/graph/:resource/:id/:association", (req, res)->{
+            Model model = loadModel(req);
+            if(model!=null) {
+                Association.Model associationType = Association.Model.valueOf(req.params("association"));
+                try {
+                    Options options = model.buildChart(associationType);
+                    return new Gson().toJson(Collections.singletonMap("chart", options.toString()));
+                } catch(Exception e) {
+                    e.printStackTrace();
+                    return new Gson().toJson(Collections.singletonMap("error", e.getMessage()));
+                }
             }
             return null;
         });
