@@ -320,16 +320,28 @@ public abstract class Model implements Serializable {
                             List<Model> revenues = associations.get(association);
                             if (revenues != null && revenues.size() > 0) {
                                 List<Model> revenueModelsSorted = revenues.stream().sorted((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).collect(Collectors.toList());
-                                if (startYear != null) {
-                                    revenueModelsSorted = revenueModelsSorted.stream().filter(m -> ((Integer) m.getData().get(Constants.YEAR)) >= startYear)
-                                            .collect(Collectors.toList());
-                                }
-                                if (endYear != null) {
-                                    revenueModelsSorted = revenueModelsSorted.stream().filter(m -> ((Integer) m.getData().get(Constants.YEAR)) <= endYear)
-                                            .collect(Collectors.toList());
+                                if(startYear!=null && endYear != null) {
+                                    List<Model> byYear = new ArrayList<>();
+                                    for(int year = startYear; year <= endYear; year++) {
+                                        Model modelYear = revenueModelsSorted.stream().filter(m -> ((Integer) m.getData().get(Constants.YEAR)) >= startYear).findAny().orElse(null);
+                                        if(modelYear != null) {
+                                            byYear.add(modelYear);
+                                        } else {
+                                            if (option.equals(Constants.MissingRevenueOption.error)) {
+                                                throw new RuntimeException("Missing revenues in " + year+" for " + data.get(Constants.NAME));
+                                            } 
+                                        }
+                                    }
+                                    revenueModelsSorted = byYear;
                                 }
                                 if (revenueModelsSorted.size() > 0) {
                                     revenue = revenueModelsSorted.stream().mapToDouble(e->(Double)e.getData().get(Constants.VALUE)).sum();
+                                } else {
+                                    if(option.equals(Constants.MissingRevenueOption.error)) {
+                                        throw new RuntimeException("Missing revenues for "+data.get(Constants.NAME));
+                                    } else if(option.equals(Constants.MissingRevenueOption.replace)) {
+                                        revenue = 0.0;
+                                    }
                                 }
                             }
                         }
