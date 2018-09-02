@@ -627,19 +627,21 @@ var createResourceList = function(resourceId, resourceName, data) {
         $result.append($diagram);
         $diagram.find('a').click(function(e) {
             e.preventDefault();
-            var $a = $(this);
-            $.ajax({
-                url: '/diagram/'+resourceId,
-                dataType: 'json',
-                type: 'POST',
-                success: function(data) {
-                    $('#results').html(data.result);
-                    onShowResourceFunction($('#results'));
-                },
-                error: function() {
-                    alert("An error occurred.");
-                }
-            });
+            if(confirm('This may take awhile...')) {
+                var $a = $(this);
+                $.ajax({
+                    url: '/diagram/'+resourceId,
+                    dataType: 'json',
+                    type: 'POST',
+                    success: function(data) {
+                        $('#results').html(data.result);
+                        onShowResourceFunction($('#results'));
+                    },
+                    error: function() {
+                        alert("An error occurred.");
+                    }
+                });
+            }
         });
     }
     $result.append($new);
