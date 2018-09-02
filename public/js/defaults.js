@@ -185,11 +185,31 @@ var updateResourceFormHelper = function($this) {
 var onShowResourceFunction = function($topElem) {
     updateAssociationTotals();
 
+    $topElem.find('#report-specification-form').submit(function(e) {
+        e.preventDefault();
+        var $form = $(this);
+        var id = $form.attr("data-id");
+        var resourceId = $form.attr('data-resource');
+        $.ajax({
+            url: '/generate-report/'+resourceId+'/'+id,
+            dataType: 'json',
+            data: $form.serialize(),
+            type: 'POST',
+            success: function(data) {
+                $('#inner-results').html(data.result);
+                onShowResourceFunction($('#inner-results'));
+            },
+            error: function() {
+                alert("An error occurred.");
+            }
+        });
+    });
+
     //$('.resource-data-field').not('.editable').css('cursor', 'not-allowed');
-    $('.resource-data-field.editable').css('cursor', 'cell');
+    $topElem.find('.resource-data-field.editable').css('cursor', 'cell');
 
     // delete node
-    $('.delete-button').click(function(e) {
+    $topElem.find('.delete-button').click(function(e) {
         e.preventDefault();
         var $this = $(this);
         var resourceId = $this.attr('data-resource');
@@ -452,7 +472,7 @@ var onShowResourceFunction = function($topElem) {
         return false;
     });
 
-    $('span.delete-node').click(function() {
+    $topElem.find('span.delete-node').click(function() {
         var $this = $(this);
         var id = $this.attr('data-id');
         var name = $this.prev().text();

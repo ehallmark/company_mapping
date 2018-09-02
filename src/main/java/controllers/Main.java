@@ -15,6 +15,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.OutputStream;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -547,6 +548,21 @@ public class Main {
         });
 
 
+        post("/generate-report/:resource/:id", (req, res)-> {
+            authorize(req,res);
+            Model model = loadModel(req);
+            if(model!=null) {
+                ContainerTag diagram = model.loadNestedAssociations();
+
+                ContainerTag html = div().withClass("col-12").with(
+                        diagram
+                );
+
+                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+            }
+            return null;
+        });
+
         post("/report/:resource/:id", (req, res)-> {
             authorize(req,res);
             Model model = loadModel(req);
@@ -555,10 +571,27 @@ public class Main {
                 ContainerTag html = div().withClass("col-12").with(
                         model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
                         h3("Report of "+model.getData().get(Constants.NAME)),
-                        form().with(
-                                
+                        form().attr("data-id",model.getId().toString())
+                                .attr("data-resource",model.getClass().getSimpleName()).withId("report-specification-form").with(
+                                label(Constants.humanAttrFor(Constants.YEAR)).with(br(),
+                                        input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName(Constants.YEAR)
+                                ),
+                                br(),
+                                label("Use CAGR when applicable?").with(br(),
+                                        input().withType("checkbox").withValue("true").withName(Constants.CAGR)
+                                ),
+                                br(),
+                                label("Missing Revenue Options").with(br(),
+                                        select().withClass("multiselect").withName("missing_revenue").with(
+                                                option("Exclude missing").withValue("exclude"),
+                                                option("Replace with zeros").withValue("replace"),
+                                                option("Raise error").withValue("error")
+                                        )
+                                ),
+                                br(),
+                                button("Generate").withType("submit").withClass("btn btn-sm btn-outline-secondary")
                         ),
-                        div().withId("#inner-results")
+                        div().withId("inner-results")
                 );
 
                 return new Gson().toJson(Collections.singletonMap("result", html.render()));
