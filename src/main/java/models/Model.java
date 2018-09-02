@@ -485,7 +485,7 @@ public abstract class Model implements Serializable {
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
-            String display = original==this ? "block;" : "none;";
+            String display = "block;";
             String displayPlus = original==this ? "none;" : "block;";
             container.with(
                     li().attr("style", "list-style: none; cursor: pointer; display: "+displayPlus).withText("+")
@@ -558,7 +558,7 @@ public abstract class Model implements Serializable {
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
-            String display = original==this ? "block;" : "none;";
+            String display = "block;";
             String displayPlus = original==this ? "none;" : "block;";
             container.with(
                     li().attr("style", "list-style: none; cursor: pointer; display: "+displayPlus).withText("+")
