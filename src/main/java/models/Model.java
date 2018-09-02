@@ -236,7 +236,7 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         ContainerTag inner = ul();
-        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null);
+        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null, false);
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
                         br(),inner
@@ -252,7 +252,7 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
-        calculateRevenue(startYear, endYear, useCAGR, option, null);
+        calculateRevenue(startYear, endYear, useCAGR, option, null, false);
         ContainerTag inner = ul();
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
@@ -288,7 +288,7 @@ public abstract class Model implements Serializable {
         return span(revStr).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
-    public double calculateRevenue(Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option, Double parentRevenue) {
+    public double calculateRevenue(Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue) {
         //if(revenue!=null && parentRevenue==null) return revenue;
         this.cagrWarnings = new ArrayList<>();
         if(isRevenueModel) {
@@ -308,7 +308,7 @@ public abstract class Model implements Serializable {
                         if (assocModels != null && assocModels.size() > 0) {
                             for (Model assoc : assocModels) {
                                 foundRevenueInSubMarket = true;
-                                totalRevenueOfLevel += assoc.calculateRevenue(startYear, endYear, useCAGR, option, null);
+                                totalRevenueOfLevel += assoc.calculateRevenue(startYear, endYear, useCAGR, option, null, isParentRevenue);
                             }
                         }
                     }
@@ -455,7 +455,7 @@ public abstract class Model implements Serializable {
             revenue = 0.0;
         }
 
-        this.percentage = parentRevenue == null ? null : (revenue==null ? null : revenue/parentRevenue);
+        this.percentage = previousRevenue == null ? null : (revenue==null ? null : (isParentRevenue ? (revenue/previousRevenue) : (previousRevenue/revenue)));
         return revenue==null ? 0. : revenue;
     }
 
@@ -481,7 +481,7 @@ public abstract class Model implements Serializable {
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
             modelMap.put(association, assocModels);
         }
-        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null);
+        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null, true);
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
@@ -554,7 +554,7 @@ public abstract class Model implements Serializable {
             }).collect(Collectors.toList());
             modelMap.put(association, assocModels);
         }
-        calculateRevenue(startYear, endYear, useCAGR, option, null);
+        calculateRevenue(startYear, endYear, useCAGR, option, null, false);
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
@@ -604,7 +604,15 @@ public abstract class Model implements Serializable {
                     if(!this.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
                         revToUse = revenue;
                     }
-                    model.calculateRevenue(startYear, endYear, useCAGR, option, revToUse);
+                    boolean isParentRevenue;
+                    // need to decide whether to show percentage of parent or child
+                    String thisClass = this.getClass().getSimpleName();
+                    if(thisClass.equals(Product.class.getSimpleName())) {
+                        isParentRevenue = false;
+                    } else {
+                        isParentRevenue = true;
+                    }
+                    model.calculateRevenue(startYear, endYear, useCAGR, option, revToUse, isParentRevenue);
 
                     ul.with(li().attr("style", "display: inline;").with(model.getSimpleLink(additionalClasses).attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
                     if (!sameModel && !alreadySeen.contains(_id)) {
