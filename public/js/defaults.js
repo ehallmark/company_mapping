@@ -135,7 +135,7 @@ var updateAssociationTotals = function() {
                 }
             });
         });
-        $this.text('Revenue: '+sum.toString());
+        $this.text('(Revenue: '+sum.toString()+")");
     });
 };
 
