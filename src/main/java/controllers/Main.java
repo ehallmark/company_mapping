@@ -560,7 +560,7 @@ public class Main {
                 try {
                     ContainerTag diagram = model.loadReport(startYear, endYear, useCAGR, missingRevenueOption);
 
-                    ContainerTag html = div().withClass("col-12").with(diagram);
+                    ContainerTag html = div().withClass("col-12").with(h4("Date Range: "+startYear+" - "+endYear), br(), diagram);
                     return new Gson().toJson(Collections.singletonMap("result", html.render()));
                 } catch(Exception e) {
                     e.printStackTrace();

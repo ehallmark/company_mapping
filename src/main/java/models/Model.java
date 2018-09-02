@@ -538,7 +538,12 @@ public abstract class Model implements Serializable {
                     }
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
-                    model.calculateRevenue(startYear, endYear, useCAGR, option, revenue);
+                    Double revToUse = null;
+                    if(!this.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
+                        revToUse = revenue;
+                    }
+                    model.calculateRevenue(startYear, endYear, useCAGR, option, revToUse);
+
                     ul.with(li().attr("style", "display: inline;").with(model.getSimpleLink(additionalClasses).attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
                     if (!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
