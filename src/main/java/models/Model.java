@@ -234,6 +234,7 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         ContainerTag inner = ul();
+        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace);
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
                         br(),inner
@@ -245,23 +246,23 @@ public abstract class Model implements Serializable {
     };
 
 
-    public ContainerTag loadReport() {
+    public ContainerTag loadReport(int startYear, int endYear, boolean useCAGR, Constants.MissingRevenueOption option) {
         if(data==null) {
             loadAttributesFromDatabase();
         }
+        calculateRevenue(startYear, endYear, useCAGR, option);
         ContainerTag inner = ul();
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
-                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
+                li().with(h5(data.get(Constants.NAME).toString()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(inner, allReferences, new AtomicInteger(0), this);
+        loadReportHelper(startYear, endYear, useCAGR, option, inner, allReferences, new AtomicInteger(0), this);
         return tag;
     };
 
     private ContainerTag getRevenueAsSpan(Model originalModel) {
-        calculateRevenue();
         ContainerTag updateRev = span();
         /*if(isRevenueModel) {
             updateRev = span();
@@ -280,7 +281,7 @@ public abstract class Model implements Serializable {
         return span("Revenue: "+(revenue==null?"":revenue)).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
-    public double calculateRevenue() {
+    public double calculateRevenue(Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option) {
         if(revenue!=null) return revenue;
 
         if(isRevenueModel) {
@@ -301,7 +302,15 @@ public abstract class Model implements Serializable {
                         if (revenues != null && revenues.size() > 0) {
                             // group
                             Map<Integer,List<Model>> revenueGroups = revenues.stream().collect(Collectors.groupingBy(e->(Integer)e.getData().get(Constants.MARKET_ID),Collectors.toList()));
-                            totalRevenueFromMarketShares = revenueGroups.values().stream().map(list->list.stream().max((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).orElse(null)).filter(e->e!=null)
+                            totalRevenueFromMarketShares = revenueGroups.values().stream().map(list->list.stream().filter(m->{
+                                if(startYear!=null) {
+                                    return ((Integer) m.getData().get(Constants.YEAR)) >= startYear;
+                                }
+                                if(endYear != null) {
+                                    return ((Integer) m.getData().get(Constants.YEAR)) <= endYear;
+                                }
+                                return true;
+                            }).max((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).orElse(null)).filter(e->e!=null)
                                     .mapToDouble(d->(Double)d.getData().get(Constants.VALUE)).sum();
                             foundRevenueInMarketShares = true;
                         }
@@ -311,7 +320,17 @@ public abstract class Model implements Serializable {
                             List<Model> revenues = associations.get(association);
                             if (revenues != null && revenues.size() > 0) {
                                 List<Model> revenueModelsSorted = revenues.stream().sorted((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).collect(Collectors.toList());
-                                revenue = (Double) revenueModelsSorted.get(0).getData().get(Constants.VALUE);
+                                if (startYear != null) {
+                                    revenueModelsSorted = revenueModelsSorted.stream().filter(m -> ((Integer) m.getData().get(Constants.YEAR)) >= startYear)
+                                            .collect(Collectors.toList());
+                                }
+                                if (endYear != null) {
+                                    revenueModelsSorted = revenueModelsSorted.stream().filter(m -> ((Integer) m.getData().get(Constants.YEAR)) <= endYear)
+                                            .collect(Collectors.toList());
+                                }
+                                if (revenueModelsSorted.size() > 0) {
+                                    revenue = revenueModelsSorted.stream().mapToDouble(e->(Double)e.getData().get(Constants.VALUE)).sum();
+                                }
                             }
                         }
                     }
@@ -323,7 +342,7 @@ public abstract class Model implements Serializable {
                         if (assocModels!=null && assocModels.size() > 0) {
                             for (Model assoc : assocModels) {
                                 foundRevenueInSubMarket = true;
-                                totalRevenueOfLevel += assoc.calculateRevenue();
+                                totalRevenueOfLevel += assoc.calculateRevenue(startYear, endYear, useCAGR, option);
                             }
                         }
                     }
@@ -362,7 +381,7 @@ public abstract class Model implements Serializable {
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
             modelMap.put(association, assocModels);
         }
-        calculateRevenue();
+        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace);
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
@@ -403,6 +422,80 @@ public abstract class Model implements Serializable {
                     if (!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
                         model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
+                    }
+                    alreadySeen.add(_id);
+                }
+                String listRef = "association-" + association.getAssociationName().toLowerCase().replace(" ", "-") + cnt.getAndIncrement();
+
+                ul.with(li().attr("style", "display: inline;").with(getAddAssociationPanel(association, listRef, original)));
+                container.with(tag);
+            }
+        }
+    }
+
+
+    private void loadReportHelper(int startYear, int endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original) {
+        if(associations==null) {
+            loadAssociations();
+        }
+        String originalId = original.getClass().getSimpleName()+original.getId();
+        Map<Association,List<Model>> modelMap = new HashMap<>();
+        for(Association association : associationsMeta) {
+            // if(!association.getModel().equals(Association.Model.MarketShareRevenue) && association.getModel().toString().endsWith("Revenue")) {
+            //     continue;
+            // }
+            if(association.getAssociationName().startsWith("Parent ")||association.getAssociationName().equals("Sub Company")) {
+                continue;
+            }
+            List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
+            assocModels = assocModels.stream().filter(m->{
+                if(!m.getData().containsKey(Constants.YEAR)) return true;
+                return ((Integer) m.getData().get(Constants.YEAR)) >= startYear && ((Integer) m.getData().get(Constants.YEAR)) <= endYear;
+            }).collect(Collectors.toList());
+            modelMap.put(association, assocModels);
+        }
+        calculateRevenue(startYear, endYear, useCAGR, option);
+        final String _totalRevenue = revenue == null ? "" : revenue.toString();
+        if(modelMap.size()>0) {
+            // recurse
+            String display = original==this ? "block;" : "none;";
+            String displayPlus = original==this ? "none;" : "block;";
+            container.with(
+                    li().attr("style", "list-style: none; cursor: pointer; display: "+displayPlus).withText("+")
+                            .attr("onclick", "$(this).nextAll().slideToggle();")
+            );
+            for(Association association : associationsMeta) {
+                List<Model> models = modelMap.get(association);
+                if(models==null) {
+                    continue;
+                }
+                boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
+                List<ContainerTag> tag = new ArrayList<>();
+                ContainerTag ul = ul();
+                String name;
+                if (association.getModel().toString().contains("Revenue") && !association.getModel().toString().equals(MarketShareRevenue.class.getSimpleName())) {
+                    name = pluralize ? "Revenues" : "Revenue";
+                } else {
+                    name = pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName();
+                }
+                tag.add(
+                        li().attr("style", "list-style: none; display: " + display).with(
+                                h6(name).attr("style", "cursor: pointer; display: inline;")
+                                        .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
+                                span("Revenue: " + _totalRevenue).withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
+                        ).with(
+                                ul.attr("style", "display: " + display)
+                        )
+                );
+                for (Model model : models) {
+                    String _id = model.getClass().getSimpleName() + model.getId();
+                    boolean sameModel = _id.equals(originalId);
+                    ContainerTag inner = ul();
+                    model.calculateRevenue(startYear, endYear, useCAGR, option);
+                    ul.with(li().attr("style", "display: inline;").with(model.getSimpleLink().attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
+                    if (!sameModel && !alreadySeen.contains(_id)) {
+                        alreadySeen.add(_id);
+                        model.loadReportHelper(startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original);
                     }
                     alreadySeen.add(_id);
                 }

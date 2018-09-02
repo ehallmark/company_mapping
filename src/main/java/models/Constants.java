@@ -3,6 +3,12 @@ package models;
 import java.util.*;
 
 public class Constants {
+    public enum MissingRevenueOption {
+        exclude,
+        replace,
+        error
+    }
+
     public static final String COMPANY_TABLE = "companies";
     public static final String MARKET_TABLE = "markets";
     public static final String PRODUCT_TABLE = "products";

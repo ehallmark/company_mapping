@@ -552,12 +552,14 @@ public class Main {
             authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
-                ContainerTag diagram = model.loadNestedAssociations();
+                boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
+                int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
+                int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
 
-                ContainerTag html = div().withClass("col-12").with(
-                        diagram
-                );
+                ContainerTag diagram = model.loadReport(startYear, endYear, useCAGR, missingRevenueOption);
 
+                ContainerTag html = div().withClass("col-12").with(diagram);
                 return new Gson().toJson(Collections.singletonMap("result", html.render()));
             }
             return null;
@@ -573,8 +575,12 @@ public class Main {
                         h3("Report of "+model.getData().get(Constants.NAME)),
                         form().attr("data-id",model.getId().toString())
                                 .attr("data-resource",model.getClass().getSimpleName()).withId("report-specification-form").with(
-                                label(Constants.humanAttrFor(Constants.YEAR)).with(br(),
-                                        input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName(Constants.YEAR)
+                                label("Start Year").with(br(),
+                                        input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("start_year")
+                                ),
+                                br(),
+                                label("End Year").with(br(),
+                                        input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("end_year")
                                 ),
                                 br(),
                                 label("Use CAGR when applicable?").with(br(),
@@ -583,9 +589,9 @@ public class Main {
                                 br(),
                                 label("Missing Revenue Options").with(br(),
                                         select().withClass("multiselect").withName("missing_revenue").with(
-                                                option("Exclude missing").withValue("exclude"),
-                                                option("Replace with zeros").withValue("replace"),
-                                                option("Raise error").withValue("error")
+                                                option("Exclude missing").withValue(Constants.MissingRevenueOption.exclude.toString()),
+                                                option("Replace with zeros").withValue(Constants.MissingRevenueOption.replace.toString()),
+                                                option("Raise error").withValue(Constants.MissingRevenueOption.error.toString())
                                         )
                                 ),
                                 br(),
