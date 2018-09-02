@@ -38,6 +38,7 @@ public abstract class Model implements Serializable {
     @Getter
     private final boolean isRevenueModel;
     private Double revenue;
+    private Double percentage;
     protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data, boolean isRevenueModel) {
         this.tableName = tableName;
         this.data = data;
@@ -109,21 +110,21 @@ public abstract class Model implements Serializable {
                     }
                     String name;
                     if(removePrefix) {
-                        name = "Share of " + marketName + " market (" + data.get(Constants.YEAR) + ")";
+                        name = marketName + " (" + data.get(Constants.YEAR) + ")";
                     } else {
                         if (additionalClasses.length > 0 && additionalClasses[0].equals("market-share-market")) {
-                            name = companyName + "'s market share (" + data.get(Constants.YEAR) + ")";
+                            name = companyName + " (" + data.get(Constants.YEAR) + ")";
                         } else if (additionalClasses.length > 0 && additionalClasses[0].equals("market-share-company")) {
-                            name = "Share of " + marketName + " market (" + data.get(Constants.YEAR) + ")";
+                            name = marketName + " (" + data.get(Constants.YEAR) + ")";
                         } else {
-                            name = companyName + "'s share of " + marketName + " market (" + data.get(Constants.YEAR) + ")";
+                            name = companyName+" (" + data.get(Constants.YEAR) + ")";
                         }
                     }
                     data.put(Constants.NAME, name);
                 } else {
                     List<Model> parent = associations.get(associationsMeta.get(0));
                     if (parent != null && parent.size() > 0) {
-                        data.put(Constants.NAME, (removePrefix ? "" : (((String) parent.get(0).getData().get(Constants.NAME)) + " ")) + "Revenue (" + data.get(Constants.YEAR) + ")");
+                        data.put(Constants.NAME, (removePrefix ? "" : (((String) parent.get(0).getData().get(Constants.NAME)) + " ")) + " (" + data.get(Constants.YEAR) + ")");
                     }
                 }
             }
@@ -234,7 +235,7 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         ContainerTag inner = ul();
-        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace);
+        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null);
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
                         br(),inner
@@ -250,10 +251,10 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
-        calculateRevenue(startYear, endYear, useCAGR, option);
+        calculateRevenue(startYear, endYear, useCAGR, option, null);
         ContainerTag inner = ul();
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
-                li().with(h5(data.get(Constants.NAME).toString()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
+                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
@@ -278,12 +279,16 @@ public abstract class Model implements Serializable {
                 return revenueLink.with(li().attr("style","list-style: none;").with(updateRev));
             }
         }*/
-        return span("Revenue: "+(revenue==null?"":revenue)).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
+        String revStr = "(Revenue: "+(revenue==null?"":revenue)+")";
+        if(percentage!=null) {
+            double percentageFull = percentage * 100;
+            revStr += " - " + String.format("%.1f", percentageFull)+"%";
+        }
+        return span(revStr).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
-    public double calculateRevenue(Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option) {
-        if(revenue!=null) return revenue;
-
+    public double calculateRevenue(Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option, Double parentRevenue) {
+        //if(revenue!=null && parentRevenue==null) return revenue;
         if(isRevenueModel) {
             revenue = ((Number)data.get(Constants.VALUE)).doubleValue();
         } else {
@@ -301,7 +306,7 @@ public abstract class Model implements Serializable {
                         if (assocModels != null && assocModels.size() > 0) {
                             for (Model assoc : assocModels) {
                                 foundRevenueInSubMarket = true;
-                                totalRevenueOfLevel += assoc.calculateRevenue(startYear, endYear, useCAGR, option);
+                                totalRevenueOfLevel += assoc.calculateRevenue(startYear, endYear, useCAGR, option, null);
                             }
                         }
                     }
@@ -388,6 +393,7 @@ public abstract class Model implements Serializable {
             revenue = 0.0;
         }
 
+        this.percentage = parentRevenue == null ? null : (revenue==null ? null : revenue/parentRevenue);
         return revenue==null ? 0. : revenue;
     }
 
@@ -413,7 +419,7 @@ public abstract class Model implements Serializable {
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
             modelMap.put(association, assocModels);
         }
-        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace);
+        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null);
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
@@ -441,7 +447,7 @@ public abstract class Model implements Serializable {
                         li().attr("style", "list-style: none; display: " + display).with(
                                 h6(name).attr("style", "cursor: pointer; display: inline;")
                                         .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
-                                span("Revenue: " + _totalRevenue).withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
+                                span("(Revenue: " + _totalRevenue+")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
                         ).with(
                                 ul.attr("style", "display: " + display)
                         )
@@ -486,7 +492,7 @@ public abstract class Model implements Serializable {
             }).collect(Collectors.toList());
             modelMap.put(association, assocModels);
         }
-        calculateRevenue(startYear, endYear, useCAGR, option);
+        calculateRevenue(startYear, endYear, useCAGR, option, null);
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
@@ -514,17 +520,26 @@ public abstract class Model implements Serializable {
                         li().attr("style", "list-style: none; display: " + display).with(
                                 h6(name).attr("style", "cursor: pointer; display: inline;")
                                         .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
-                                span("Revenue: " + _totalRevenue).withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
+                                span("(Revenue: " + _totalRevenue+")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
                         ).with(
                                 ul.attr("style", "display: " + display)
                         )
                 );
                 for (Model model : models) {
                     String _id = model.getClass().getSimpleName() + model.getId();
+                    String[] additionalClasses = new String[]{};
+                    if(model.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
+                        // check association
+                        if(this.getClass().getSimpleName().equals(Market.class.getSimpleName())) {
+                            additionalClasses = new String[]{"market-share-market"};
+                        } else if(this.getClass().getSimpleName().equals(Company.class.getSimpleName())) {
+                            additionalClasses = new String[]{"market-share-company"};
+                        }
+                    }
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
-                    model.calculateRevenue(startYear, endYear, useCAGR, option);
-                    ul.with(li().attr("style", "display: inline;").with(model.getSimpleLink().attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
+                    model.calculateRevenue(startYear, endYear, useCAGR, option, revenue);
+                    ul.with(li().attr("style", "display: inline;").with(model.getSimpleLink(additionalClasses).attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
                     if (!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
                         model.loadReportHelper(startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original);
