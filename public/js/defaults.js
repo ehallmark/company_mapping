@@ -196,8 +196,19 @@ var onShowResourceFunction = function($topElem) {
             data: $form.serialize(),
             type: 'POST',
             success: function(data) {
-                $('#inner-results').html(data.result);
-                onShowResourceFunction($('#inner-results'));
+                if(data.hasOwnProperty('error')) {
+                    alert(data.error);
+                    if(data.hasOwnProperty('helper')) {
+                        $('#inner-results').html(data.helper);
+                        onShowResourceFunction($('#inner-results'));
+
+                    } else {
+                        $('#inner-results').html('');
+                    }
+                } else {
+                    $('#inner-results').html(data.result);
+                    onShowResourceFunction($('#inner-results'));
+                }
             },
             error: function() {
                 alert("An error occurred.");
@@ -343,6 +354,7 @@ var onShowResourceFunction = function($topElem) {
         var associationId = $form.attr("data-association");
         var id = $form.attr('data-id');
         var listRef = $form.attr('data-list-ref');
+        var report = $form.attr('data-report');
         var formData = $form.serialize();
         var prepend = $form.attr('data-prepend');
         var refresh = $form.attr('data-refresh');
@@ -383,7 +395,13 @@ var onShowResourceFunction = function($topElem) {
                                 alert(showData.error);
                             } else {
                                 if(!listRef || refresh==='refresh') {
-                                    showDiagramFunction(originalId,originalResourceId);
+                                    if(report) {
+                                        //showResourceFunction(originalResourceId,originalId);
+                                        $('#inner-results').html('');
+
+                                    } else {
+                                        showDiagramFunction(originalId,originalResourceId);
+                                    }
                                 } else {
                                     if(prepend==='prepend') {
                                         $(listRef).prepend(showData.template);
@@ -420,6 +438,7 @@ var onShowResourceFunction = function($topElem) {
         var formData = $form.serialize();
         var newId = $form.find('select').val();
         var prepend = $form.attr('data-prepend');
+        var report = $form.attr('data-report');
         if (!newId) {
             alert('Please select a valid association.');
             return false;
@@ -439,7 +458,14 @@ var onShowResourceFunction = function($topElem) {
                     if($(showData.template).hasClass('server-error')) {
                         alert('A cycle has been detected. Unable to assign '+associationId+' to '+resourceId);
                     };
-                    showDiagramFunction(originalId,originalResourceId);
+                    // check if we are in a report
+                    if(report) {
+                        //showResourceFunction(originalResourceId, originalId);
+                        $('#inner-results').html('');
+                    } else {
+                        showDiagramFunction(originalId,originalResourceId);
+                    }
+
                 } else {
 
                     if($oldRef.length && $oldRef.find('span[data-association-name]').filter(':first').attr('data-association-name')===associationName) {

@@ -294,27 +294,52 @@ public abstract class Model implements Serializable {
             boolean foundRevenueInSubMarket = false;
             boolean foundRevenueInMarketShares = false;
             for(Association association : associationsMeta) {
-                if(association.getModel().toString().contains("Revenue")) {
+                if (this.getClass().getSimpleName().equals(Association.Model.Market.toString())) {
+                    List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
+                    // look for sub markets
+                    if (association.getAssociationName().equals("Sub Market")) {
+                        if (assocModels != null && assocModels.size() > 0) {
+                            for (Model assoc : assocModels) {
+                                foundRevenueInSubMarket = true;
+                                totalRevenueOfLevel += assoc.calculateRevenue(startYear, endYear, useCAGR, option);
+                            }
+                        }
+                    }
+                }
+                if (association.getModel().toString().contains("Revenue")) {
                     // found actual revenue data
-                    if(this.getClass().getSimpleName().equals(Association.Model.Company.toString()) && association.getModel().equals(Association.Model.MarketShareRevenue)) {
+                    if (this.getClass().getSimpleName().equals(Association.Model.Company.toString()) && association.getModel().equals(Association.Model.MarketShareRevenue)) {
                         // backup company revenue = (sum of market shares)
                         List<Model> revenues = associations.get(association);
                         if (revenues != null && revenues.size() > 0) {
                             // group
-                            Map<Integer,List<Model>> revenueGroups = revenues.stream().collect(Collectors.groupingBy(e->(Integer)e.getData().get(Constants.MARKET_ID),Collectors.toList()));
-                            totalRevenueFromMarketShares = revenueGroups.values().stream().map(list->list.stream().filter(m->{
-                                if(startYear!=null) {
-                                    return ((Integer) m.getData().get(Constants.YEAR)) >= startYear;
+                            Map<Integer, List<Model>> revenueGroups = revenues.stream().collect(Collectors.groupingBy(e -> (Integer) e.getData().get(Constants.MARKET_ID), Collectors.toList()));
+                            totalRevenueFromMarketShares = revenueGroups.values().stream().flatMap(list -> {
+                                if (startYear != null && endYear != null) {
+                                    List<Model> byYear = new ArrayList<>();
+                                    for (int year = startYear; year <= endYear; year++) {
+                                        final int _year = year;
+                                        Model modelYear = list.stream().filter(m -> ((Integer) m.getData().get(Constants.YEAR)).equals(_year)).findAny().orElse(null);
+                                        if (modelYear != null) {
+                                            byYear.add(modelYear);
+                                        } else {
+                                            if (option.equals(Constants.MissingRevenueOption.error)) {
+                                                throw new MissingRevenueException("Missing market share in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                            }
+                                        }
+                                    }
+                                    list = byYear;
                                 }
-                                if(endYear != null) {
-                                    return ((Integer) m.getData().get(Constants.YEAR)) <= endYear;
-                                }
-                                return true;
-                            }).max((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).orElse(null)).filter(e->e!=null)
-                                    .mapToDouble(d->(Double)d.getData().get(Constants.VALUE)).sum();
+                                return list.stream();
+                            }).mapToDouble(d -> (Double) d.getData().get(Constants.VALUE)).sum();
                             foundRevenueInMarketShares = true;
                         }
-                    } else {
+                    }
+                }
+            }
+            for(Association association : associationsMeta) {
+                if (association.getModel().toString().contains("Revenue")) {
+                    if (!(this.getClass().getSimpleName().equals(Association.Model.Company.toString()) && association.getModel().equals(Association.Model.MarketShareRevenue))) {
                         // only non market shares for other models
                         if(!association.getModel().equals(Association.Model.MarketShareRevenue)) {
                             List<Model> revenues = associations.get(association);
@@ -323,13 +348,14 @@ public abstract class Model implements Serializable {
                                 if(startYear!=null && endYear != null) {
                                     List<Model> byYear = new ArrayList<>();
                                     for(int year = startYear; year <= endYear; year++) {
-                                        Model modelYear = revenueModelsSorted.stream().filter(m -> ((Integer) m.getData().get(Constants.YEAR)) >= startYear).findAny().orElse(null);
+                                        final int _year = year;
+                                        Model modelYear = revenueModelsSorted.stream().filter(m -> ((Integer) m.getData().get(Constants.YEAR)).equals(_year)).findAny().orElse(null);
                                         if(modelYear != null) {
                                             byYear.add(modelYear);
                                         } else {
-                                            if (option.equals(Constants.MissingRevenueOption.error)) {
-                                                throw new RuntimeException("Missing revenues in " + year+" for " + data.get(Constants.NAME));
-                                            } 
+                                            if (option.equals(Constants.MissingRevenueOption.error) && !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
+                                                throw new MissingRevenueException("Missing revenues in " + year+" for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                            }
                                         }
                                     }
                                     revenueModelsSorted = byYear;
@@ -337,24 +363,14 @@ public abstract class Model implements Serializable {
                                 if (revenueModelsSorted.size() > 0) {
                                     revenue = revenueModelsSorted.stream().mapToDouble(e->(Double)e.getData().get(Constants.VALUE)).sum();
                                 } else {
-                                    if(option.equals(Constants.MissingRevenueOption.error)) {
-                                        throw new RuntimeException("Missing revenues for "+data.get(Constants.NAME));
-                                    } else if(option.equals(Constants.MissingRevenueOption.replace)) {
-                                        revenue = 0.0;
+                                    if(option.equals(Constants.MissingRevenueOption.error) &&  !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
+                                        throw new MissingRevenueException("Missing revenues in " + startYear+" for " + data.get(Constants.NAME), startYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-                if (this.getClass().getSimpleName().equals(Association.Model.Market.toString())) {
-                    List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
-                    // look for sub markets
-                    if (association.getAssociationName().equals("Sub Market")) {
-                        if (assocModels!=null && assocModels.size() > 0) {
-                            for (Model assoc : assocModels) {
-                                foundRevenueInSubMarket = true;
-                                totalRevenueOfLevel += assoc.calculateRevenue(startYear, endYear, useCAGR, option);
+                            } else {
+                                if(option.equals(Constants.MissingRevenueOption.error) && !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
+                                    throw new MissingRevenueException("Missing revenues in " + startYear+" for " + data.get(Constants.NAME), startYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                }
                             }
                         }
                     }
@@ -366,6 +382,10 @@ public abstract class Model implements Serializable {
             if(foundRevenueInMarketShares && this.getClass().getSimpleName().equals(Association.Model.Company.toString()) && revenue==null) {
                 revenue = totalRevenueFromMarketShares;
             }
+        }
+
+        if(revenue==null && option.equals(Constants.MissingRevenueOption.replace)) {
+            revenue = 0.0;
         }
 
         return revenue==null ? 0. : revenue;
@@ -601,10 +621,14 @@ public abstract class Model implements Serializable {
         return in.substring(0, 1).toUpperCase() + in.substring(1);
     }
 
-    private ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel) {
-        return getAddAssociationPanel(association, listRef, diagramModel, null);
+    public ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel) {
+        return getAddAssociationPanel(association, listRef, diagramModel, null, false);
     }
-    private ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel, String overrideCreateText) {
+
+    public ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel, boolean report) {
+        return getAddAssociationPanel(association, listRef, diagramModel, null, report);
+    }
+    public ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel, String overrideCreateText, boolean report) {
         Association.Type type = association.getType();
         String prepend = "false";
         String createText = "(New)";
@@ -642,6 +666,7 @@ public abstract class Model implements Serializable {
                 getCreateNewForm(association.getModel(),id).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("#"+listRef)).attr("data-association", association.getModel().toString())
                         .attr("data-resource", this.getClass().getSimpleName())
                         .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
+                        .attr("data-report", report ? "true" : null)
                         .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")
                         .attr("data-original-resource",diagramModel!=null ? diagramModel.getClass().getSimpleName() : "f")
                         .attr("data-id", id.toString()).withClass("association").with(
@@ -651,6 +676,7 @@ public abstract class Model implements Serializable {
                         .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
                         .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")
                         .attr("data-original-resource",diagramModel!=null ? diagramModel.getClass().getSimpleName() : "f")
+                        .attr("data-report", report ? "true" : null)
                         .with(
                                 inputs
                         ).with(

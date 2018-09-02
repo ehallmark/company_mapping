@@ -557,10 +557,29 @@ public class Main {
                 int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
                 Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
 
-                ContainerTag diagram = model.loadReport(startYear, endYear, useCAGR, missingRevenueOption);
+                try {
+                    ContainerTag diagram = model.loadReport(startYear, endYear, useCAGR, missingRevenueOption);
 
-                ContainerTag html = div().withClass("col-12").with(diagram);
-                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+                    ContainerTag html = div().withClass("col-12").with(diagram);
+                    return new Gson().toJson(Collections.singletonMap("result", html.render()));
+                } catch(Exception e) {
+                    e.printStackTrace();
+                    if(e instanceof MissingRevenueException) {
+                        MissingRevenueException mre = (MissingRevenueException) e;
+                        Map<String,Object> response = new HashMap<>();
+                        response.put("error", mre.getMessage());
+                        Model modelWithError = loadModel(mre.getModel(), mre.getId());
+                        Association revenueAssociation = mre.getAssociation();
+                        ContainerTag helperLink = modelWithError.getAddAssociationPanel(revenueAssociation, null, model, "(Add Revenue)", true);
+                        ContainerTag link = modelWithError.getSimpleLink();
+                        ContainerTag html = div().with(link, br(), helperLink);
+                        response.put("helper", html.render());
+
+                        return new Gson().toJson(response);
+                    } else {
+                        return new Gson().toJson(Collections.singletonMap("error", e.getMessage()));
+                    }
+                }
             }
             return null;
         });
