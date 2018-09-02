@@ -39,6 +39,7 @@ public abstract class Model implements Serializable {
     private final boolean isRevenueModel;
     private Double revenue;
     private Double percentage;
+    private List<String> cagrWarnings;
     protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data, boolean isRevenueModel) {
         this.tableName = tableName;
         this.data = data;
@@ -289,6 +290,7 @@ public abstract class Model implements Serializable {
 
     public double calculateRevenue(Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option, Double parentRevenue) {
         //if(revenue!=null && parentRevenue==null) return revenue;
+        this.cagrWarnings = new ArrayList<>();
         if(isRevenueModel) {
             revenue = ((Number)data.get(Constants.VALUE)).doubleValue();
         } else {
@@ -319,7 +321,8 @@ public abstract class Model implements Serializable {
                         if (revenues != null && revenues.size() > 0) {
                             // group
                             Map<Integer, List<Model>> revenueGroups = revenues.stream().collect(Collectors.groupingBy(e -> (Integer) e.getData().get(Constants.MARKET_ID), Collectors.toList()));
-                            totalRevenueFromMarketShares = revenueGroups.values().stream().flatMap(list -> {
+                            totalRevenueFromMarketShares = revenueGroups.values().stream().mapToDouble(list -> {
+                                List<Double> byCagr = new ArrayList<>();
                                 if (startYear != null && endYear != null) {
                                     List<Model> byYear = new ArrayList<>();
                                     for (int year = startYear; year <= endYear; year++) {
@@ -328,15 +331,45 @@ public abstract class Model implements Serializable {
                                         if (modelYear != null) {
                                             byYear.add(modelYear);
                                         } else {
-                                            if (option.equals(Constants.MissingRevenueOption.error)) {
-                                                throw new MissingRevenueException("Missing market share in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                            if(useCAGR) {
+                                                // check cagr for other years
+                                                Model best = list.stream().filter(m->m.getData().get(Constants.CAGR)!=null).min((e1,e2)->Integer.compare(Math.abs((Integer)e1.getData().get(Constants.YEAR)-_year), Math.abs((Integer)e2.getData().get(Constants.YEAR)-_year))).orElse(null);
+                                                if(best!=null) {
+                                                    System.out.println("Using CAGR...");
+                                                    int cagrYear = (Integer) best.getData().get(Constants.YEAR);
+                                                    double cagrPercent = (Double) best.getData().get(Constants.CAGR);
+                                                    double cagr = (Double) best.getData().get(Constants.VALUE);
+                                                    final double origValue = cagr;
+                                                    if(cagrYear > _year) {
+                                                        for(int y = _year+1; y <= cagrYear; y++) {
+                                                            // apply cagr
+                                                            cagr *= (1.0 + cagrPercent/100.0);
+                                                        }
+                                                    } else {
+                                                        // less than
+                                                        for(int y = cagrYear+1; y <= _year; y++) {
+                                                            // apply cagr
+                                                            cagr /= (1.0 + cagrPercent/100.0);
+                                                        }
+                                                    }
+                                                    byCagr.add(cagr);
+
+                                                } else {
+                                                    if (option.equals(Constants.MissingRevenueOption.error)) {
+                                                        throw new MissingRevenueException("Missing market share in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                                    }
+                                                }
+                                            } else {
+                                                if (option.equals(Constants.MissingRevenueOption.error)) {
+                                                    throw new MissingRevenueException("Missing market share in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                                }
                                             }
                                         }
                                     }
                                     list = byYear;
                                 }
-                                return list.stream();
-                            }).mapToDouble(d -> (Double) d.getData().get(Constants.VALUE)).sum();
+                                return list.stream().mapToDouble(d -> (Double)d.getData().get(Constants.VALUE)).sum() + byCagr.stream().mapToDouble(d->d).sum();
+                            }).sum();
                             foundRevenueInMarketShares = true;
                         }
                     }
@@ -350,6 +383,7 @@ public abstract class Model implements Serializable {
                             List<Model> revenues = associations.get(association);
                             if (revenues != null && revenues.size() > 0) {
                                 List<Model> revenueModelsSorted = revenues.stream().sorted((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).collect(Collectors.toList());
+                                List<Double> byCagr = new ArrayList<>();
                                 if(startYear!=null && endYear != null) {
                                     List<Model> byYear = new ArrayList<>();
                                     for(int year = startYear; year <= endYear; year++) {
@@ -358,15 +392,43 @@ public abstract class Model implements Serializable {
                                         if(modelYear != null) {
                                             byYear.add(modelYear);
                                         } else {
-                                            if (option.equals(Constants.MissingRevenueOption.error) && !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
-                                                throw new MissingRevenueException("Missing revenues in " + year+" for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                            // check cagr for other years
+                                            if(useCAGR) {
+                                                Model best = revenueModelsSorted.stream().filter(m->m.getData().get(Constants.CAGR)!=null).min((e1,e2)->Integer.compare(Math.abs((Integer)e1.getData().get(Constants.YEAR)-_year), Math.abs((Integer)e2.getData().get(Constants.YEAR)-_year))).orElse(null);
+                                                if(best!=null) {
+                                                    System.out.println("Using CAGR...");
+                                                    int cagrYear = (Integer) best.getData().get(Constants.YEAR);
+                                                    double cagrPercent = (Double) best.getData().get(Constants.CAGR);
+                                                    double cagr = (Double) best.getData().get(Constants.VALUE);
+                                                    final double origValue = cagr;
+                                                    if (cagrYear > _year) {
+                                                        for (int y = _year + 1; y <= cagrYear; y++) {
+                                                            // apply cagr
+                                                            cagr *= (1.0 + cagrPercent / 100.0);
+                                                        }
+                                                    } else {
+                                                        // less than
+                                                        for (int y = cagrYear + 1; y <= _year; y++) {
+                                                            // apply cagr
+                                                            cagr /= (1.0 + cagrPercent / 100.0);
+                                                        }
+                                                    }
+                                                    byCagr.add(cagr);
+                                                } else if (option.equals(Constants.MissingRevenueOption.error) && !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
+                                                    throw new MissingRevenueException("Missing revenues in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                                }
+
+                                            } else{
+                                                if (option.equals(Constants.MissingRevenueOption.error) && !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
+                                                    throw new MissingRevenueException("Missing revenues in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                                }
                                             }
                                         }
                                     }
                                     revenueModelsSorted = byYear;
                                 }
-                                if (revenueModelsSorted.size() > 0) {
-                                    revenue = revenueModelsSorted.stream().mapToDouble(e->(Double)e.getData().get(Constants.VALUE)).sum();
+                                if (revenueModelsSorted.size() > 0 || byCagr.size()>0) {
+                                    revenue = revenueModelsSorted.stream().mapToDouble(e->(Double)e.getData().get(Constants.VALUE)).sum() + byCagr.stream().mapToDouble(d->d).sum();
                                 } else {
                                     if(option.equals(Constants.MissingRevenueOption.error) &&  !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
                                         throw new MissingRevenueException("Missing revenues in " + startYear+" for " + data.get(Constants.NAME), startYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
