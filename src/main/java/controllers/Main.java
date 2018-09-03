@@ -606,12 +606,16 @@ public class Main {
                 AtomicInteger idx = new AtomicInteger(0);
                 try {
                     for(Association association : model.getAssociationsMeta()) {
-                        Options options = model.buildChart(association.getAssociationName(), startYear, endYear, useCAGR, missingRevenueOption);
-                        if(options.getSeries()==null || options.getSeries().isEmpty()) {
-                            // handle empty associations
-                        } else {
-                            String json = new JsonRenderer().toJson(options);
-                            results.put("chart_" + idx.getAndIncrement(), json);
+                        List<Options> allOptions = model.buildCharts(association.getAssociationName(), startYear, endYear, useCAGR, missingRevenueOption);
+                        if(allOptions!=null) {
+                            for(Options options : allOptions) {
+                                if (options.getSeries() == null || options.getSeries().isEmpty()) {
+                                    // handle empty associations
+                                } else {
+                                    String json = new JsonRenderer().toJson(options);
+                                    results.put("chart_" + idx.getAndIncrement(), json);
+                                }
+                            }
                         }
                     }
                     return new Gson().toJson(results);
