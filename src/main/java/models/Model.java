@@ -87,6 +87,9 @@ public abstract class Model implements Serializable {
     public void buildTimelineSeries(String groupByField, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options) {
         // yearly timeline
         if(minYear==null || maxYear==null) return;
+        if(maxYear - minYear <= 0) {
+            return;
+        }
         List<String> categories = new ArrayList<>();
         for(int year = minYear; year <= maxYear; year ++ ) {
             categories.add(String.valueOf(year));
