@@ -201,7 +201,7 @@ public class Main {
         return form().attr("data-id",model.getId().toString())
                 .attr("data-resource",model.getClass().getSimpleName()).withId(clazz+"-specification-form").with(
                         label("Start Year").with(br(),
-                                input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("start_year")
+                                input().withType("number").withValue(String.valueOf(LocalDate.now().getYear()-5)).withName("start_year")
                         ),
                         br(),
                         label("End Year").with(br(),
@@ -528,7 +528,7 @@ public class Main {
                                 } else {
                                     additionalClasses = new String[]{};
                                 }
-                                
+
                                 if(assocModel==null) {
                                     map.put(fieldName, "");
                                     map.put(fieldNameTextOnly, "");

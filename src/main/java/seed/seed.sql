@@ -2,11 +2,11 @@
 
 insert into markets (name, notes, parent_market_id) values
     ('Test Market 1', 'Some notes about the market.', null),
+    ('Test Market 2', 'Some notes about the market.', null),
     ('Test Sub Market 1-1', 'Some notes about this sub market.', null),
     ('Test Sub Market 1-2', 'Some notes about this sub market.', null),
     ('Test Sub Market 1-3', 'Some notes about this sub market.', null),
     ('Test Sub Market 1-4', 'Some notes about this sub market.', null),
-    ('Test Market 2', 'Some notes about the market.', null),
     ('Test Sub Market 2-1', 'Some notes about this sub market.', null),
     ('Test Sub Market 2-2', 'Some notes about this sub market.', null);
 
