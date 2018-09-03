@@ -409,7 +409,7 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag loadNestedAssociations() {
-        final int maxDepth = 3;
+        final int maxDepth = 10;
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -427,6 +427,7 @@ public abstract class Model implements Serializable {
 
 
     public ContainerTag loadReport(int startYear, int endYear, boolean useCAGR, Constants.MissingRevenueOption option) {
+        final int maxDepth = 10;
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -438,7 +439,7 @@ public abstract class Model implements Serializable {
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadReportHelper(startYear, endYear, useCAGR, option, inner, allReferences, new AtomicInteger(0), this);
+        loadReportHelper(startYear, endYear, useCAGR, option, inner, allReferences, new AtomicInteger(0), this, 0, maxDepth);
         return tag;
     };
 
@@ -722,7 +723,10 @@ public abstract class Model implements Serializable {
     }
 
 
-    private void loadReportHelper(int startYear, int endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original) {
+    private void loadReportHelper(int startYear, int endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original, int depth, int maxDepth) {
+        if(depth > maxDepth) {
+            return;
+        }
         if(associations==null) {
             loadAssociations();
         }
@@ -811,7 +815,7 @@ public abstract class Model implements Serializable {
                     ul.with(li().attr("style", "display: inline;").with(model.getSimpleLink(additionalClasses).attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
                     if (!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
-                        model.loadReportHelper(startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original);
+                        model.loadReportHelper(startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original, depth + 1, maxDepth);
                     }
                     alreadySeen.add(_id);
                 }
