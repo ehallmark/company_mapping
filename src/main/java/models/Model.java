@@ -707,6 +707,7 @@ public abstract class Model implements Serializable {
                     String _id = model.getClass().getSimpleName() + model.getId();
                     boolean sameModel = _id.equals(originalId);
                     ContainerTag inner = ul();
+                    model.calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null, false);
                     ul.with(li().attr("style", "display: inline;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
                     if (!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
