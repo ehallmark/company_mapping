@@ -137,6 +137,9 @@ public abstract class Model implements Serializable {
         List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
         Options options = new Options()
                 .setExporting(new ExportingOptions().setEnabled(true))
+                .setTooltip(new Tooltip().setEnabled(true)
+                        .setHeaderFormat("{point.key}<br/>")
+                        .setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b> Revenue: ${point.y:.2f}</b><br/>"))
                 .setCreditOptions(new CreditOptions().setEnabled(true).setText("www.gttgrp.com").setHref("http://www.gttgrp.com/"));
         calculateRevenue(minYear, maxYear, useCAGR, option, null, false);
         if(this instanceof Market) {
