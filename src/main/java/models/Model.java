@@ -409,6 +409,7 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag loadNestedAssociations() {
+        final int maxDepth = 3;
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -420,7 +421,7 @@ public abstract class Model implements Serializable {
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(inner, allReferences, new AtomicInteger(0), this);
+        loadNestedAssociationHelper(inner, allReferences, new AtomicInteger(0), this, 0, maxDepth);
         return tag;
     };
 
@@ -650,7 +651,9 @@ public abstract class Model implements Serializable {
          If no revenue is present for a company, do nothing. If no revenue is present for a product, do nothing.
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
-    private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original) {
+    private void loadNestedAssociationHelper(ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original, int depth, int maxDepth) {
+        if(depth > maxDepth) return;
+
         if(associations==null) {
             loadAssociations();
         }
@@ -706,7 +709,7 @@ public abstract class Model implements Serializable {
                     ul.with(li().attr("style", "display: inline;").with(model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;"), model.getRevenueAsSpan(original), inner));
                     if (!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
-                        model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original);
+                        model.loadNestedAssociationHelper(inner, new HashSet<>(alreadySeen), cnt, original, depth+1, maxDepth);
                     }
                     alreadySeen.add(_id);
                 }
@@ -773,8 +776,7 @@ public abstract class Model implements Serializable {
                         )
                 );
                 for (Model model : models) {
-                    boolean revenueModel = model.isRevenueModel;
-                    if(revenueModel) {
+                    if(model.isRevenueModel) {
                         int year = (Integer) model.getData().get(Constants.YEAR);
                         if(year < startYear || year > endYear) {
                             continue;
