@@ -266,9 +266,11 @@ public abstract class Model implements Serializable {
                 case MarketShareRevenue: {
                     // graph of all companies associated with this market
                     buildMarketShare(Constants.COMPANY_ID,"Companies", minYear, maxYear, useCAGR, option, assocModels, options);
-                    Options timelineOptions = getDefaultChartOptions();
-                    buildTimelineSeries(Constants.COMPANY_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions);
-                    allOptions.add(timelineOptions);
+                    if(maxYear - minYear > 0) {
+                        Options timelineOptions = getDefaultChartOptions();
+                        buildTimelineSeries(Constants.COMPANY_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions);
+                        allOptions.add(timelineOptions);
+                    }
                     break;
                 }
             }
@@ -304,9 +306,11 @@ public abstract class Model implements Serializable {
                 case MarketShareRevenue: {
                     // graph of all markets associated with this company
                     buildMarketShare(Constants.MARKET_ID,"Markets", minYear, maxYear, useCAGR, option, assocModels, options);
-                    Options timelineOptions = getDefaultChartOptions();
-                    buildTimelineSeries(Constants.MARKET_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions);
-                    allOptions.add(timelineOptions);
+                    if(maxYear - minYear > 0) {
+                        Options timelineOptions = getDefaultChartOptions();
+                        buildTimelineSeries(Constants.MARKET_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions);
+                        allOptions.add(timelineOptions);
+                    }
                     break;
                 }
             }
