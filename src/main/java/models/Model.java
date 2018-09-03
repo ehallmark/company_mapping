@@ -11,11 +11,13 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import java.awt.*;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -101,6 +103,7 @@ public abstract class Model implements Serializable {
         options.setTitle(new Title().setText(title));
         if(groupByField==null) {
             PointSeries series = new PointSeries();
+            series.setShowInLegend(false);
             for(Model assoc : models) {
                 assoc.calculateRevenue(minYear, maxYear, useCAGR, option, revenue, true);
                 Double rev = assoc.revenue;
@@ -118,6 +121,7 @@ public abstract class Model implements Serializable {
         } else {
             models.stream().collect(Collectors.groupingBy(e->e.getData().get(groupByField))).forEach((name, list) -> {
                 PointSeries series = new PointSeries();
+                series.setShowInLegend(true);
                 // get name of group by field by id
                 Model dataReference;
                 if(groupByField.equals(Constants.MARKET_ID)) {
@@ -156,7 +160,15 @@ public abstract class Model implements Serializable {
         options.setPlotOptions(new PlotOptionsChoice().setPie(new PlotOptions().setAllowPointSelect(true).setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT))));
         options.setChartOptions(new ChartOptions().setType(SeriesType.PIE));
         options.setTitle(new Title().setText(title));
+        options.setTooltip(new Tooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> {point.name}:<b> {point.percentage:.1f}%</b><br/>Revenue: <b> ${point.y:.2f} </b><br/>"));
         PointSeries series = new PointSeries();
+        series.setDataLabels(new DataLabels(true)
+                .setRotation(0)
+                .setColor(Color.black)
+                .setAlign(HorizontalAlignment.CENTER)
+                .setFormat("<b>{point.name}</b>: {point.percentage:.1f}%")
+                .setY(-5)
+        );
         if (groupByField == null) {
             for (Model assoc : models) {
                 assoc.calculateRevenue(minYear, maxYear, useCAGR, option, revenue, true);
