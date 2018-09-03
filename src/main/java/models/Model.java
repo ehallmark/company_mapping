@@ -786,9 +786,9 @@ public abstract class Model implements Serializable {
                     return ((Integer) m.getData().get(Constants.YEAR)) >= startYear && ((Integer) m.getData().get(Constants.YEAR)) <= endYear;
                 }).collect(Collectors.toList());
             }
-            if(assocModels.size()>0) {
+            //if(assocModels.size()>0) {
                 modelMap.put(association, assocModels);
-            }
+            //}
         }
         calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null, true);
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
