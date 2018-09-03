@@ -3,6 +3,7 @@ package controllers;
 import auth.PasswordException;
 import auth.PasswordHandler;
 import com.google.gson.Gson;
+import com.googlecode.wickedcharts.highcharts.jackson.JsonRenderer;
 import com.googlecode.wickedcharts.highcharts.options.Options;
 import database.Database;
 import j2html.tags.ContainerTag;
@@ -18,6 +19,7 @@ import java.io.File;
 import java.io.OutputStream;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -195,6 +197,32 @@ public class Main {
         return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes());
     }
 
+    public static ContainerTag getReportOptionsForm(Model model, String clazz) {
+        return form().attr("data-id",model.getId().toString())
+                .attr("data-resource",model.getClass().getSimpleName()).withId(clazz+"-specification-form").with(
+                        label("Start Year").with(br(),
+                                input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("start_year")
+                        ),
+                        br(),
+                        label("End Year").with(br(),
+                                input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("end_year")
+                        ),
+                        br(),
+                        label("Use CAGR when applicable?").with(br(),
+                                input().withType("checkbox").withValue("true").withName(Constants.CAGR)
+                        ),
+                        br(),
+                        label("Missing Revenue Options").with(br(),
+                                select().withClass("multiselect").withName("missing_revenue").with(
+                                        option("Exclude missing").withValue(Constants.MissingRevenueOption.exclude.toString()),
+                                        option("Replace with zeros").withValue(Constants.MissingRevenueOption.replace.toString()),
+                                        option("Raise error").withValue(Constants.MissingRevenueOption.error.toString())
+                                )
+                        ),
+                        br(),
+                        button("Generate").withType("submit").withClass("btn btn-sm btn-outline-secondary")
+                );
+    }
 
     public static void main(String[] args)  {
         staticFiles.externalLocation(new File("public").getAbsolutePath());
@@ -548,14 +576,46 @@ public class Main {
             return null;
         });
 
-        post("/graph/:resource/:id/:association", (req, res)->{
+
+        post("/graph/:resource/:id", (req, res)-> {
+            authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
-                Association.Model associationType = Association.Model.valueOf(req.params("association"));
+
+                ContainerTag html = div().withClass("col-12").with(
+                        model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
+                        h3("Graphs of "+model.getData().get(Constants.NAME)),
+                        getReportOptionsForm(model,"graph"),
+                        div().withId("inner-results")
+                );
+
+                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+            }
+            return null;
+        });
+
+
+        post("/generate-graph/:resource/:id", (req, res)->{
+            Model model = loadModel(req);
+            if(model!=null) {
+                boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
+                int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
+                int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
+                Map<String, Object> results = new HashMap<>();
+                AtomicInteger idx = new AtomicInteger(0);
                 try {
-                    Options options = model.buildChart(associationType);
-                    return new Gson().toJson(Collections.singletonMap("chart", options.toString()));
-                } catch(Exception e) {
+                    for(Association association : model.getAssociationsMeta()) {
+                        Options options = model.buildChart(association.getAssociationName(), startYear, endYear, useCAGR, missingRevenueOption);
+                        if(options.getSeries()==null || options.getSeries().isEmpty()) {
+                            // handle empty associations
+                        } else {
+                            String json = new JsonRenderer().toJson(options);
+                            results.put("chart_" + idx.getAndIncrement(), json);
+                        }
+                    }
+                    return new Gson().toJson(results);
+                } catch (Exception e) {
                     e.printStackTrace();
                     return new Gson().toJson(Collections.singletonMap("error", e.getMessage()));
                 }
@@ -608,30 +668,7 @@ public class Main {
                 ContainerTag html = div().withClass("col-12").with(
                         model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
                         h3("Report of "+model.getData().get(Constants.NAME)),
-                        form().attr("data-id",model.getId().toString())
-                                .attr("data-resource",model.getClass().getSimpleName()).withId("report-specification-form").with(
-                                label("Start Year").with(br(),
-                                        input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("start_year")
-                                ),
-                                br(),
-                                label("End Year").with(br(),
-                                        input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("end_year")
-                                ),
-                                br(),
-                                label("Use CAGR when applicable?").with(br(),
-                                        input().withType("checkbox").withValue("true").withName(Constants.CAGR)
-                                ),
-                                br(),
-                                label("Missing Revenue Options").with(br(),
-                                        select().withClass("multiselect").withName("missing_revenue").with(
-                                                option("Exclude missing").withValue(Constants.MissingRevenueOption.exclude.toString()),
-                                                option("Replace with zeros").withValue(Constants.MissingRevenueOption.replace.toString()),
-                                                option("Raise error").withValue(Constants.MissingRevenueOption.error.toString())
-                                        )
-                                ),
-                                br(),
-                                button("Generate").withType("submit").withClass("btn btn-sm btn-outline-secondary")
-                        ),
+                        getReportOptionsForm(model, "report"),
                         div().withId("inner-results")
                 );
 
@@ -876,6 +913,13 @@ public class Main {
                         script().withSrc("/js/jquery-ui-1.12.1.min.js"),
                         script().withSrc("/js/popper.min.js"),
                         script().withSrc("/js/jquery.dynatable.js"),
+                        script().withSrc("/js/highcharts.js"),
+                        script().withSrc("/js/exporting.js"),
+                        script().withSrc("/js/drilldown.js"),
+                        script().withSrc("/js/word_cloud.js"),
+                        script().withSrc("/js/heatmap.js"),
+                        script().withSrc("/js/offline-exporting.js"),
+                        script().withSrc("/js/customEvents.js"),
                         script().withSrc("/js/defaults.js"),
                         script().withSrc("/js/jquery.miniTip.js"),
                         script().withSrc("/js/jstree.min.js"),

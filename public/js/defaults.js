@@ -107,6 +107,23 @@ var showDiagramFunction = function(id,resourceId) {
 };
 
 
+var showGraphsFunction = function(id,resourceId) {
+    $.ajax({
+        url: '/graph/'+resourceId+'/'+id,
+        dataType: 'json',
+        type: 'POST',
+        success: function(data) {
+            $('#results').html(data.result);
+            onShowResourceFunction($('#results'));
+        },
+        error: function() {
+            alert("An error occurred.");
+        }
+    });
+};
+
+
+
 var showReportFunction = function(id,resourceId) {
     $.ajax({
         url: '/report/'+resourceId+'/'+id,
@@ -216,6 +233,45 @@ var onShowResourceFunction = function($topElem) {
         });
     });
 
+    $topElem.find('#graph-specification-form').submit(function(e) {
+        e.preventDefault();
+        var $form = $(this);
+        var id = $form.attr("data-id");
+        var resourceId = $form.attr('data-resource');
+        $.ajax({
+            url: '/generate-graph/'+resourceId+'/'+id,
+            dataType: 'json',
+            data: $form.serialize(),
+            type: 'POST',
+            success: function(data) {
+                if(data.hasOwnProperty('error')) {
+                    alert(data.error);
+                    if(data.hasOwnProperty('helper')) {
+                        $('#inner-results').html(data.helper);
+                        onShowResourceFunction($('#inner-results'));
+
+                    } else {
+                        $('#inner-results').html('');
+                    }
+                } else {
+                    var $innerResults = $('#inner-results');
+                    var i = 0;
+                    while(data.hasOwnProperty('chart_'+i.toString())) {
+                        var chartId = 'chart_'+i.toString();
+                        $innerResults.append('<div id="chart_'+i.toString()+'"></div>');
+                        Highcharts.chart(chartId, JSON.parse(data[chartId]));
+                        i = i+1;
+                    }
+                    onShowResourceFunction($('#inner-results'));
+                }
+            },
+            error: function() {
+                alert("An error occurred.");
+            }
+        });
+    });
+
+
     //$('.resource-data-field').not('.editable').css('cursor', 'not-allowed');
     $topElem.find('.resource-data-field.editable').css('cursor', 'cell');
 
@@ -264,6 +320,14 @@ var onShowResourceFunction = function($topElem) {
         var id = $this.attr('data-id');
         var resourceId = $this.attr('data-resource');
         showReportFunction(id,resourceId);
+    });
+
+   $topElem.find('.graph-button').click(function(e) {
+        e.preventDefault();
+        var $this = $(this);
+        var id = $this.attr('data-id');
+        var resourceId = $this.attr('data-resource');
+        showGraphsFunction(id,resourceId);
     });
 
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
