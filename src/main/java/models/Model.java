@@ -766,16 +766,16 @@ public abstract class Model implements Serializable {
      */
     private void loadNestedAssociationHelper(boolean allowEdit, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original, int depth, int maxDepth) {
         if(depth > maxDepth) return;
-
+        System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
         if(associations==null) {
             loadAssociations();
         }
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
         for(Association association : associationsMeta) {
-           // if(!association.getModel().equals(Association.Model.MarketShareRevenue) && association.getModel().toString().endsWith("Revenue")) {
-           //     continue;
-           // }
+            if(!association.getModel().equals(Association.Model.MarketShareRevenue) && association.getModel().toString().endsWith("Revenue")) {
+                continue;
+           }
             if(association.getAssociationName().startsWith("Parent ")||association.getAssociationName().equals("Sub Company")) {
                 continue;
             }
@@ -786,7 +786,9 @@ public abstract class Model implements Serializable {
                     return ((Integer) m.getData().get(Constants.YEAR)) >= startYear && ((Integer) m.getData().get(Constants.YEAR)) <= endYear;
                 }).collect(Collectors.toList());
             }
-            modelMap.put(association, assocModels);
+            if(assocModels.size()>0) {
+                modelMap.put(association, assocModels);
+            }
         }
         calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null, true);
         final String _totalRevenue = revenue == null ? "" : revenue.toString();
@@ -859,7 +861,9 @@ public abstract class Model implements Serializable {
                             , model.getRevenueAsSpan(original), inner));
                     if (!sameModel && !alreadySeen.contains(_id)) {
                         alreadySeen.add(_id);
-                        model.loadNestedAssociationHelper(allowEdit, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original, depth+1, maxDepth);
+                        if (!model.getClass().getSimpleName().equals(Association.Model.MarketShareRevenue.toString())) {
+                            model.loadNestedAssociationHelper(allowEdit, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original, depth + 1, maxDepth);
+                        }
                     }
                     alreadySeen.add(_id);
                 }
