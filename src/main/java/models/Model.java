@@ -259,7 +259,7 @@ public abstract class Model implements Serializable {
                             if(subs!=null) {
                                 List<Model> associationSubs = parent.getAssociations().get(subs);
                                 if(associationSubs!=null) {
-                                    parent.buildMarketShare(null,"Parent Market", minYear, maxYear, useCAGR, option, assocModels, options);
+                                    parent.buildMarketShare(null,"Parent Market", minYear, maxYear, useCAGR, option, associationSubs, options);
                                 }
                             }
                         }
