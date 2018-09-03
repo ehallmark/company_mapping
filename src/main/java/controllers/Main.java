@@ -516,11 +516,24 @@ public class Main {
                                 List<Model> assocModel = m.getAssociations().get(assoc);
                                 String fieldName = assoc.getAssociationName().toLowerCase().replace(" ", "-");
                                 String fieldNameTextOnly = fieldName+Constants.TEXT_ONLY;
+                                String[] additionalClasses;
+                                if(assoc.getModel().equals(Association.Model.MarketShareRevenue)) {
+                                    if(type.equals(Association.Model.Company)) {
+                                        additionalClasses = new String[]{"market-share-company"};
+                                    } else if(type.equals(Association.Model.Market)) {
+                                        additionalClasses = new String[]{"market-share-market"};
+                                    } else {
+                                        additionalClasses = new String[]{};
+                                    }
+                                } else {
+                                    additionalClasses = new String[]{};
+                                }
+                                
                                 if(assocModel==null) {
                                     map.put(fieldName, "");
                                     map.put(fieldNameTextOnly, "");
                                 } else {
-                                    map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink().render()).collect(Collectors.toList())));
+                                    map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink(additionalClasses).render()).collect(Collectors.toList())));
                                     map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList())));
                                 }
                             });
@@ -609,7 +622,7 @@ public class Main {
                         List<Options> allOptions = model.buildCharts(association.getAssociationName(), startYear, endYear, useCAGR, missingRevenueOption);
                         if(allOptions!=null) {
                             for(Options options : allOptions) {
-                                if (options.getSeries() == null || options.getSeries().isEmpty()) {
+                                if (options.getSeries() == null || options.getSeries().isEmpty() || options.getSeries().get(0).getData()==null || options.getSeries().get(0).getData().isEmpty()) {
                                     // handle empty associations
                                 } else {
                                     String json = new JsonRenderer().toJson(options);

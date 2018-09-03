@@ -45,7 +45,7 @@ $(document).ready(function() {
             success: function(data) {
                 if(data.hasOwnProperty('success')) {
                     $form.hide();
-                    $form.find('input').val(null);
+                    $form.find('input.form-control').val(null);
                 } else {
                     alert(data.result);
                 }
@@ -472,7 +472,7 @@ var onShowResourceFunction = function($topElem) {
                                     } else {
                                         $(listRef).html(showData.template);
                                     }
-                                    $form.find('input,textarea,select').val(null).trigger('change');
+                                    $form.find('input.form-control,textarea,select').val(null).trigger('change');
                                     onShowResourceFunction($(listRef));
                                     $('.resource-new-link').filter(':visible').each(function() {
                                         $(this).next().hide();
