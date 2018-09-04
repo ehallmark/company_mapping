@@ -851,6 +851,9 @@ public abstract class Model implements Serializable {
         }
 
         this.percentage = previousRevenue == null ? null : (revenue==null ? null : (isParentRevenue ? (revenue/previousRevenue) : (previousRevenue/revenue)));
+        if(this.percentage!=null && Double.isNaN(this.percentage)) {
+            this.percentage = null;
+        }
         return revenue==null ? 0. : revenue;
     }
 
