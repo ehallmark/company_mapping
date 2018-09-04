@@ -84,7 +84,7 @@ public abstract class Model implements Serializable {
     }
 
 
-    public void buildTimelineSeries(String groupByField, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options) {
+    public void buildTimelineSeries(String groupByField, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
         // yearly timeline
         if(minYear==null || maxYear==null) return;
         if(maxYear - minYear <= 0) {
@@ -117,16 +117,34 @@ public abstract class Model implements Serializable {
                     .setY(-5)
             );
             series.setShowInLegend(false);
+            Set<String> missingYears = new HashSet<>(categories);
             for(Model assoc : models) {
                 assoc.calculateRevenue(minYear, maxYear, useCAGR, option, revenue, true);
                 Double rev = assoc.revenue;
                 assoc.getSimpleLink();
                 Integer name = (Integer) assoc.getData().get(Constants.YEAR);
-                if (rev == null && option.equals(Constants.MissingRevenueOption.replace)) {
-                    rev = 0d;
-                }
                 if(rev!=null) {
                     series.addPoint(new Point(name.toString(), assoc.revenue));
+                    missingYears.remove(assoc.getData().get(Constants.YEAR).toString());
+                }
+            }
+            for(String missing : missingYears) {
+                int missingYear = Integer.valueOf(missing);
+                Double missingRev = null;
+                if(useCAGR) {
+                    missingRev = calculateFromCAGR(models, missingYear);
+                }
+
+                if(missingRev!=null) {
+                    series.addPoint(new Point(String.valueOf(missingYear), missingRev));
+
+                } else {
+                    if(option.equals(Constants.MissingRevenueOption.error)) {
+                        throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + data.get(Constants.NAME), missingYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                    } else if(option.equals(Constants.MissingRevenueOption.replace)) {
+                        series.addPoint(new Point(String.valueOf(missingYear), 0));
+
+                    }
                 }
             }
             options.addSeries(series);
@@ -149,16 +167,34 @@ public abstract class Model implements Serializable {
                 }
                 dataReference.loadAttributesFromDatabase();
                 series.setName((String)dataReference.getData().get(Constants.NAME));
+                Set<String> missingYears = new HashSet<>(categories);
                 for (Model assoc : list) {
                     assoc.calculateRevenue(minYear, maxYear, useCAGR, option, revenue, true);
                     Double rev = assoc.revenue;
                     assoc.getSimpleLink();
                     Integer year = (Integer) assoc.getData().get(Constants.YEAR);
-                    if (rev == null && option.equals(Constants.MissingRevenueOption.replace)) {
-                        rev = 0d;
-                    }
                     if (rev != null) {
                         series.addPoint(new Point(year.toString(), assoc.revenue));
+                        missingYears.remove(year.toString());
+                    }
+                }
+                for(String missing : missingYears) {
+                    int missingYear = Integer.valueOf(missing);
+                    Double missingRev = null;
+                    if(useCAGR) {
+                        missingRev = calculateFromCAGR(list, missingYear);
+                    }
+
+                    if(missingRev!=null) {
+                        series.addPoint(new Point(String.valueOf(missingYear), missingRev));
+
+                    } else {
+                        if(option.equals(Constants.MissingRevenueOption.error)) {
+                            throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + data.get(Constants.NAME), missingYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                        } else if(option.equals(Constants.MissingRevenueOption.replace)) {
+                            series.addPoint(new Point(String.valueOf(missingYear), 0));
+
+                        }
                     }
                 }
                 options.addSeries(series);
@@ -253,7 +289,7 @@ public abstract class Model implements Serializable {
         if(this instanceof Market) {
             switch(association.getModel()) {
                 case MarketRevenue: {
-                    buildTimelineSeries(null, minYear, maxYear, useCAGR, option, assocModels, options);
+                    buildTimelineSeries(null, minYear, maxYear, useCAGR, option, assocModels, options, association);
                     break;
                 }
                 case Market: {
@@ -283,7 +319,7 @@ public abstract class Model implements Serializable {
                     buildMarketShare(Constants.COMPANY_ID,"Companies", minYear, maxYear, useCAGR, option, assocModels, options);
                     if(maxYear - minYear > 0) {
                         Options timelineOptions = getDefaultChartOptions();
-                        buildTimelineSeries(Constants.COMPANY_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions);
+                        buildTimelineSeries(Constants.COMPANY_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions, association);
                         allOptions.add(timelineOptions);
                     }
                     break;
@@ -297,7 +333,7 @@ public abstract class Model implements Serializable {
             switch (association.getModel()) {
                 case CompanyRevenue: {
                     // yearly timeline
-                    buildTimelineSeries(null, minYear, maxYear, useCAGR, option, assocModels, options);
+                    buildTimelineSeries(null, minYear, maxYear, useCAGR, option, assocModels, options, association);
                     break;
                 }
                 case Company: {
@@ -328,7 +364,7 @@ public abstract class Model implements Serializable {
                     buildMarketShare(Constants.MARKET_ID,"Markets", minYear, maxYear, useCAGR, option, assocModels, options);
                     if(maxYear - minYear > 0) {
                         Options timelineOptions = getDefaultChartOptions();
-                        buildTimelineSeries(Constants.MARKET_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions);
+                        buildTimelineSeries(Constants.MARKET_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions, association);
                         allOptions.add(timelineOptions);
                     }
                     break;
@@ -342,7 +378,7 @@ public abstract class Model implements Serializable {
             switch (association.getModel()) {
                 case ProductRevenue: {
                     // yearly timeline
-                    buildTimelineSeries(null, minYear, maxYear, useCAGR, option, assocModels, options);
+                    buildTimelineSeries(null, minYear, maxYear, useCAGR, option, assocModels, options, association);
                     break;
                 }
                 case Company: {
@@ -596,6 +632,34 @@ public abstract class Model implements Serializable {
         return span(revStr).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
+
+    private Double calculateFromCAGR(List<Model> list, int year) {
+        // check cagr for other years
+        Model best = list.stream().filter(m->m.getData().get(Constants.CAGR)!=null).min((e1,e2)->Integer.compare(Math.abs((Integer)e1.getData().get(Constants.YEAR)-year), Math.abs((Integer)e2.getData().get(Constants.YEAR)-year))).orElse(null);
+        if(best!=null) {
+            System.out.println("Using CAGR...");
+            int cagrYear = (Integer) best.getData().get(Constants.YEAR);
+            double cagrPercent = (Double) best.getData().get(Constants.CAGR);
+            double cagr = (Double) best.getData().get(Constants.VALUE);
+            final double origValue = cagr;
+            if(cagrYear > year) {
+                for(int y = year+1; y <= cagrYear; y++) {
+                    // apply cagr
+                    cagr /= (1.0 + cagrPercent/100.0);
+                }
+            } else {
+                // less than
+                for(int y = cagrYear+1; y <= year; y++) {
+                    // apply cagr
+                    cagr *= (1.0 + cagrPercent/100.0);
+                }
+            }
+            return cagr;
+
+        }
+        return null;
+    }
+
     public double calculateRevenue(Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue) {
         //if(revenue!=null && parentRevenue==null) return revenue;
         revenue = null;
@@ -605,6 +669,10 @@ public abstract class Model implements Serializable {
                 int year = (Integer) data.get(Constants.YEAR);
                 if(year >= startYear && year <= endYear) {
                     revenue = ((Number)data.get(Constants.VALUE)).doubleValue();
+                } else {
+                    if(useCAGR) { // USE CAGR HERE?
+
+                    }
                 }
             } else {
                 revenue = ((Number) data.get(Constants.VALUE)).doubleValue();
@@ -648,33 +716,15 @@ public abstract class Model implements Serializable {
                                             byYear.add(modelYear);
                                         } else {
                                             if(useCAGR) {
-                                                // check cagr for other years
-                                                Model best = list.stream().filter(m->m.getData().get(Constants.CAGR)!=null).min((e1,e2)->Integer.compare(Math.abs((Integer)e1.getData().get(Constants.YEAR)-_year), Math.abs((Integer)e2.getData().get(Constants.YEAR)-_year))).orElse(null);
-                                                if(best!=null) {
-                                                    System.out.println("Using CAGR...");
-                                                    int cagrYear = (Integer) best.getData().get(Constants.YEAR);
-                                                    double cagrPercent = (Double) best.getData().get(Constants.CAGR);
-                                                    double cagr = (Double) best.getData().get(Constants.VALUE);
-                                                    final double origValue = cagr;
-                                                    if(cagrYear > _year) {
-                                                        for(int y = _year+1; y <= cagrYear; y++) {
-                                                            // apply cagr
-                                                            cagr *= (1.0 + cagrPercent/100.0);
-                                                        }
-                                                    } else {
-                                                        // less than
-                                                        for(int y = cagrYear+1; y <= _year; y++) {
-                                                            // apply cagr
-                                                            cagr /= (1.0 + cagrPercent/100.0);
-                                                        }
-                                                    }
+                                                Double cagr = calculateFromCAGR(list, _year);
+                                                if(cagr!=null) {
                                                     byCagr.add(cagr);
-
                                                 } else {
                                                     if (option.equals(Constants.MissingRevenueOption.error)) {
                                                         throw new MissingRevenueException("Missing market share in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
                                                     }
                                                 }
+
                                             } else {
                                                 if (option.equals(Constants.MissingRevenueOption.error)) {
                                                     throw new MissingRevenueException("Missing market share in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
