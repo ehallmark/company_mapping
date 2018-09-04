@@ -835,16 +835,24 @@ public abstract class Model implements Serializable {
                     groupedModels = Collections.singletonMap(null, models);
                 }
                 List<Integer> groupKeys = new ArrayList<>(groupedModels.keySet());
+                Double totalRevAllYears = null;
+                Map<Integer, Double> yearToRevenueMap = new HashMap<>();
                 if(groupKeys.size()>0 && groupKeys.get(0)!=null) {
                     groupKeys.sort((e1,e2)->Integer.compare(e2,e1));
+                    groupedModels.forEach((year, list) -> {
+                        double rev = groupedModels.get(year).stream().mapToDouble(d->d.calculateRevenue(startYear, endYear, useCAGR, option, null, false)).sum();
+                        yearToRevenueMap.put(year, rev);
+                    });
+                    totalRevAllYears = yearToRevenueMap.values().stream().mapToDouble(d->d).sum();
+                    if(totalRevAllYears==0) totalRevAllYears = null;
                 }
                 for (Integer key : groupKeys) {
                     ContainerTag groupUl;
-                    Double yearlyRevenue = null;
-                    if(key!=null) {
-                        yearlyRevenue = groupedModels.get(key).stream().mapToDouble(d->d.calculateRevenue(startYear, endYear, useCAGR, option, null, false)).sum();
+                    Double yearlyRevenue = key == null ? null : yearToRevenueMap.get(key);
+                    if(yearlyRevenue!=null) {
+                        String percentStr = totalRevAllYears == null ? "" : (String.format("%.1f", (yearlyRevenue * 100d) / totalRevAllYears) + "%");
                         groupUl = ul().attr("data-val", yearlyRevenue.toString()).withClass("resource-data-field");
-                        ul.with(li().with(div(String.valueOf(key)+" (Revenue: "+ formatRevenueString(yearlyRevenue) + ")")
+                        ul.with(li().with(div(String.valueOf(key) + " (Revenue: " + formatRevenueString(yearlyRevenue) + ") - "+percentStr)
                                 .attr("style", "cursor: pointer;").attr("onclick", "$(this).next().slideToggle();")
                         ).attr("style", "display: inline; list-style: none;").with(groupUl));
                     } else {
