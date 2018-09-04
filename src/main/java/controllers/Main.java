@@ -622,12 +622,8 @@ public class Main {
                         List<Options> allOptions = model.buildCharts(association.getAssociationName(), startYear, endYear, useCAGR, missingRevenueOption);
                         if(allOptions!=null) {
                             for(Options options : allOptions) {
-                                if (options.getSeries() == null || options.getSeries().isEmpty() || options.getSeries().get(0).getData()==null || options.getSeries().get(0).getData().isEmpty()) {
-                                    // handle empty associations
-                                } else {
-                                    String json = new JsonRenderer().toJson(options);
-                                    results.put("chart_" + idx.getAndIncrement(), json);
-                                }
+                                String json = new JsonRenderer().toJson(options);
+                                results.put("chart_" + idx.getAndIncrement(), json);
                             }
                         }
                     }
@@ -936,6 +932,7 @@ public class Main {
                         script().withSrc("/js/word_cloud.js"),
                         script().withSrc("/js/heatmap.js"),
                         script().withSrc("/js/offline-exporting.js"),
+                        script().withSrc("/js/no-data-to-display.js"),
                         script().withSrc("/js/customEvents.js"),
                         script().withSrc("/js/defaults.js"),
                         script().withSrc("/js/jquery.miniTip.js"),

@@ -90,18 +90,19 @@ public abstract class Model implements Serializable {
         if(maxYear - minYear <= 0) {
             return;
         }
+        options.setSubtitle(new Title().setText(data.get(Constants.NAME).toString()));
         List<String> categories = new ArrayList<>();
         for(int year = minYear; year <= maxYear; year ++ ) {
             categories.add(String.valueOf(year));
         }
         options.setPlotOptions(new PlotOptionsChoice().setLine(new PlotOptions().setShowInLegend(groupByField!=null)));
-        options.setChartOptions(new ChartOptions().setType(SeriesType.COLUMN));
+        options.setChartOptions(new ChartOptions().setType(SeriesType.COLUMN).setWidth(800));
         options.setxAxis(new Axis().setCategories(categories).setType(AxisType.CATEGORY));
         String title;
         if(groupByField==null) {
-            title = "Revenue Timeline of "+data.get(Constants.NAME);
+            title = "Revenue Timeline";
         } else {
-            title = "Revenue Timeline of "+data.get(Constants.NAME)+" by "+Constants.humanAttrFor(groupByField);
+            title = "Revenue Timeline by "+Constants.humanAttrFor(groupByField);
         }
         options.setTitle(new Title().setText(title));
         if(groupByField==null) {
@@ -163,6 +164,7 @@ public abstract class Model implements Serializable {
         options.setPlotOptions(new PlotOptionsChoice().setPie(new PlotOptions().setAllowPointSelect(true).setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT))));
         options.setChartOptions(new ChartOptions().setType(SeriesType.PIE));
         options.setTitle(new Title().setText(title));
+        options.setSubtitle(new Title().setText(data.get(Constants.NAME).toString()));
         options.setTooltip(new Tooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> {point.name}:<b> {point.percentage:.1f}%</b><br/>Revenue: <b> ${point.y:.2f} </b><br/>"));
         PointSeries series = new PointSeries();
         series.setDataLabels(new DataLabels(true)
@@ -250,6 +252,7 @@ public abstract class Model implements Serializable {
                         // sub market
                         buildMarketShare(null,"Sub Markets", minYear, maxYear, useCAGR, option, assocModels, options);
                     } else {
+                        options.setTitle(new Title().setText("Parent Market"));
                         // parent market
                         if(assocModels.size()>0) {
                             Model parent = assocModels.get(0);
@@ -276,6 +279,10 @@ public abstract class Model implements Serializable {
                     }
                     break;
                 }
+                case Product: {
+                    buildMarketShare(null,"Market Products", minYear, maxYear, useCAGR, option, assocModels, options);
+                    break;
+                }
             }
         } else if(this instanceof Company) {
             switch (association.getModel()) {
@@ -291,6 +298,7 @@ public abstract class Model implements Serializable {
                         buildMarketShare(null,"Subsidiaries", minYear, maxYear, useCAGR, option, assocModels, options);
                     } else {
                         // parent
+                        options.setTitle(new Title().setText("Parent Company"));
                         if(assocModels.size()>0) {
                             Model parent = assocModels.get(0);
                             if(parent.getAssociations()==null) parent.loadAssociations();
@@ -315,6 +323,9 @@ public abstract class Model implements Serializable {
                         allOptions.add(timelineOptions);
                     }
                     break;
+                } case Product: {
+                    buildMarketShare(null,"Company Products", minYear, maxYear, useCAGR, option, assocModels, options);
+                    break;
                 }
             }
 
@@ -327,6 +338,7 @@ public abstract class Model implements Serializable {
                 }
                 case Company: {
                     // graph of all products of this product's company
+                    options.setTitle(new Title().setText("Company Products"));
                     if(assocModels.size()>0) {
                         Model parent = assocModels.get(0);
                         if(parent.getAssociations()==null) parent.loadAssociations();
@@ -343,6 +355,7 @@ public abstract class Model implements Serializable {
                 }
                 case Market: {
                     // graph of all products of this product's market
+                    options.setTitle(new Title().setText("Market Products"));
                     if(assocModels.size()>0) {
                         Model parent = assocModels.get(0);
                         if(parent.getAssociations()==null) parent.loadAssociations();

@@ -263,7 +263,7 @@ var onShowResourceFunction = function($topElem) {
                     var i = 0;
                     while(data.hasOwnProperty('chart_'+i.toString())) {
                         var chartId = 'chart_'+i.toString();
-                        $innerResults.append('<div id="chart_'+i.toString()+'"></div>');
+                        $innerResults.append('<div align="center" id="chart_'+i.toString()+'"></div>');
                         Highcharts.chart(chartId, JSON.parse(data[chartId]));
                         i = i+1;
                     }
