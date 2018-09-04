@@ -773,10 +773,14 @@ public abstract class Model implements Serializable {
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
         for(Association association : associationsMeta) {
-            if(!association.getModel().equals(Association.Model.MarketShareRevenue) && association.getModel().toString().endsWith("Revenue")) {
-                continue;
-           }
+            //if(!association.getModel().equals(Association.Model.MarketShareRevenue) && association.getModel().toString().endsWith("Revenue")) {
+            //    continue;
+            //}
             if(association.getAssociationName().startsWith("Parent ")||association.getAssociationName().equals("Sub Company")) {
+                continue;
+            }
+            // if not revenue and node expanded then exit
+            if(!association.getModel().toString().contains("Revenue") && depth >= 2) {
                 continue;
             }
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
@@ -791,7 +795,6 @@ public abstract class Model implements Serializable {
             //}
         }
         calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null, true);
-        final String _totalRevenue = revenue == null ? "" : revenue.toString();
         if(modelMap.size()>0) {
             // recurse
             String display = "block;";
@@ -823,7 +826,7 @@ public abstract class Model implements Serializable {
                                 ul.attr("style", "display: " + display)
                         )
                 );
-                boolean revenueAssociation = association.getModel().toString().contains("Revenue");
+                boolean revenueAssociation = association.getModel().equals(Association.Model.MarketShareRevenue);
                 Map<Integer,List<Model>> groupedModels;
                 if(revenueAssociation && groupRevenuesBy!=null) {
                     // group models by year
@@ -839,8 +842,8 @@ public abstract class Model implements Serializable {
                     ContainerTag groupUl;
                     Double yearlyRevenue = null;
                     if(key!=null) {
-                        groupUl = ul();
                         yearlyRevenue = groupedModels.get(key).stream().mapToDouble(d->d.calculateRevenue(startYear, endYear, useCAGR, option, null, false)).sum();
+                        groupUl = ul().attr("data-val", yearlyRevenue.toString()).withClass("resource-data-field");
                         ul.with(li().with(div(String.valueOf(key)+" (Revenue: "+ formatRevenueString(yearlyRevenue) + ")")
                                 .attr("style", "cursor: pointer;").attr("onclick", "$(this).next().slideToggle();")
                         ).attr("style", "display: inline; list-style: none;").with(groupUl));
@@ -888,7 +891,7 @@ public abstract class Model implements Serializable {
                                 , model.getRevenueAsSpan(original), inner));
                         if (!sameModel && !alreadySeen.contains(_id)) {
                             alreadySeen.add(_id);
-                            if (!model.getClass().getSimpleName().equals(Association.Model.MarketShareRevenue.toString())) {
+                            if (!model.isRevenueModel) {
                                 model.loadNestedAssociationHelper(groupRevenuesBy, allowEdit, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original, depth + 1, maxDepth);
                             }
                         }
