@@ -98,15 +98,24 @@ public abstract class Model implements Serializable {
         options.setPlotOptions(new PlotOptionsChoice().setLine(new PlotOptions().setShowInLegend(groupByField!=null)));
         options.setChartOptions(new ChartOptions().setType(SeriesType.COLUMN).setWidth(800));
         options.setxAxis(new Axis().setCategories(categories).setType(AxisType.CATEGORY));
+        options.setyAxis(new Axis().setTitle(new Title().setText("Revenue ($)")));
         String title;
         if(groupByField==null) {
             title = "Revenue Timeline";
         } else {
             title = "Revenue Timeline by "+Constants.humanAttrFor(groupByField);
+            options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>{series.name}</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
         }
         options.setTitle(new Title().setText(title));
         if(groupByField==null) {
             PointSeries series = new PointSeries();
+            series.setDataLabels(new DataLabels(true)
+                    .setRotation(0)
+                    .setColor(Color.black)
+                    .setAlign(HorizontalAlignment.CENTER)
+                    .setFormat("${point.y:.2f}")
+                    .setY(-5)
+            );
             series.setShowInLegend(false);
             for(Model assoc : models) {
                 assoc.calculateRevenue(minYear, maxYear, useCAGR, option, revenue, true);
@@ -165,7 +174,7 @@ public abstract class Model implements Serializable {
         options.setChartOptions(new ChartOptions().setType(SeriesType.PIE));
         options.setTitle(new Title().setText(title));
         options.setSubtitle(new Title().setText(data.get(Constants.NAME).toString()));
-        options.setTooltip(new Tooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> {point.name}:<b> {point.percentage:.1f}%</b><br/>Revenue: <b> ${point.y:.2f} </b><br/>"));
+        options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>Percentage: {point.percentage:.1f}%</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
         PointSeries series = new PointSeries();
         series.setDataLabels(new DataLabels(true)
                 .setRotation(0)
