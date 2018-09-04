@@ -139,6 +139,11 @@ var showReportFunction = function(id,resourceId) {
     });
 };
 
+var formatRevenueString = function(revenue) {
+    if(revenue===null) { return ""; }
+    return '$' + parseFloat(Math.round(revenue * 100) / 100).toFixed(2);
+};
+
 
 var updateAssociationTotals = function() {
     $('.association-revenue-totals').each(function() {
@@ -152,7 +157,7 @@ var updateAssociationTotals = function() {
                 }
             });
         });
-        $this.text('(Revenue: '+sum.toString()+")");
+        $this.text('(Revenue: '+formatRevenueString(sum)+")");
     });
 };
 

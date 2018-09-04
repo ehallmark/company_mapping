@@ -528,7 +528,7 @@ public abstract class Model implements Serializable {
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(true, null, null, false, Constants.MissingRevenueOption.replace, inner, allReferences, new AtomicInteger(0), this, 0, maxDepth);
+        loadNestedAssociationHelper(Constants.YEAR,true, null, null, false, Constants.MissingRevenueOption.replace, inner, allReferences, new AtomicInteger(0), this, 0, maxDepth);
         return tag;
     };
 
@@ -546,7 +546,7 @@ public abstract class Model implements Serializable {
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(false, startYear, endYear, useCAGR, option, inner, allReferences, new AtomicInteger(0), this, 0, maxDepth);
+        loadNestedAssociationHelper(Constants.YEAR,false, startYear, endYear, useCAGR, option, inner, allReferences, new AtomicInteger(0), this, 0, maxDepth);
         return tag;
     };
 
@@ -566,7 +566,7 @@ public abstract class Model implements Serializable {
                 return revenueLink.with(li().attr("style","list-style: none;").with(updateRev));
             }
         }*/
-        String revStr = "(Revenue: "+(revenue==null?"":revenue)+")";
+        String revStr = "(Revenue: "+formatRevenueString(revenue)+")";
         if(percentage!=null) {
             double percentageFull = percentage * 100;
             revStr += " - " + String.format("%.1f", percentageFull)+"%";
@@ -764,7 +764,7 @@ public abstract class Model implements Serializable {
          If no revenue is present for a company, do nothing. If no revenue is present for a product, do nothing.
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
-    private void loadNestedAssociationHelper(boolean allowEdit, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original, int depth, int maxDepth) {
+    private void loadNestedAssociationHelper(String groupRevenuesBy, boolean allowEdit, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original, int depth, int maxDepth) {
         if(depth > maxDepth) return;
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
         if(associations==null) {
@@ -818,54 +818,82 @@ public abstract class Model implements Serializable {
                         li().attr("style", "list-style: none; display: " + display).with(
                                 h6(name).attr("style", "cursor: pointer; display: inline;")
                                         .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
-                                span("(Revenue: " + _totalRevenue+")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
+                                span("(Revenue: " + formatRevenueString(revenue) +")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
                         ).with(
                                 ul.attr("style", "display: " + display)
                         )
                 );
-                for (Model model : models) {
-                    if(model.isRevenueModel && startYear!=null && endYear!=null) {
-                        int year = (Integer) model.getData().get(Constants.YEAR);
-                        if(year < startYear || year > endYear) {
-                            continue;
-                        }
-                    }
-                    String _id = model.getClass().getSimpleName() + model.getId();
-                    String[] additionalClasses = new String[]{};
-                    if(model.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
-                        // check association
-                        if(this.getClass().getSimpleName().equals(Market.class.getSimpleName())) {
-                            additionalClasses = new String[]{"market-share-market"};
-                        } else if(this.getClass().getSimpleName().equals(Company.class.getSimpleName())) {
-                            additionalClasses = new String[]{"market-share-company"};
-                        }
-                    }
-                    boolean sameModel = _id.equals(originalId);
-                    ContainerTag inner = ul();
-                    Double revToUse = null;
-                    if(!this.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
-                        revToUse = revenue;
-                    }
-                    boolean isParentRevenue;
-                    // need to decide whether to show percentage of parent or child
-                    String thisClass = this.getClass().getSimpleName();
-                    if(thisClass.equals(Product.class.getSimpleName())) {
-                        isParentRevenue = false;
+                boolean revenueAssociation = association.getModel().toString().contains("Revenue");
+                Map<Integer,List<Model>> groupedModels;
+                if(revenueAssociation && groupRevenuesBy!=null) {
+                    // group models by year
+                    groupedModels = models.stream().collect(Collectors.groupingBy(e->(Integer)e.getData().get(groupRevenuesBy)));
+                } else {
+                    groupedModels = Collections.singletonMap(null, models);
+                }
+                List<Integer> groupKeys = new ArrayList<>(groupedModels.keySet());
+                if(groupKeys.size()>0 && groupKeys.get(0)!=null) {
+                    groupKeys.sort((e1,e2)->Integer.compare(e2,e1));
+                }
+                for (Integer key : groupKeys) {
+                    ContainerTag groupUl;
+                    Double yearlyRevenue = null;
+                    if(key!=null) {
+                        groupUl = ul();
+                        yearlyRevenue = groupedModels.get(key).stream().mapToDouble(d->d.calculateRevenue(startYear, endYear, useCAGR, option, null, false)).sum();
+                        ul.with(li().with(div(String.valueOf(key)+" (Revenue: "+ formatRevenueString(yearlyRevenue) + ")")
+                                .attr("style", "cursor: pointer;").attr("onclick", "$(this).next().slideToggle();")
+                        ).attr("style", "display: inline; list-style: none;").with(groupUl));
                     } else {
-                        isParentRevenue = true;
+                        groupUl = ul;
                     }
-                    model.calculateRevenue(startYear, endYear, useCAGR, option, revToUse, isParentRevenue);
-                    ul.with(li().attr("style", "display: inline;").with(
-                            allowEdit?model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;")
-                            : model.getSimpleLink(additionalClasses).attr("style", "display: inline;")
-                            , model.getRevenueAsSpan(original), inner));
-                    if (!sameModel && !alreadySeen.contains(_id)) {
-                        alreadySeen.add(_id);
-                        if (!model.getClass().getSimpleName().equals(Association.Model.MarketShareRevenue.toString())) {
-                            model.loadNestedAssociationHelper(allowEdit, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original, depth + 1, maxDepth);
+                    for(Model model : groupedModels.get(key)) {
+                        if (model.isRevenueModel && startYear != null && endYear != null) {
+                            int year = (Integer) model.getData().get(Constants.YEAR);
+                            if (year < startYear || year > endYear) {
+                                continue;
+                            }
                         }
+                        String _id = model.getClass().getSimpleName() + model.getId();
+                        String[] additionalClasses = new String[]{};
+                        if (model.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
+                            // check association
+                            if (this.getClass().getSimpleName().equals(Market.class.getSimpleName())) {
+                                additionalClasses = new String[]{"market-share-market"};
+                            } else if (this.getClass().getSimpleName().equals(Company.class.getSimpleName())) {
+                                additionalClasses = new String[]{"market-share-company"};
+                            }
+                        }
+                        boolean sameModel = _id.equals(originalId);
+                        ContainerTag inner = ul();
+                        Double revToUse = null;
+                        if (!this.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
+                            revToUse = revenue;
+                        }
+                        if(yearlyRevenue!=null) {
+                            revToUse = yearlyRevenue;
+                        }
+                        boolean isParentRevenue;
+                        // need to decide whether to show percentage of parent or child
+                        String thisClass = this.getClass().getSimpleName();
+                        if (!model.isRevenueModel && thisClass.equals(Product.class.getSimpleName())) {
+                            isParentRevenue = false;
+                        } else {
+                            isParentRevenue = true;
+                        }
+                        model.calculateRevenue(startYear, endYear, useCAGR, option, revToUse, isParentRevenue);
+                        groupUl.with(li().attr("style", "display: inline;").with(
+                                allowEdit ? model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;")
+                                        : model.getSimpleLink(additionalClasses).attr("style", "display: inline;")
+                                , model.getRevenueAsSpan(original), inner));
+                        if (!sameModel && !alreadySeen.contains(_id)) {
+                            alreadySeen.add(_id);
+                            if (!model.getClass().getSimpleName().equals(Association.Model.MarketShareRevenue.toString())) {
+                                model.loadNestedAssociationHelper(groupRevenuesBy, allowEdit, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original, depth + 1, maxDepth);
+                            }
+                        }
+                        alreadySeen.add(_id);
                     }
-                    alreadySeen.add(_id);
                 }
                 String listRef = "association-" + association.getAssociationName().toLowerCase().replace(" ", "-") + cnt.getAndIncrement();
 
@@ -875,6 +903,11 @@ public abstract class Model implements Serializable {
                 container.with(tag);
             }
         }
+    }
+
+    public static String formatRevenueString(Double revenue) {
+        if(revenue==null) return "";
+        return "$"+String.format("%.2f", revenue);
     }
 
     public void removeManyToOneAssociations(String associationName) {
