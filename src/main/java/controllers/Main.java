@@ -415,11 +415,22 @@ public class Main {
             final Integer fromId = _fromId;
             Model model = getModelByType(type);
             Set<Integer> idsToAvoid = new HashSet<>();
+            boolean showTopLevelOnly = false;
+            if(type.equals(Association.Model.Region)) {
+                if(fromId==null) {
+                    showTopLevelOnly = true;
+                }
+            }
             if(fromId!=null) { // remove existing associations
                 Model actualModel = loadModel(fromType, fromId);
                 if(actualModel!=null) {
                     actualModel.loadAttributesFromDatabase();
                     actualModel.loadAssociations();
+                    if(type.equals(Association.Model.Region)) {
+                        if(actualModel.getData().get(Constants.PARENT_REVENUE_ID)==null) {
+                            showTopLevelOnly = true;
+                        }
+                    }
                     for(Association association : actualModel.getAssociationsMeta()) {
                         if(association.getModel().equals(type)) {
                             // found
@@ -434,6 +445,7 @@ public class Main {
                 }
             }
             Map<String,String> idToNameMap = new HashMap<>();
+            final boolean _showTopLevelOnly = showTopLevelOnly;
             Function<String,List<String>> resultsSearchFunction = search -> {
                 try {
                     if(search!=null&&search.trim().length()==0) {
@@ -444,7 +456,13 @@ public class Main {
                     }
                     final String fieldToUse = Constants.NAME;
                     List<Model> models;
-                    models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), Collections.singletonList(fieldToUse), search).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
+                    List<String> fieldsToUse = new ArrayList<>();
+                    fieldsToUse.add(fieldToUse);
+                    if(_showTopLevelOnly) fieldsToUse.add(Constants.PARENT_REGION_ID);
+                    models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, search).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
+                    if(_showTopLevelOnly) {
+                        models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
+                    }
                     models.forEach(m -> idToNameMap.put(m.getId().toString(), (String) m.getData().get(fieldToUse)));
                     List<String> r = models.stream().map(m->m.getId().toString()).collect(Collectors.toCollection(ArrayList::new));
                     r.add(0, "");
@@ -753,6 +771,9 @@ public class Main {
             authorize(req,res);
             Model model = loadModel(req);
             if(model != null) {
+                if(model.getClass().getSimpleName().equals(Association.Model.Region.toString())) {
+                    return new Gson().toJson(Collections.singletonMap("error", "Cannot edit regions."));
+                }
                 model.getAvailableAttributes().forEach(attr->{
                     Object val = extractString(req,attr,null);
                     if(req.queryParams().contains(attr)) {
@@ -795,6 +816,9 @@ public class Main {
             }
             Model model = loadModel(type, null);
             if(model != null) {
+                if(model.getClass().getSimpleName().equals(Association.Model.Region.toString())) {
+                    return new Gson().toJson(Collections.singletonMap("error", "Cannot edit regions."));
+                }
                 model.setData(new HashMap<>());
                 model.getAvailableAttributes().forEach(attr->{
                     String val = req.queryParams(attr);
@@ -817,6 +841,9 @@ public class Main {
             authorize(req,res);
             Model model = loadModel(req);
             if(model != null) {
+                if(model.getClass().getSimpleName().equals(Association.Model.Region.toString())) {
+                    return new Gson().toJson(Collections.singletonMap("error", "Cannot edit regions."));
+                }
                 try {
                     model.deleteFromDatabase(false);
                     return new Gson().toJson(Collections.singletonMap("result", "success"));
@@ -851,6 +878,10 @@ public class Main {
             Model baseModel = loadModel(baseType, baseId);
             Model toDelete = loadModel(type, id);
             if(baseModel != null && toDelete!=null) {
+                if(baseModel.getClass().getSimpleName().equals(Association.Model.Region.toString())
+                        && toDelete.getClass().getSimpleName().equals(Association.Model.Region.toString())) {
+                    return new Gson().toJson(Collections.singletonMap("error", "Cannot edit regions."));
+                }
                 // remove association
                 Association assoc = toDelete.getAssociationsMeta().stream().filter(m->m.getAssociationName().equals(associationName)).findAny().orElse(null);
                 if(assoc!=null) {
@@ -901,6 +932,11 @@ public class Main {
             }
             Model baseModel = loadModel(type, id);
             Model relatedModel = loadModel(relatedType, relatedId);
+
+            if(baseModel.getClass().getSimpleName().equals(Association.Model.Region.toString())
+                    && relatedModel.getClass().getSimpleName().equals(Association.Model.Region.toString())) {
+                return new Gson().toJson(Collections.singletonMap("error", "Cannot edit regions."));
+            }
 
             String associationName = req.queryParams("_association_name");
             Association associationModel = baseModel.getAssociationsMeta().stream().filter(m->m.getAssociationName().equals(associationName)).findAny().orElse(null);

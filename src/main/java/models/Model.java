@@ -77,9 +77,11 @@ public abstract class Model implements Serializable {
         }
         return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
                 getSimpleLink(additionalClasses),
-                span("X").attr("data-association", associationModel)
+                (isRegion() ? span() :
+                    span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
                         .attr("data-association-id", associationId.toString()).attr("style","cursor: pointer;").withClass("delete-node").attr("data-resource", this.getClass().getSimpleName()).attr("data-id", id)
+                )
         );
     }
 
@@ -500,75 +502,86 @@ public abstract class Model implements Serializable {
         return a(name).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+String.join(" ", additionalClasses));
     }
 
+    private static final Map<String,String> fieldToSelectToResourceName = new HashMap<>();
+    static {
+        fieldToSelectToResourceName.put(Constants.COMPANY_ID, Association.Model.Company.toString());
+        fieldToSelectToResourceName.put(Constants.MARKET_ID, Association.Model.Market.toString());
+        fieldToSelectToResourceName.put(Constants.PRODUCT_ID, Association.Model.Product.toString());
+        fieldToSelectToResourceName.put(Constants.REGION_ID, Association.Model.Region.toString());
+    }
+
     public ContainerTag getCreateNewForm(@NonNull Association.Model type, Integer associationId) {
         if (type.equals(Association.Model.Region)) {
             return span();
         }
         if(type.toString().endsWith("Revenue")) {
-            String applicableField;
-            List<String> associationResources = new ArrayList<>();
-            associationResources.add(this.getClass().getSimpleName().replace("Revenue",""));
+            List<String> fieldsToSelect = new ArrayList<>();
+            String fieldToHide;
             boolean isMarketShare = false;
             boolean isRevenueToRevenue = this.getClass().getSimpleName().contains("Revenue") && type.toString().contains("Revenue");
+            boolean isRegionToRevenue = isRegion() && type.toString().contains("Revenue");
             if(isRevenueToRevenue) {
-                applicableField = Constants.PARENT_REVENUE_ID;
+                fieldToHide = Constants.PARENT_REVENUE_ID;
                 if(type.equals(Association.Model.MarketShareRevenue)) {
-                    associationResources.set(0, "Company");
-                    associationResources.add("Market");
+                    isMarketShare = true;
+                }
+            } else if(isRegionToRevenue) {
+                fieldToHide = Constants.REGION_ID;
+                if(type.equals(Association.Model.MarketShareRevenue)) {
+                    isMarketShare = true;
+                    fieldsToSelect.add(Constants.COMPANY_ID);
+                    fieldsToSelect.add(Constants.MARKET_ID);
+                } else {
+                    if(type.equals(Association.Model.MarketRevenue)) {
+                        fieldsToSelect.add(Constants.MARKET_ID);
+                    } else if(type.equals(Association.Model.CompanyRevenue)) {
+                        fieldsToSelect.add(Constants.COMPANY_ID);
+                    } else if(type.equals(Association.Model.ProductRevenue)) {
+                        fieldsToSelect.add(Constants.PRODUCT_ID);
+                    }
                 }
             } else if(type.equals(Association.Model.MarketShareRevenue)) {
                 isMarketShare = true;
-                applicableField = this.getClass().getSimpleName().startsWith("Company") ? Constants.MARKET_ID : Constants.COMPANY_ID;
-                associationResources.set(0, this.getClass().getSimpleName().startsWith("Company") ? "Market" : "Company");
+                fieldsToSelect.add(this.getClass().getSimpleName().startsWith("Company") ? Constants.MARKET_ID : Constants.COMPANY_ID);
+                fieldToHide = this.getClass().getSimpleName().startsWith("Company") ? Constants.COMPANY_ID : Constants.MARKET_ID;
             } else if(this.getClass().getSimpleName().startsWith("Market")) {
-                applicableField = Constants.MARKET_ID;
+                fieldToHide = Constants.MARKET_ID;
             } else if(this.getClass().getSimpleName().startsWith("Product")) {
-                applicableField = Constants.PRODUCT_ID;
-
+                fieldToHide = Constants.PRODUCT_ID;
             } else if(this.getClass().getSimpleName().startsWith("Company")) {
-                applicableField = Constants.COMPANY_ID;
+                fieldToHide = Constants.COMPANY_ID;
+            } else if(this.getClass().getSimpleName().startsWith("Region")) {
+                fieldToHide = Constants.REGION_ID;
             } else {
                 throw new RuntimeException("Unknown revenue type exception.");
             }
             ContainerTag associationTag;
-            if(!isMarketShare && !isRevenueToRevenue && associationId!=null) {
+            if(!isMarketShare && !isRevenueToRevenue && !isRegionToRevenue && associationId!=null) {
                 associationTag = span();
             } else {
                 // some funky logic that basically chooses which model is not yet associated with a market share
                 // if none are associated, then it provides both select dropdowns
                 // default does nothing different if the model type is not a market share
-                if(isRevenueToRevenue && id != null) {
+                if(id!=null) {
                     associationTag = div().with(
                             input().withType("hidden")
                                     .withValue(id.toString())
-                                    .withName(applicableField)
+                                    .withName(fieldToHide)
                     );
-                } else if(!isRevenueToRevenue) {
-                    String associationResource = associationResources.get(0);
-                    associationTag = div().with(label(associationResource).with(
-                            br(),
-                            select().withClass("multiselect-ajax")
-                                    .withName(applicableField)
-                                    .attr("data-url", "/ajax/resources/" + associationResource + "/" + this.getClass().getSimpleName() + "/-1")
-
-                    ), br());
-                    if (isMarketShare && id != null) {
-                        associationTag.with(
-                                input().withType("hidden")
-                                        .withValue(id.toString())
-                                        .withName(this.getClass().getSimpleName().startsWith("Company") ? Constants.COMPANY_ID : Constants.MARKET_ID)
-                        );
-                    } else if (isMarketShare) {
-                        associationTag.with(
-                                label(Association.Model.Market.toString()).with(br(),
-                                        select().withClass("multiselect-ajax")
-                                                .withName(Constants.MARKET_ID)
-                                                .attr("data-url", "/ajax/resources/" + Association.Model.Market + "/" + this.getClass().getSimpleName() + "/-1")),
-                                br()
-                        );
-                    }
                 } else {
-                    associationTag = span();
+                    associationTag = div();
+                }
+                if(!isRevenueToRevenue) {
+                    for(String fieldToSelect : fieldsToSelect) {
+                        String associationResource = fieldToSelectToResourceName.get(fieldToSelect);
+                        associationTag.with(label(associationResource).with(
+                                br(),
+                                select().withClass("multiselect-ajax")
+                                        .withName(fieldToSelect)
+                                        .attr("data-url", "/ajax/resources/" + associationResource + "/" + this.getClass().getSimpleName() + "/-1")
+
+                        ), br());
+                    }
                 }
             }
             return form().with(
@@ -1203,6 +1216,10 @@ public abstract class Model implements Serializable {
         return panel;
     }
 
+    public boolean isRegion() {
+        return this.getClass().getSimpleName().equals(Association.Model.Region.toString());
+    }
+
     public void loadShowTemplate(boolean back) {
         ContainerTag button;
         if(back) {
@@ -1212,11 +1229,12 @@ public abstract class Model implements Serializable {
         } else {
             button = span();
         }
+        boolean isRegion = isRegion();
         ContainerTag html = div().withClass("col-12").with(
                 div().withClass("col-12").with(
                         button,
                         h4(Constants.humanAttrFor(this.getClass().getSimpleName())+" Information"),
-                        button("Delete this "+Constants.humanAttrFor(this.getClass().getSimpleName())).withClass("btn btn-outline-danger btn-sm delete-button")
+                        (isRegion ? span() : button("Delete this "+Constants.humanAttrFor(this.getClass().getSimpleName())).withClass("btn btn-outline-danger btn-sm delete-button"))
                         .attr("data-id", id.toString())
                         .attr("data-resource", this.getClass().getSimpleName())
                         .attr("data-resource-name", Constants.humanAttrFor(this.getClass().getSimpleName()))
@@ -1238,7 +1256,7 @@ public abstract class Model implements Serializable {
                                     }
                                 }
                                 String orginalAttr = attr;
-                                boolean editable = !Arrays.asList(Constants.CREATED_AT, Constants.UPDATED_AT).contains(attr);
+                                boolean editable = !Arrays.asList(Constants.CREATED_AT, Constants.UPDATED_AT).contains(attr) && !isRegion();
                                 attr = Constants.humanAttrFor(attr);
                                 if(val==null || val.toString().trim().length()==0) val = "";
                                 return div().with(

@@ -692,7 +692,7 @@ var createResourceList = function(resourceId, resourceName, data) {
     var $result = $('<div class="col-12"></div>');
     $result.append('<h3>'+resourceName+'</h3>');
     var $new = createNewResourceForm(resourceId, resourceName, data);
-    if(!resourceId.includes('Revenue')) {
+    if(!resourceId.includes('Revenue') && !resourceId.includes('Region')) {
         var $diagram = $('<div><a href="#" >(Diagram)</a></div>');
         $result.append($diagram);
         $diagram.find('a').click(function(e) {
