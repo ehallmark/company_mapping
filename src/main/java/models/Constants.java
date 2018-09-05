@@ -13,6 +13,10 @@ public class Constants {
     public static final String MARKET_TABLE = "markets";
     public static final String PRODUCT_TABLE = "products";
     public static final String NAME = "name";
+    public static final String PARENT_REVENUE_ID = "parent_revenue_id";
+    public static final String REGION_ID = "region_id";
+    public static final String PARENT_REGION_ID = "parent_country_id";
+    public static final String REGION_TABLE = "countries";
     public static final String NOTES = "notes";
     public static final String COMPANY_ID = "company_id";
     public static final String CREATED_AT = "created_at";
@@ -63,7 +67,9 @@ public class Constants {
         ATTR_MAP.put(MARKET_REVENUE_ID, "Company Revenue");
         ATTR_MAP.put(COMPANY_REVENUE_ID, "Market Revenue");
         ATTR_MAP.put(PRODUCT_REVENUE_ID, "Product Revenue");
+        ATTR_MAP.put(PARENT_REGION_ID, "Parent Region");
         ATTR_MAP.put(CAGR, "CAGR (%)");
+        ATTR_MAP.put(REGION_ID, "Region");
     }
 
     private static final Set<String> HIDDEN_ATTRS = Collections.synchronizedSet(new HashSet<>());
@@ -76,6 +82,8 @@ public class Constants {
         HIDDEN_ATTRS.add(COMPANY_REVENUE_ID);
         HIDDEN_ATTRS.add(PRODUCT_REVENUE_ID);
         HIDDEN_ATTRS.add(MARKET_REVENUE_ID);
+        HIDDEN_ATTRS.add(PARENT_REGION_ID);
+        HIDDEN_ATTRS.add(REGION_ID);
     }
 
     private static final Map<String,String> FIELD_TYPE_MAP = Collections.synchronizedMap(new HashMap<>());

@@ -634,33 +634,34 @@ var createNewResourceForm = function(resourceId, resourceName, data) {
     var $form = null;
     if(data.hasOwnProperty('new_form')) {
         $form = $(data.new_form);
-    } else {
-        $form = $('<form style="display: none;"><label>Name:<br /><input class="form-control" type="text" name="name"/ ></label><button class="btn btn-outline-secondary btn-sm" type="submit">Create</button></form>')
-    }
-    $form.submit(function(e) {
-        e.preventDefault();
-        $.ajax({
-            url: '/new/'+resourceId,
-            dataType: 'json',
-            data: $form.serialize(),
-            type: 'POST',
-            success: function(showData) {
-                if(showData.hasOwnProperty('error')) {
-                    alert(showData.error);
-                } else {
-                    var id = showData.id;
-                    showResourceFunction(resourceId, id);
+        $form.submit(function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: '/new/'+resourceId,
+                dataType: 'json',
+                data: $form.serialize(),
+                type: 'POST',
+                success: function(showData) {
+                    if(showData.hasOwnProperty('error')) {
+                        alert(showData.error);
+                    } else {
+                        var id = showData.id;
+                        showResourceFunction(resourceId, id);
+                    }
                 }
-            }
+            });
+            return false;
         });
-        return false;
-    });
-    $new.click(function(e) {
-        e.preventDefault();
-        $form.slideToggle();
-        return false;
-    });
-    return $('<div></div>').append($new).append($form);
+        $new.click(function(e) {
+            e.preventDefault();
+            $form.slideToggle();
+            return false;
+        });
+        return $('<div></div>').append($new).append($form);
+    } else {
+        return $("<span></span>");
+    }
+
 };
 
 var showResourceFunction = function(resourceId, id) {

@@ -23,7 +23,8 @@ public class Association implements Serializable {
         MarketRevenue,
         CompanyRevenue,
         ProductRevenue,
-        MarketShareRevenue
+        MarketShareRevenue,
+        Region
     }
 
     @Getter

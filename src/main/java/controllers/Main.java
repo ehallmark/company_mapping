@@ -78,6 +78,10 @@ public class Main {
                 model = new MarketShareRevenue(id, null);
                 break;
             }
+            case Region: {
+                model = new Region(id, null);
+                break;
+            }
             default: {
                 model = null;
                 break;
@@ -351,7 +355,8 @@ public class Main {
                                                                             button("Market Revenues").attr("data-resource", "MarketRevenue").withId("market_revenues_index_btn").withClass("btn btn-outline-secondary"),
                                                                             button("Company Revenues").attr("data-resource", "CompanyRevenue").withId("company_revenues_index_btn").withClass("btn btn-outline-secondary"),
                                                                             button("Product Revenues").attr("data-resource", "ProductRevenue").withId("product_revenues_index_btn").withClass("btn btn-outline-secondary"),
-                                                                            button("Company Market Shares").attr("data-resource", "MarketShareRevenue").withId("companies_markets_index_btn").withClass("btn btn-outline-secondary")
+                                                                            button("Company Market Shares").attr("data-resource", "MarketShareRevenue").withId("companies_markets_index_btn").withClass("btn btn-outline-secondary"),
+                                                                            button("Regions").attr("data-resource", "Region").withId("countries_index_btn").withClass("btn btn-outline-secondary")
                                                                     ) : div().withClass("col-12").with(
                                                                         form().withClass("form-group").withMethod("POST").withAction("/login").with(
                                                                                 p("Log in"),
@@ -434,17 +439,22 @@ public class Main {
                     if(search!=null&&search.trim().length()==0) {
                         search = null;
                     }
+                    if(search!=null) {
+                        search = search.toLowerCase().trim();
+                    }
                     final String fieldToUse = Constants.NAME;
                     List<Model> models;
                     models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), Collections.singletonList(fieldToUse), search).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
                     models.forEach(m -> idToNameMap.put(m.getId().toString(), (String) m.getData().get(fieldToUse)));
-                    return models.stream().map(m->m.getId().toString()).collect(Collectors.toList());
+                    List<String> r = models.stream().map(m->m.getId().toString()).collect(Collectors.toCollection(ArrayList::new));
+                    r.add(0, "");
+                    return r;
                 } catch(Exception e) {
                     e.printStackTrace();
                     return Collections.emptyList();
                 }
             };
-            Function<String,String> displayFunction = result ->  idToNameMap.get(result);
+            Function<String,String> displayFunction = result ->  idToNameMap.getOrDefault(result, "");
             Function<String,String> htmlFunction = null; //result -> "<span>"+ (result+" ("+titlePartMap.getOrDefault(result,"")+")").replace(" ()","") + "</span>";
             return handleAjaxRequest(req, resultsSearchFunction, displayFunction, htmlFunction);
         });
@@ -851,6 +861,7 @@ public class Main {
             return null;
         });
 
+
         get("/resources/:resource", (req, res) -> {
             authorize(req,res);
             String resource = req.params("resource");
@@ -863,7 +874,9 @@ public class Main {
             }
             Model model = getModelByType(type);
             Map<String,Object> result = new HashMap<>();
-            result.put("new_form", model.getCreateNewForm(type, null).attr("style", "display: none;").render());
+            if(!type.toString().contains("Revenue")&&!type.equals(Association.Model.Region)) {
+                result.put("new_form", model.getCreateNewForm(type, null).attr("style", "display: none;").render());
+            }
             return new Gson().toJson(result);
         });
 

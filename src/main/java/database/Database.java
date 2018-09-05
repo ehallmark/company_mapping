@@ -103,6 +103,10 @@ public class Database {
                     models.add(new MarketShareRevenue(id, null));
                     break;
                 }
+                case Region: {
+                    models.add(new Region(id, null));
+                    break;
+                }
             }
         }
         rs.close();
@@ -157,6 +161,10 @@ public class Database {
                     models.put(new MarketShareRevenue(id, null), joinData);
                     break;
                 }
+                case Region: {
+                    models.put(new Region(id, null), joinData);
+                    break;
+                }
             }
         }
         rs.close();
@@ -200,6 +208,10 @@ public class Database {
             }
             case MarketShareRevenue: {
                 model = new MarketShareRevenue(parentId, null);
+                break;
+            }
+            case Region: {
+                model = new Region(parentId, null);
                 break;
             }
         }
@@ -305,6 +317,10 @@ public class Database {
                     m = new MarketShareRevenue(id, data);
                     break;
                 }
+                case Region: {
+                    m = new Region(id, data);
+                    break;
+                }
             }
             models.add(m);
 
@@ -394,6 +410,10 @@ public class Database {
                 }
                 case MarketShareRevenue: {
                     m = new MarketShareRevenue(id, data);
+                    break;
+                }
+                case Region: {
+                    m = new Region(id, data);
                     break;
                 }
             }

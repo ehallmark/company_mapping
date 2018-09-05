@@ -12,7 +12,16 @@ public class MarketShareRevenue extends Model {
                     Constants.COMPANY_ID, Constants.MARKET_SHARE_ID, false, "Market Share"),
             new Association("Market", Association.Model.Market, Constants.MARKET_TABLE,
                     Constants.COMPANY_MARKETS_JOIN_TABLE, null, Association.Type.ManyToOne,
-                    Constants.MARKET_ID, Constants.MARKET_SHARE_ID, false, "Market Share")
+                    Constants.MARKET_ID, Constants.MARKET_SHARE_ID, false, "Market Share"),
+            new Association("Sub Revenue", Association.Model.MarketShareRevenue, Constants.COMPANY_MARKETS_JOIN_TABLE,
+                    Constants.COMPANY_MARKETS_JOIN_TABLE, null, Association.Type.OneToMany,
+                    Constants.PARENT_REVENUE_ID, Constants.MARKET_SHARE_ID, true, "Parent Revenue"),
+            new Association("Parent Revenue", Association.Model.MarketShareRevenue, Constants.COMPANY_MARKETS_JOIN_TABLE,
+                    Constants.COMPANY_MARKETS_JOIN_TABLE, null, Association.Type.ManyToOne,
+                    Constants.PARENT_REVENUE_ID, Constants.MARKET_SHARE_ID, false, "Sub Revenue"),
+            new Association(Association.Model.Region, Constants.REGION_TABLE, Constants.COMPANY_MARKETS_JOIN_TABLE, null,
+                    Association.Type.ManyToOne, Constants.REGION_ID, Constants.MARKET_SHARE_ID, false, "Market Share")
+
     );
     private static final List<String> ATTRS = Collections.synchronizedList(Arrays.asList(
             Constants.VALUE,
