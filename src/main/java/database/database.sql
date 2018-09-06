@@ -150,8 +150,8 @@ create table companies_markets (
     is_estimate boolean not null default ('f'),
     estimate_type integer check (estimate_type is null or estimate_type in (0, 1, 2)),
     cagr double precision,
-    company_id integer not null references companies (id) on delete restrict,
-    market_id integer not null references markets (id) on delete restrict,
+    company_id integer references companies (id) on delete restrict,
+    market_id integer references markets (id) on delete restrict,
     parent_revenue_id integer,
     region_id integer,
     updated_at timestamp not null default now(),
@@ -162,6 +162,7 @@ create table companies_markets (
     unique (market_id, company_id, year),
     foreign key (parent_revenue_id) references companies_markets (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
-    check (region_id is null or parent_revenue_id is not null)
+    check (region_id is null or parent_revenue_id is not null),
+    check ((market_id is not null and company_id is not null) OR parent_revenue_id is not null)
 );
 

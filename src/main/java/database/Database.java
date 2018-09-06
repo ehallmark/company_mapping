@@ -366,7 +366,12 @@ public class Database {
                 if(attrList.size()>0) {
                     attrStr = ","+attrStr;
                 }
-                String sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join companies as c on (c.id=r.company_id) join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) +" order by c.name";
+                String sqlStr;
+                if(parentAssociation==null) {
+                    sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join companies as c on (c.id=r.company_id) join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
+                } else {
+                    sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + ",p.id as parent_id, \'Parent Revenue\' as parent_name from " + tableName + " as r join companies as c on (c.id=r.company_id) join markets as m on (r.market_id=m.id) left join "+parentAssociation.getParentTableName()+" as p on (r."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
+                }
                 System.out.println("Market share sql str: "+sqlStr);
                 ps = conn.prepareStatement(sqlStr);
 
@@ -382,7 +387,13 @@ public class Database {
                 if(attrList.size()>0) {
                     attrStr = ","+attrStr;
                 }
-                ps = conn.prepareStatement("select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)");
+                String sqlStr;
+                if(parentAssociation==null) {
+                    sqlStr ="select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
+                } else {
+                    sqlStr ="select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + ",p.id as parent_id, \'Parent Revenue\' as parent_name from " + tableName + " as r join " + parentTableName + " as j on (r." + parentIdField + "=j.id) left join "+parentAssociation.getParentTableName()+" as p on (r."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
+                }
+                ps = conn.prepareStatement(sqlStr);
             }
 
         } else {

@@ -425,6 +425,7 @@ public class Main {
                 return null;
             }
             final Integer fromId = _fromId;
+            Integer parentRegionId = null;
             Model model = getModelByType(type);
             Set<Integer> idsToAvoid = new HashSet<>();
             boolean showTopLevelOnly = false;
@@ -442,6 +443,7 @@ public class Main {
                         if(actualModel.getData().get(Constants.PARENT_REVENUE_ID)==null) {
                             showTopLevelOnly = true;
                         }
+                        parentRegionId = (Integer) actualModel.getData().get(Constants.PARENT_REGION_ID);
                     }
                     for(Association association : actualModel.getAssociationsMeta()) {
                         if(association.getModel().equals(type)) {
@@ -458,6 +460,7 @@ public class Main {
             }
             Map<String,String> idToNameMap = new HashMap<>();
             final boolean _showTopLevelOnly = showTopLevelOnly;
+            final Integer _parentRegionId = parentRegionId;
             Function<String,List<String>> resultsSearchFunction = search -> {
                 try {
                     if(search!=null&&search.trim().length()==0) {
@@ -474,6 +477,9 @@ public class Main {
                     models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, search, null).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
                     if(_showTopLevelOnly) {
                         models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
+                    } else if(type.equals(Association.Model.Region) && _parentRegionId!=null) {
+                        models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)!=null&&m.getData().get(Constants.PARENT_REGION_ID).equals(_parentRegionId))
+                                .collect(Collectors.toList());
                     }
                     models.forEach(m -> idToNameMap.put(m.getId().toString(), (String) m.getData().get(fieldToUse)));
                     List<String> r = models.stream().map(m->m.getId().toString()).collect(Collectors.toCollection(ArrayList::new));
@@ -561,7 +567,7 @@ public class Main {
                         break;
                     }
                     default: { // Must be revenue
-                        parentAssocName = null;
+                        parentAssocName = Constants.PARENT_REVENUE_ID;
                         break;
                     }
                 }
@@ -602,8 +608,13 @@ public class Main {
                                     map.put(fieldName, "");
                                     map.put(fieldNameTextOnly, "");
                                 } else {
-                                    map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink(additionalClasses).render()).collect(Collectors.toList())));
-                                    map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList())));
+                                    if(model.isRevenueModel()) {
+                                        map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList())));
+                                        map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String) a.getData().get(Constants.NAME)).collect(Collectors.toList())));
+                                    } else {
+                                        map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink(additionalClasses).render()).collect(Collectors.toList())));
+                                        map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String) a.getData().get(Constants.NAME)).collect(Collectors.toList())));
+                                    }
                                 }
                             });
 
