@@ -95,7 +95,7 @@ public class Scraper {
         nyseReader.close();
         aseReader.close();
 
-        /*for(String[] nasdaq : nasdaqLines.subList(1, nasdaqLines.size())) {
+        for(String[] nasdaq : nasdaqLines.subList(1, nasdaqLines.size())) {
             String code = nasdaq[0].toLowerCase().trim();
             if(code.length()>0) {
                 System.out.println("Scraping NASDAQ code: "+code);
@@ -117,7 +117,7 @@ public class Scraper {
                     e.printStackTrace();
                 }
             }
-        }*/
+        }
 
         for(String[] ase : aseLines.subList(1, aseLines.size())) {
             String code = ase[0].toLowerCase().trim();
