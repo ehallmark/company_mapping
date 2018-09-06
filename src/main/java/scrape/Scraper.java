@@ -26,11 +26,7 @@ public class Scraper {
     }
 
     private static void scrapeHtmlTable(String symbol, Prefix exchangePrefix) throws Exception {
-        File saveTo = new File("company_data/"+exchangePrefix);
-        if(!saveTo.exists()) {
-            saveTo.mkdir();
-        }
-        saveTo = new File(saveTo, symbol+".gzip");
+        File saveTo = filenameFor(exchangePrefix, symbol);
         if(!saveTo.exists()) {
             String url = "https://www.morningstar.com/stocks/"+exchangePrefix+"/"+symbol+"/quote.html";
             ChromeOptions options = new ChromeOptions();
@@ -75,6 +71,15 @@ public class Scraper {
         }
     }
 
+    public static File filenameFor(Prefix exchangePrefix, String symbol) {
+        File saveTo = new File("company_data/"+exchangePrefix);
+        if(!saveTo.exists()) {
+            saveTo.mkdir();
+        }
+        saveTo = new File(saveTo, symbol+".gzip");
+        return  saveTo;
+    }
+
 
     public static void main(String[] args) throws Exception {
         CSVReader nasdaqReader = new CSVReader(new BufferedReader(new FileReader(new File("NASDAQ_tickers.csv"))));
@@ -97,7 +102,7 @@ public class Scraper {
             }
         }
 
-        for(String[] nyse : nyseLines.subList(1, nasdaqLines.size())) {
+        for(String[] nyse : nyseLines.subList(1, nyseLines.size())) {
             String code = nyse[0].toLowerCase().trim();
             if(code.length()>0) {
                 System.out.println("Scraping NYSE code: "+code);

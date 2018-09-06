@@ -37,7 +37,10 @@ public class Database {
                 qs.add("?::date");
                 data.put(keys.get(i), ((LocalDate) data.get(keys.get(i))).format(DateTimeFormatter.ISO_DATE));
             } else {
-                if (Constants.fieldTypeForAttr(keys.get(i)).equals(Constants.NUMBER_FIELD_TYPE)) {
+                if(keys.get(i).equals(Constants.VALUE) || keys.get(i).equals(Constants.CAGR)) {
+                    qs.add("?::double precision");
+
+                } else if (Constants.fieldTypeForAttr(keys.get(i)).equals(Constants.NUMBER_FIELD_TYPE)) {
                     qs.add("?::integer");
 
                 } else if (Constants.fieldTypeForAttr(keys.get(i)).equals(Constants.BOOL_FIELD_TYPE)) {

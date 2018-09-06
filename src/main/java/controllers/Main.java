@@ -175,7 +175,7 @@ public class Main {
                 humanHeaders.add(Constants.humanAttrFor(header));
             }
         }
-        for(Association association : model.getAssociationsMeta()) {
+       /* for(Association association : model.getAssociationsMeta()) {
             if(model.isRevenueModel()) {
                 headers.add(0, association.getAssociationName().toLowerCase().replace(" ", "-"));
                 boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
@@ -186,6 +186,7 @@ public class Main {
                 humanHeaders.add(pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName());
             }
         }
+        */
 
         for(String header : headers) {
             if(Constants.fieldTypeForAttr(header).equals(Constants.NUMBER_FIELD_TYPE)) {
@@ -539,7 +540,7 @@ public class Main {
                             });
                             map.put(Constants.NAME + Constants.TEXT_ONLY, (String) m.getData().get(Constants.NAME));
                             map.put(Constants.NAME, m.getSimpleLink().render());
-                            m.loadAssociations();
+                            /*m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
                                 List<Model> assocModel = m.getAssociations().get(assoc);
                                 String fieldName = assoc.getAssociationName().toLowerCase().replace(" ", "-");
@@ -565,6 +566,7 @@ public class Main {
                                     map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList())));
                                 }
                             });
+                            */
                             // check for estimate type field
                             if(m.getData().get(Constants.ESTIMATE_TYPE)!=null) {
                                 map.put(Constants.ESTIMATE_TYPE, Constants.estimateTypeForNumber((Integer)m.getData().get(Constants.ESTIMATE_TYPE)));

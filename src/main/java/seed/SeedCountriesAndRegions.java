@@ -52,8 +52,5 @@ public class SeedCountriesAndRegions {
             ps.setObject(2, parentId);
             ps.execute();
         }
-
-
-        conn.close();
     }
 }
