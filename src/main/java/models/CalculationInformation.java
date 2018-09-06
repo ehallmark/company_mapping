@@ -14,8 +14,11 @@ public class CalculationInformation {
     private boolean calculatedFromMarketShares;
     @Getter
     private Double revenue;
-    public CalculationInformation(Integer year, Double cagrUsed, boolean calculatedFromSubmarkets, boolean calculatedFromMarketShares, Double revenue) {
+    @Getter
+    private Model reference;
+    public CalculationInformation(Integer year, Double cagrUsed, boolean calculatedFromSubmarkets, boolean calculatedFromMarketShares, Double revenue, Model reference) {
         this.year=year;
+        this.reference=reference;
         this.revenue=revenue;
         this.cagrUsed=cagrUsed;
         this.calculatedFromMarketShares=calculatedFromMarketShares;
