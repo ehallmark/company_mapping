@@ -567,7 +567,7 @@ public class Main {
                 }
                 final String _parentAssocName = parentAssocName;
                 Association parentAssoc = _parentAssocName == null ? null :
-                        model.getAssociationsMeta().stream().filter(a->a.getParentIdField().equals(_parentAssocName)).findAny().orElse(null);
+                        model.getAssociationsMeta().stream().filter(a->a.getType().equals(Association.Type.ManyToOne) && a.getParentIdField().equals(_parentAssocName)).findAny().orElse(null);
 
                 List<Map<String,String>> data = selectAll(model, type, headers, humanHeaders, numericAttrs, parentAssoc)
                         .stream().map(m->{

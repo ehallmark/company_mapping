@@ -1,7 +1,6 @@
 package models;
 
 import lombok.Getter;
-import lombok.Setter;
 
 public class CalculationInformation {
 
@@ -13,8 +12,11 @@ public class CalculationInformation {
     private boolean calculatedFromSubmarkets;
     @Getter
     private boolean calculatedFromMarketShares;
-    public CalculationInformation(Integer year, Double cagrUsed, boolean calculatedFromSubmarkets, boolean calculatedFromMarketShares) {
+    @Getter
+    private Double revenue;
+    public CalculationInformation(Integer year, Double cagrUsed, boolean calculatedFromSubmarkets, boolean calculatedFromMarketShares, Double revenue) {
         this.year=year;
+        this.revenue=revenue;
         this.cagrUsed=cagrUsed;
         this.calculatedFromMarketShares=calculatedFromMarketShares;
         this.calculatedFromSubmarkets=calculatedFromSubmarkets;

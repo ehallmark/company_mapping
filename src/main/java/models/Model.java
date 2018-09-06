@@ -857,7 +857,7 @@ public abstract class Model implements Serializable {
                                                         }
                                                     }
                                                     byCagr.add(cagr);
-                                                    calculationInformation.add(new CalculationInformation(_year,cagrPercent,false,false));
+                                                    calculationInformation.add(new CalculationInformation(_year,cagrPercent,false,false,cagr));
 
                                                 } else if (option.equals(Constants.MissingRevenueOption.error) && !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
                                                     throw new MissingRevenueException("Missing revenues in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
@@ -890,11 +890,11 @@ public abstract class Model implements Serializable {
                 }
             }
             if(foundRevenueInSubMarket && this.getClass().getSimpleName().equals(Association.Model.Market.toString()) && revenue==null) {
-                calculationInformation.add(new CalculationInformation(null,null,true,false));
+                calculationInformation.add(new CalculationInformation(null,null,true,false, totalRevenueOfLevel));
                 revenue = totalRevenueOfLevel;
             }
             if(foundRevenueInMarketShares && this.getClass().getSimpleName().equals(Association.Model.Company.toString()) && revenue==null) {
-                calculationInformation.add(new CalculationInformation(null,null,false,true));
+                calculationInformation.add(new CalculationInformation(null,null,false,true, totalRevenueFromMarketShares));
                 revenue = totalRevenueFromMarketShares;
             }
         }
@@ -949,7 +949,7 @@ public abstract class Model implements Serializable {
                 modelMap.put(association, assocModels);
             //}
         }
-        calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null, true);
+        calculateRevenue(startYear, endYear, useCAGR, option, null, true);
         if(modelMap.size()>0) {
             // recurse
             String display = "block;";
@@ -985,6 +985,21 @@ public abstract class Model implements Serializable {
                                 ul.attr("style", "display: " + display)
                         )
                 );
+                // check for CAGR's used
+                if(calculationInformation!=null) {
+                    for(CalculationInformation info : calculationInformation.stream().filter(c->c.getYear()!=null).sorted((c1,c2)->Integer.compare(c2.getYear(),c1.getYear())).collect(Collectors.toList())) {
+                        if(info.getCagrUsed()!=null && info.getRevenue()!=null) {
+                            // found cagr
+                            ul.with(li().attr("style", "display: inline;").with(
+                                    div("Projection for "+info.getYear()+" (Revenue: "+formatRevenueString(info.getRevenue())+")").attr("style", "font-weight: bold; cursor: pointer;")
+                                            .withClass("resource-data-field").attr("onclick", "$(this).children().slideToggle();").attr("data-val", info.getRevenue().toString()).with(
+                                                    p("CAGR used: "+Constants.getFieldFormatter(Constants.CAGR).apply(info.getCagrUsed()))
+                                                    )
+                                    )
+                            );
+                        }
+                    }
+                }
                 boolean revenueAssociation = association.getModel().equals(Association.Model.MarketShareRevenue);
                 Map<Integer,List<Model>> groupedModels;
                 if(revenueAssociation && groupRevenuesBy!=null) {
@@ -1053,6 +1068,7 @@ public abstract class Model implements Serializable {
                             isParentRevenue = true;
                         }
                         model.calculateRevenue(startYear, endYear, useCAGR, option, revToUse, isParentRevenue);
+
                         groupUl.with(li().attr("style", "display: inline;").with(
                                 allowEdit ? model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;")
                                         : model.getSimpleLink(additionalClasses).attr("style", "display: inline;")

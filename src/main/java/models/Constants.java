@@ -111,7 +111,7 @@ public class Constants {
     static {
         FIELD_FORMATTER_MAP.put(ESTIMATE_TYPE, est -> est==null?"":estimateTypeForNumber((Integer)est));
         FIELD_FORMATTER_MAP.put(VALUE, rev -> Model.formatRevenueString((Double)rev));
-        FIELD_FORMATTER_MAP.put(CAGR, cagr->cagr==null?"":String.format("%.1f", (Double)cagr));
+        FIELD_FORMATTER_MAP.put(CAGR, cagr->cagr==null?"":(String.format("%.1f", (Double)cagr)+"%"));
     }
 
     public static boolean isHiddenAttr(String attr) {
