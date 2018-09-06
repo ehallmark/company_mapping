@@ -19,6 +19,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class Scraper {
+    // GO HERE http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download
     private static WebDriver driver;
     public enum Prefix {
         xnys,

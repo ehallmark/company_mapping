@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 
 public class Ingester {
+    // GO HERE http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download
     public static void main(String[] args) throws Exception {
         CSVReader nasdaqReader = new CSVReader(new BufferedReader(new FileReader(new File("NASDAQ_tickers.csv"))));
         List<String[]> nasdaqLines = nasdaqReader.readAll();
