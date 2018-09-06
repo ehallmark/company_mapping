@@ -1,6 +1,9 @@
 package models;
 
+import lombok.NonNull;
+
 import java.util.*;
+import java.util.function.Function;
 
 public class Constants {
     public enum MissingRevenueOption {
@@ -104,6 +107,13 @@ public class Constants {
         FIELD_TYPE_MAP.put(PARENT_REGION_ID, NUMBER_FIELD_TYPE);
     }
 
+    private static final Map<String,Function<Object,String>> FIELD_FORMATTER_MAP = Collections.synchronizedMap(new HashMap<>());
+    static {
+        FIELD_FORMATTER_MAP.put(ESTIMATE_TYPE, est -> est==null?"":estimateTypeForNumber((Integer)est));
+        FIELD_FORMATTER_MAP.put(VALUE, rev -> Model.formatRevenueString((Double)rev));
+        FIELD_FORMATTER_MAP.put(CAGR, cagr->cagr==null?"":String.format("%.1f", (Double)cagr));
+    }
+
     public static boolean isHiddenAttr(String attr) {
         return HIDDEN_ATTRS.contains(attr);
     };
@@ -115,6 +125,10 @@ public class Constants {
     public static String fieldTypeForAttr(String attr) {
         return FIELD_TYPE_MAP.getOrDefault(attr, Constants.TEXT_AREA_FIELD_TYPE);
     };
+
+    public static Function<Object,String> getFieldFormatter(@NonNull String field) {
+        return FIELD_FORMATTER_MAP.getOrDefault(field, v->v==null?"":v.toString());
+    }
 
     public static String pluralizeAssociationName(String associationName) {
         if(associationName.endsWith("y")) {

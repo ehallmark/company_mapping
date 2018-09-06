@@ -567,18 +567,21 @@ public class Main {
                 }
                 final String _parentAssocName = parentAssocName;
                 Association parentAssoc = _parentAssocName == null ? null :
-                        model.getAssociationsMeta().stream().filter(a->a.getAssociationName().equals(_parentAssocName)).findAny().orElse(null);
+                        model.getAssociationsMeta().stream().filter(a->a.getParentIdField().equals(_parentAssocName)).findAny().orElse(null);
 
                 List<Map<String,String>> data = selectAll(model, type, headers, humanHeaders, numericAttrs, parentAssoc)
                         .stream().map(m->{
                             Map<String,String> map = new HashMap<>(m.getData().size()+m.getAssociationsMeta().size());
                             m.getData().forEach((k,v)->{
-                                map.put(k,v==null?"":v.toString());
+                                map.put(k,Constants.getFieldFormatter(k).apply(v));
                             });
                             map.put(Constants.NAME + Constants.TEXT_ONLY, (String) m.getData().get(Constants.NAME));
                             map.put(Constants.NAME, m.getSimpleLink().render());
                             //m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
+                                if(parentAssoc==null) {
+                                    return;
+                                }
                                 List<Model> assocModel = m.getAssociations().get(assoc);
                                 String fieldName = assoc.getAssociationName().toLowerCase().replace(" ", "-");
                                 String fieldNameTextOnly = fieldName+Constants.TEXT_ONLY;
@@ -604,10 +607,6 @@ public class Main {
                                 }
                             });
 
-                            // check for estimate type field
-                            if(m.getData().get(Constants.ESTIMATE_TYPE)!=null) {
-                                map.put(Constants.ESTIMATE_TYPE, Constants.estimateTypeForNumber((Integer)m.getData().get(Constants.ESTIMATE_TYPE)));
-                            }
                             return map;
                         }).collect(Collectors.toList());
                 DataTable.registerDataTabe(req, headers, data, numericAttrs);

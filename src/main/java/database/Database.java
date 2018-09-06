@@ -387,7 +387,7 @@ public class Database {
 
         } else {
             if (parentAssociation != null) {
-                ps = conn.prepareStatement("select c.id as id," + String.join(",",  attrList.stream().map(a -> "c." + a).collect(Collectors.toList())) + ",p.id as parent_id, p.name as parent_name from " + tableName + " as c left join "+parentAssociation.getParentTableName()+" as p " + (searchName == null ? "" : (" where lower(c.name) like '%'||?||'%' ")) + " order by lower(c.name)");
+                ps = conn.prepareStatement("select c.id as id," + String.join(",",  attrList.stream().map(a -> "c." + a).collect(Collectors.toList())) + ",p.id as parent_id, p.name as parent_name from " + tableName + " as c left join "+parentAssociation.getParentTableName()+" as p on (c."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where lower(c.name) like '%'||?||'%' ")) + " order by lower(c.name)");
 
             } else {
                 ps = conn.prepareStatement("select id," + String.join(",", attrList) + " from " + tableName + "" + (searchName == null ? "" : (" where lower(name) like '%'||?||'%' ")) + " order by lower(name)");
@@ -408,23 +408,25 @@ public class Database {
                 data.put(attrList.get(i), rs.getObject(i + 2));
             }
             Model m = buildModelFromDataAndType(id, data, model);
+            Map<Association, List<Model>> associationsMap = new HashMap<>();
             if(parentAssociation!=null) {
                 // add association
                 Association modelsAssociation = m.getAssociationsMeta().stream().filter(a->a.getAssociationName().equals(parentAssociation.getAssociationName())).findAny().orElse(null);
                 if(modelsAssociation!=null) {
-                    Integer parentId = (Integer)rs.getObject(attrList.size()+3);
+                    List<Model> parentList = new ArrayList<>();
+                    Integer parentId = (Integer)rs.getObject(attrList.size()+2);
                     if(parentId!=null) {
-                        List<Model> parentList = new ArrayList<>();
-                        String parentName = (String) rs.getObject(attrList.size() + 4);
+                        String parentName = (String) rs.getObject(attrList.size() + 3);
                         Map<String, Object> parentData = new HashMap<>();
                         parentData.put(Constants.NAME, parentName);
                         Model parent = buildModelFromDataAndType(parentId, parentData, model);
                         if(parent!=null) {
                             parentList.add(parent);
-                            m.setAssociations(Collections.singletonMap(modelsAssociation, parentList));
                         }
                     }
+                    associationsMap.put(modelsAssociation, parentList);
                 }
+                m.setAssociations(associationsMap);
             }
             models.add(m);
 
