@@ -23,7 +23,8 @@ public class Scraper {
     private static WebDriver driver;
     public enum Prefix {
         xnys,
-        xnas
+        xnas,
+        xase
     }
 
     private static void scrapeHtmlTable(String symbol, Prefix exchangePrefix) throws Exception {
@@ -87,11 +88,14 @@ public class Scraper {
         List<String[]> nasdaqLines = nasdaqReader.readAll();
         CSVReader nyseReader = new CSVReader(new BufferedReader(new FileReader(new File("NYSE_tickers.csv"))));
         List<String[]> nyseLines = nyseReader.readAll();
+        CSVReader aseReader = new CSVReader(new BufferedReader(new FileReader(new File("AMEX_tickers.csv"))));
+        List<String[]> aseLines = aseReader.readAll();
 
         nasdaqReader.close();
         nyseReader.close();
+        aseReader.close();
 
-        for(String[] nasdaq : nasdaqLines.subList(1, nasdaqLines.size())) {
+        /*for(String[] nasdaq : nasdaqLines.subList(1, nasdaqLines.size())) {
             String code = nasdaq[0].toLowerCase().trim();
             if(code.length()>0) {
                 System.out.println("Scraping NASDAQ code: "+code);
@@ -109,6 +113,18 @@ public class Scraper {
                 System.out.println("Scraping NYSE code: "+code);
                 try {
                     scrapeHtmlTable(code, Prefix.xnys);
+                } catch(Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }*/
+
+        for(String[] ase : aseLines.subList(1, aseLines.size())) {
+            String code = ase[0].toLowerCase().trim();
+            if(code.length()>0) {
+                System.out.println("Scraping ASE code: "+code);
+                try {
+                    scrapeHtmlTable(code, Prefix.xase);
                 } catch(Exception e) {
                     e.printStackTrace();
                 }

@@ -30,6 +30,7 @@ public class Ingester {
 
         ingest(nasdaqLines, Scraper.Prefix.xnas);
         ingest(nyseLines, Scraper.Prefix.xnys);
+        ingest(nasdaqLines, Scraper.Prefix.xase);
 
     }
 
