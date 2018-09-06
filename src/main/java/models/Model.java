@@ -77,7 +77,7 @@ public abstract class Model implements Serializable {
         }
         return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
                 getSimpleLink(additionalClasses),
-                (isRegion() ? span() :
+                (isRegion() || (associationModel.contains("Revenue") && referencesCountry()) ? span() :
                     span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
                         .attr("data-association-id", associationId.toString()).attr("style","cursor: pointer;").withClass("delete-node").attr("data-resource", this.getClass().getSimpleName()).attr("data-id", id)
@@ -516,7 +516,7 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag getCreateNewForm(@NonNull Association.Model type, Integer associationId) {
-        if (type.equals(Association.Model.Region)) {
+        if (type.equals(Association.Model.Region) || (type.toString().contains("Revenue") && referencesCountry())) {
             return span();
         }
         if(type.toString().endsWith("Revenue")) {
@@ -596,10 +596,12 @@ public abstract class Model implements Serializable {
             }
             return form().with(
                     associationTag,
-                    label(Constants.humanAttrFor(Constants.YEAR)).with(
+                    (isRevenueToRevenue ? input().withType("hidden").withName(Constants.YEAR).withValue(String.valueOf(year)) :
+                            label(Constants.humanAttrFor(Constants.YEAR)).with(
                             br(),
                             input().attr("value", String.valueOf(year)).withClass("form-control").withName(Constants.YEAR).withType("number")
-                    ), br(),
+                    )),
+                    (isRevenueToRevenue ? span() : br()),
                     label(Constants.humanAttrFor(Constants.VALUE)).with(
                             br(),
                             input().withClass("form-control").withName(Constants.VALUE).withType("number")
@@ -1099,6 +1101,17 @@ public abstract class Model implements Serializable {
         }
     }
 
+    private boolean referencesCountry() {
+        if(!isRevenueModel) {
+            return false;
+        }
+        if(data==null) loadAttributesFromDatabase();
+        if(data.get(Constants.REGION_ID)==null) return false;
+        Model region = new Region((Integer)data.get(Constants.REGION_ID), null);
+        region.loadAttributesFromDatabase();
+        return region.getData().get(Constants.PARENT_REGION_ID)!=null;
+    }
+
     public void associateWith(@NonNull Model otherModel,@NonNull String associationName, @NonNull Map<String,Object> joinData) {
         // find association
         for(Association association : associationsMeta) {
@@ -1110,6 +1123,20 @@ public abstract class Model implements Serializable {
                     String otherRef = otherModel.getClass().getSimpleName() + otherModel.getId();
                     if (this.allReferences.contains(otherRef)) {
                         throw new RuntimeException("Unable to assign association. Cycle detected.");
+                    }
+                }
+                // make sure that we don't assign the wrong region type
+                if(association.getModel().toString().contains("Revenue") && otherModel.getClass().getSimpleName().contains("Revenue")) {
+                    if(associationName.contains("Parent")) {
+                        // make sure the otherModel does not reference a country
+                        if(otherModel.referencesCountry()) {
+                            throw new RuntimeException("Cannot associate a sub revenue to a revenue referencing a country.");
+                        }
+                    } else if(associationName.contains("Sub")) {
+                        // make sure this node does not reference a country
+                        if(referencesCountry()) {
+                            throw new RuntimeException("Cannot associate a sub revenue to a revenue referencing a country.");
+                        }
                     }
                 }
                 switch (association.getType()) {
@@ -1173,7 +1200,7 @@ public abstract class Model implements Serializable {
         return getAddAssociationPanel(association, listRef, diagramModel, null, report);
     }
     public ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel, String overrideCreateText, boolean report) {
-        if(association.getAssociationName().equals("Parent Revenue") || association.getModel().equals(Association.Model.Region)) {
+        if(association.getAssociationName().equals("Parent Revenue") || (association.getAssociationName().equals("Sub Revenue") && referencesCountry()) || association.getModel().equals(Association.Model.Region)) {
             return span();
         }
         Association.Type type = association.getType();

@@ -8,14 +8,15 @@ import org.apache.commons.math3.distribution.ExponentialDistribution;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class SeedTestData {
     private static final Random rand = new Random(120);
 
     public static void main(String[] args) throws Exception {
-        seedResource(Association.Model.Market,0,  10, null, null);
-        seedResource(Association.Model.Company,0,  10, null, null);
-        seedResource(Association.Model.Product,0,  10, null, null);
+        seedResource(Association.Model.Market,0,  4, null, null);
+        seedResource(Association.Model.Company,0,  4, null, null);
+        seedResource(Association.Model.Product,0,  4, null, null);
 
         // add market shares
         List<Model> markets = Database.selectAll(false, Association.Model.Market, Constants.MARKET_TABLE, Collections.singletonList(Constants.PARENT_MARKET_ID));
@@ -39,6 +40,9 @@ public class SeedTestData {
             data.put(Constants.YEAR, LocalDate.now().getYear()-i);
             data.put(Constants.VALUE, valueDistribution.sample());
             data.put(Constants.SOURCE, "The Intelligent Designer");
+            if(rand.nextBoolean()) {
+                data.put(Constants.CAGR, rand.nextDouble() * 30.0 - 5.0);
+            }
             Model revenueModel = null;
             if(model instanceof Company) {
                 data.put(Constants.COMPANY_ID, model.getId());
@@ -56,6 +60,47 @@ public class SeedTestData {
                 } catch(Exception e) {
                     //e.printStackTrace();
                 }
+                // sub revenues
+                if(rand.nextBoolean()) {
+                    // get regions
+                    try {
+                        List<Model> regions = Database.selectAll(false, Association.Model.Region, Constants.REGION_TABLE, Arrays.asList(Constants.NAME, Constants.PARENT_REGION_ID));
+                        regions = regions.stream().filter(region->region.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
+                        for(Model region : regions) {
+                            addSubRevenues(revenueModel, region.getId(), new ExponentialDistribution(50d + rand.nextInt(800)));
+                        }
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
+
+    private static void addSubRevenues(@NonNull Model model, int regionId, AbstractRealDistribution valueDistribution) {
+        Map<String, Object> data = new HashMap<>();
+        data.put(Constants.YEAR, model.getData().get(Constants.YEAR));
+        data.put(Constants.VALUE, valueDistribution.sample());
+        data.put(Constants.SOURCE, "The Intelligent Designer");
+        data.put(Constants.REGION_ID, regionId);
+        Model revenueModel = null;
+        data.put(Constants.PARENT_REVENUE_ID, model.getId());
+        if(rand.nextBoolean()) {
+            data.put(Constants.CAGR, rand.nextDouble() * 30.0 - 5.0);
+        }
+        if(model instanceof CompanyRevenue) {
+            revenueModel = new CompanyRevenue(null, data);
+        } else if(model instanceof MarketRevenue) {
+            revenueModel = new MarketRevenue(null, data);
+        } else if(model instanceof ProductRevenue) {
+            revenueModel = new ProductRevenue(null, data);
+        }
+        if(revenueModel!=null) {
+            try {
+                revenueModel.createInDatabase();
+            } catch(Exception e) {
+                //e.printStackTrace();
             }
         }
     }
