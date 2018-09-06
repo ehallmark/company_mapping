@@ -272,6 +272,19 @@ public class Database {
         return data;
     }
 
+    public static synchronized Integer findIdByName(@NonNull String tableName, @NonNull String name) throws SQLException {
+        PreparedStatement ps = conn.prepareStatement("select id from "+tableName+" where name=? limit 1");
+        ps.setObject(1, name);
+        ResultSet rs = ps.executeQuery();
+        Integer id = null;
+        if(rs.next()) {
+            id = rs.getInt(1);
+        }
+        rs.close();
+        ps.close();
+        return id;
+    }
+
 
     public static synchronized List<Model> selectAllFromRevenueModel(@NonNull Association.Model model, @NonNull String tableName, Association association, String searchName) throws SQLException {
         List<String> attrList = Collections.singletonList(Constants.NAME);

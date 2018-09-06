@@ -327,7 +327,7 @@ var onShowResourceFunction = function($topElem) {
         showReportFunction(id,resourceId);
     });
 
-   $topElem.find('.graph-button').click(function(e) {
+    $topElem.find('.graph-button').click(function(e) {
         e.preventDefault();
         var $this = $(this);
         var id = $this.attr('data-id');

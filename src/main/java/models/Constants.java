@@ -84,6 +84,7 @@ public class Constants {
         HIDDEN_ATTRS.add(MARKET_REVENUE_ID);
         HIDDEN_ATTRS.add(PARENT_REGION_ID);
         HIDDEN_ATTRS.add(REGION_ID);
+        HIDDEN_ATTRS.add(PARENT_REVENUE_ID);
     }
 
     private static final Map<String,String> FIELD_TYPE_MAP = Collections.synchronizedMap(new HashMap<>());
@@ -98,7 +99,9 @@ public class Constants {
         FIELD_TYPE_MAP.put(MARKET_ID, NUMBER_FIELD_TYPE);
         FIELD_TYPE_MAP.put(PRODUCT_ID, NUMBER_FIELD_TYPE);
         FIELD_TYPE_MAP.put(COMPANY_ID, NUMBER_FIELD_TYPE);
-
+        FIELD_TYPE_MAP.put(REGION_ID, NUMBER_FIELD_TYPE);
+        FIELD_TYPE_MAP.put(PARENT_REVENUE_ID, NUMBER_FIELD_TYPE);
+        FIELD_TYPE_MAP.put(PARENT_REGION_ID, NUMBER_FIELD_TYPE);
     }
 
     public static boolean isHiddenAttr(String attr) {

@@ -952,9 +952,16 @@ public class Main {
                         throw new RuntimeException("Cannot assign a company to a market that has sub markets. Please assign the company to a market without sub markets.");
                     }
                 }*/
-
-                baseModel.removeManyToOneAssociations(associationName);
-                baseModel.associateWith(relatedModel, associationName, Collections.emptyMap());
+                if(!(baseModel.isRevenueModel() && relatedModel.isRevenueModel())) {
+                    baseModel.removeManyToOneAssociations(associationName);
+                    baseModel.associateWith(relatedModel, associationName, Collections.emptyMap());
+                } else {
+                    try {
+                        baseModel.associateWith(relatedModel, associationName, Collections.emptyMap());
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                    }
+                }
             } catch(Exception e) {
                 e.printStackTrace();
                 return new Gson().toJson(Collections.singletonMap("error", "Error: "+e.getMessage()));

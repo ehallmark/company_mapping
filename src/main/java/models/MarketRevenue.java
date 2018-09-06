@@ -29,6 +29,8 @@ public class MarketRevenue extends Model {
             Constants.ESTIMATE_TYPE,
             Constants.CAGR,
             Constants.MARKET_ID,
+            Constants.REGION_ID,
+            Constants.PARENT_REVENUE_ID,
             Constants.UPDATED_AT,
             Constants.CREATED_AT
     ));

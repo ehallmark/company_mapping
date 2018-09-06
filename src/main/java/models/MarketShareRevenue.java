@@ -33,6 +33,8 @@ public class MarketShareRevenue extends Model {
             Constants.CAGR,
             Constants.MARKET_ID,
             Constants.COMPANY_ID,
+            Constants.REGION_ID,
+            Constants.PARENT_REVENUE_ID,
             Constants.UPDATED_AT,
             Constants.CREATED_AT
     ));

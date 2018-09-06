@@ -467,6 +467,11 @@ public abstract class Model implements Serializable {
             // TODO speed up this query
             if(!data.containsKey(Constants.NAME)) {
                 loadAssociations();
+                if(data.get(Constants.REGION_ID)!=null) {
+                    Region region = new Region((Integer)data.get(Constants.REGION_ID), null);
+                    region.loadAttributesFromDatabase();
+                    data.put(Constants.NAME, region.data.get(Constants.NAME));
+                }
                 if(isMarketShare) {
                     String companyName = "";
                     String marketName = "";
@@ -584,21 +589,27 @@ public abstract class Model implements Serializable {
                     }
                 }
             }
+            boolean showRegion = this.isRevenueModel() && type.toString().contains("Revenue");
+            int year = LocalDate.now().getYear();
+            if(id!=null && isRevenueToRevenue) {
+                year = (Integer)data.get(Constants.YEAR);
+            }
             return form().with(
                     associationTag,
                     label(Constants.humanAttrFor(Constants.YEAR)).with(
                             br(),
-                            input().attr("value", String.valueOf(LocalDate.now().getYear())).withClass("form-control").withName(Constants.YEAR).withType("number")
+                            input().attr("value", String.valueOf(year)).withClass("form-control").withName(Constants.YEAR).withType("number")
                     ), br(),
                     label(Constants.humanAttrFor(Constants.VALUE)).with(
                             br(),
                             input().withClass("form-control").withName(Constants.VALUE).withType("number")
                     ), br(),
-                    label(Constants.humanAttrFor(Constants.REGION_ID)).with(
+                    (showRegion?label(Constants.humanAttrFor(Constants.REGION_ID)).with(
                             br(),
-                            select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName("id")
+                            select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName(Constants.REGION_ID)
                                     .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+this.getClass().getSimpleName()+"/"+id)
-                    ), br(),
+                    ) : span()),
+                    (showRegion? br() : span()),
                     label(Constants.humanAttrFor(Constants.CAGR)).with(
                             br(),
                             input().withClass("form-control").withName(Constants.CAGR).withType("number")
@@ -940,7 +951,7 @@ public abstract class Model implements Serializable {
         if(modelMap.size()>0) {
             // recurse
             String display = "block;";
-            String displayPlus = original==this ? "none;" : "block;";
+            String displayPlus = original==this || modelMap.size()==1 ? "none;" : "block;";
             container.with(
                     li().attr("style", "list-style: none; cursor: pointer; display: "+displayPlus).withText("+")
                             .attr("onclick", "$(this).nextAll().slideToggle();")
