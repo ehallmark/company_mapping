@@ -1,16 +1,17 @@
 package scrape;
 
 import com.opencsv.CSVReader;
-import models.*;
+import models.Company;
+import models.CompanyRevenue;
+import models.Constants;
+import models.Model;
 import org.apache.commons.io.IOUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,8 +30,8 @@ public class Ingester {
         nyseReader.close();
 
         ingest(nasdaqLines, Scraper.Prefix.xnas);
-        ingest(nyseLines, Scraper.Prefix.xnys);
-        ingest(nasdaqLines, Scraper.Prefix.xase);
+        //ingest(nyseLines, Scraper.Prefix.xnys);
+        //ingest(nasdaqLines, Scraper.Prefix.xase);
 
     }
 

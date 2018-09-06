@@ -347,10 +347,14 @@ public class Database {
     }
 
     public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes) throws SQLException {
-        return selectAll(isRevenueModel, model, tableName, attributes, null);
+        return selectAll(isRevenueModel, model, tableName, attributes, null, null);
     }
 
-    public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, String searchName) throws SQLException {
+    public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, Association parentAssociation) throws SQLException {
+        return selectAll(isRevenueModel, model, tableName, attributes, null, parentAssociation);
+    }
+
+    public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, String searchName, Association parentAssociation) throws SQLException {
         List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
         if(isRevenueModel) {
             attrList.remove(Constants.NAME);
@@ -382,7 +386,12 @@ public class Database {
             }
 
         } else {
-            ps = conn.prepareStatement("select id,"+String.join(",", attrList)+" from "+tableName+"" + (searchName==null?"" : ( " where lower(name) like '%'||?||'%' ")) + " order by lower(name)");
+            if (parentAssociation != null) {
+                ps = conn.prepareStatement("select c.id as id," + String.join(",",  attrList.stream().map(a -> "c." + a).collect(Collectors.toList())) + ",p.id as parent_id, p.name as parent_name from " + tableName + " as c left join "+parentAssociation.getParentTableName()+" as p " + (searchName == null ? "" : (" where lower(c.name) like '%'||?||'%' ")) + " order by lower(c.name)");
+
+            } else {
+                ps = conn.prepareStatement("select id," + String.join(",", attrList) + " from " + tableName + "" + (searchName == null ? "" : (" where lower(name) like '%'||?||'%' ")) + " order by lower(name)");
+            }
         }
         if(searchName!=null) {
             ps.setString(1, searchName);
@@ -398,39 +407,23 @@ public class Database {
             for (int i = 0; i < attrList.size(); i++) {
                 data.put(attrList.get(i), rs.getObject(i + 2));
             }
-            Model m = null;
-            switch (model) {
-                case Company: {
-                    m = new Company(id, data);
-                    break;
-                }
-                case Product: {
-                    m = new Product(id, data);
-                    break;
-                }
-                case Market: {
-                    m = new Market(id, data);
-                    break;
-                }
-                case MarketRevenue: {
-                    m = new MarketRevenue(id, data);
-                    break;
-                }
-                case CompanyRevenue: {
-                    m = new CompanyRevenue(id, data);
-                    break;
-                }
-                case ProductRevenue: {
-                    m = new ProductRevenue(id, data);
-                    break;
-                }
-                case MarketShareRevenue: {
-                    m = new MarketShareRevenue(id, data);
-                    break;
-                }
-                case Region: {
-                    m = new Region(id, data);
-                    break;
+            Model m = buildModelFromDataAndType(id, data, model);
+            if(parentAssociation!=null) {
+                // add association
+                Association modelsAssociation = m.getAssociationsMeta().stream().filter(a->a.getAssociationName().equals(parentAssociation.getAssociationName())).findAny().orElse(null);
+                if(modelsAssociation!=null) {
+                    Integer parentId = (Integer)rs.getObject(attrList.size()+3);
+                    if(parentId!=null) {
+                        List<Model> parentList = new ArrayList<>();
+                        String parentName = (String) rs.getObject(attrList.size() + 4);
+                        Map<String, Object> parentData = new HashMap<>();
+                        parentData.put(Constants.NAME, parentName);
+                        Model parent = buildModelFromDataAndType(parentId, parentData, model);
+                        if(parent!=null) {
+                            parentList.add(parent);
+                            m.setAssociations(Collections.singletonMap(modelsAssociation, parentList));
+                        }
+                    }
                 }
             }
             models.add(m);
@@ -439,6 +432,45 @@ public class Database {
         rs.close();
         ps.close();
         return models;
+    }
+
+    public static Model buildModelFromDataAndType(Integer id, Map<String,Object> data, Association.Model model) {
+        Model m = null;
+        switch (model) {
+            case Company: {
+                m = new Company(id, data);
+                break;
+            }
+            case Product: {
+                m = new Product(id, data);
+                break;
+            }
+            case Market: {
+                m = new Market(id, data);
+                break;
+            }
+            case MarketRevenue: {
+                m = new MarketRevenue(id, data);
+                break;
+            }
+            case CompanyRevenue: {
+                m = new CompanyRevenue(id, data);
+                break;
+            }
+            case ProductRevenue: {
+                m = new ProductRevenue(id, data);
+                break;
+            }
+            case MarketShareRevenue: {
+                m = new MarketShareRevenue(id, data);
+                break;
+            }
+            case Region: {
+                m = new Region(id, data);
+                break;
+            }
+        }
+        return m;
     }
 
 }

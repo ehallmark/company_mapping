@@ -36,7 +36,7 @@ public abstract class Model implements Serializable {
     protected transient final List<String> availableAttributes;
     @Getter
     protected transient List<Association> associationsMeta;
-    @Getter
+    @Getter @Setter
     protected Map<Association,List<Model>> associations;
     protected String template;
     private Set<String> allReferences;

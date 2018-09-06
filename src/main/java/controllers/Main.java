@@ -168,11 +168,22 @@ public class Main {
         return true;
     }
 
-    public static List<Model> selectAll(Model model, Association.Model type, List<String> headers, List<String> humanHeaders, Set<String> numericAttrs) throws Exception {
+    public static List<Model> selectAll(Model model, Association.Model type, List<String> headers, List<String> humanHeaders, Set<String> numericAttrs, Association parentAssociation) throws Exception {
         for(String header : model.getAvailableAttributes()) {
             if (!Constants.isHiddenAttr(header) && !Arrays.asList(Constants.UPDATED_AT,Constants.CREATED_AT).contains(header)) {
                 headers.add(header);
                 humanHeaders.add(Constants.humanAttrFor(header));
+            }
+        }
+        if(parentAssociation!=null) {
+            if(model.isRevenueModel()) {
+                headers.add(0, parentAssociation.getAssociationName().toLowerCase().replace(" ", "-"));
+                boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(parentAssociation.getType());
+                humanHeaders.add(0, pluralize ? Constants.pluralizeAssociationName(parentAssociation.getAssociationName()) : parentAssociation.getAssociationName());
+            } else {
+                headers.add(parentAssociation.getAssociationName().toLowerCase().replace(" ", "-"));
+                boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(parentAssociation.getType());
+                humanHeaders.add(pluralize ? Constants.pluralizeAssociationName(parentAssociation.getAssociationName()) : parentAssociation.getAssociationName());
             }
         }
        /* for(Association association : model.getAssociationsMeta()) {
@@ -199,7 +210,7 @@ public class Main {
             headers.add(0, Constants.NAME);
         }
 
-        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes());
+        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes(), parentAssociation);
     }
 
     public static ContainerTag getReportOptionsForm(Model model, String clazz) {
@@ -460,7 +471,7 @@ public class Main {
                     List<String> fieldsToUse = new ArrayList<>();
                     fieldsToUse.add(fieldToUse);
                     if(_showTopLevelOnly) fieldsToUse.add(Constants.PARENT_REGION_ID);
-                    models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, search).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
+                    models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, search, null).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
                     if(_showTopLevelOnly) {
                         models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
                     }
@@ -532,7 +543,33 @@ public class Main {
                 List<String> headers = new ArrayList<>();
                 Set<String> numericAttrs = new HashSet<>();
                 List<String> humanHeaders = new ArrayList<>();
-                List<Map<String,String>> data = selectAll(model, type, headers, humanHeaders, numericAttrs)
+                String parentAssocName = null;
+                switch (type) {
+                    case Region: {
+                        parentAssocName = Constants.PARENT_REGION_ID;
+                        break;
+                    }
+                    case Market: {
+                        parentAssocName = Constants.PARENT_MARKET_ID;
+                        break;
+                    }
+                    case Company: {
+                        parentAssocName = Constants.PARENT_COMPANY_ID;
+                        break;
+                    }
+                    case Product: {
+                        break;
+                    }
+                    default: { // Must be revenue
+                        parentAssocName = null;
+                        break;
+                    }
+                }
+                final String _parentAssocName = parentAssocName;
+                Association parentAssoc = _parentAssocName == null ? null :
+                        model.getAssociationsMeta().stream().filter(a->a.getAssociationName().equals(_parentAssocName)).findAny().orElse(null);
+
+                List<Map<String,String>> data = selectAll(model, type, headers, humanHeaders, numericAttrs, parentAssoc)
                         .stream().map(m->{
                             Map<String,String> map = new HashMap<>(m.getData().size()+m.getAssociationsMeta().size());
                             m.getData().forEach((k,v)->{
@@ -540,7 +577,7 @@ public class Main {
                             });
                             map.put(Constants.NAME + Constants.TEXT_ONLY, (String) m.getData().get(Constants.NAME));
                             map.put(Constants.NAME, m.getSimpleLink().render());
-                            /*m.loadAssociations();
+                            //m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
                                 List<Model> assocModel = m.getAssociations().get(assoc);
                                 String fieldName = assoc.getAssociationName().toLowerCase().replace(" ", "-");
@@ -566,7 +603,7 @@ public class Main {
                                     map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList())));
                                 }
                             });
-                            */
+
                             // check for estimate type field
                             if(m.getData().get(Constants.ESTIMATE_TYPE)!=null) {
                                 map.put(Constants.ESTIMATE_TYPE, Constants.estimateTypeForNumber((Integer)m.getData().get(Constants.ESTIMATE_TYPE)));
@@ -737,7 +774,7 @@ public class Main {
                 List<String> headers = new ArrayList<>();
                 Set<String> numericAttrs = new HashSet<>();
                 List<String> humanHeaders = new ArrayList<>();
-                List<Model> data = selectAll(_model, type, headers, humanHeaders, numericAttrs);
+                List<Model> data = selectAll(_model, type, headers, humanHeaders, numericAttrs, null);
                 ContainerTag html  = div().withClass("col-12").with(
                         h3("Diagram of All "+Constants.pluralizeAssociationName(Constants.humanAttrFor(_model.getClass().getSimpleName())))
                 );
