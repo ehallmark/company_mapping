@@ -661,7 +661,7 @@ public abstract class Model implements Serializable {
         }
     }
 
-    public ContainerTag loadNestedAssociations(int maxDepth) {
+    public ContainerTag loadNestedAssociations(boolean nested, int maxDepth) {
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -682,6 +682,7 @@ public abstract class Model implements Serializable {
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
         loadNestedAssociationHelper(Constants.YEAR,true, null, null, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth);
+        if(nested) return inner;
         return tag;
     };
 
@@ -932,10 +933,19 @@ public abstract class Model implements Serializable {
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
+        Set<Association> linkToAssociations = new HashSet<>();
         for(Association association : associationsMeta) {
             if(association.shouldNotExpand(isRevenueModel(), depth, maxDepth)) {
-                continue;
+                // check if we should add a link to expand
+                if(!association.shouldNotExpand(isRevenueModel(), 0, maxDepth)) {
+                    linkToAssociations.add(association);
+                } else {
+                    continue;
+                }
+            } else if(depth >= maxDepth) {
+                linkToAssociations.add(association);
             }
+
             if(associations==null) {
                 loadAssociations();
             }
@@ -946,7 +956,6 @@ public abstract class Model implements Serializable {
                     return ((Integer) m.getData().get(Constants.YEAR)) >= startYear && ((Integer) m.getData().get(Constants.YEAR)) <= endYear;
                 }).collect(Collectors.toList());
             }
-
             modelMap.put(association, assocModels);
         }
         calculateRevenue(startYear, endYear, useCAGR, option, null, true);
@@ -1090,12 +1099,20 @@ public abstract class Model implements Serializable {
                         if (!sameModel && !alreadySeen.contains(_id)) {
                             alreadySeen.add(_id);
                             String group;
-                            if(model.isRevenueModel) {
+                            if (model.isRevenueModel) {
                                 group = Constants.REGION_ID;
                             } else {
                                 group = groupRevenuesBy;
                             }
-                            model.loadNestedAssociationHelper(group, allowEdit, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth);
+                            if (linkToAssociations.contains(association)) {
+                                // just show link
+                                inner.with(
+                                        a("Show").attr("href", "#").withClass("diagram-button nested").attr("data-id", model.getId())
+                                        .attr("data-resource", model.getType().toString())
+                                );
+                            } else {
+                                model.loadNestedAssociationHelper(group, allowEdit, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth);
+                            }
                         }
                         references.add(_id);
                         alreadySeen.add(_id);
@@ -1154,7 +1171,7 @@ public abstract class Model implements Serializable {
                 // make sure we haven't introduced in cycles
                 if(association.getModel().toString().equals(this.getClass().getSimpleName())) {
                     System.out.println("Checking for cycles...");
-                    loadNestedAssociations(10); // hack to access allReferences
+                    loadNestedAssociations(false, 10); // hack to access allReferences
                     String otherRef = otherModel.getClass().getSimpleName() + otherModel.getId();
                     if (this.allReferences.contains(otherRef)) {
                         throw new RuntimeException("Unable to assign association. Cycle detected.");
@@ -1438,11 +1455,7 @@ public abstract class Model implements Serializable {
                     List<Model> assocs = edges.stream().map(edge->edge.getTarget().getModel())
                             .collect(Collectors.toList());
                     for(Model assoc : assocs) {
-                        Set<String> missing = new HashSet<>(assoc.getAvailableAttributes());
-                        missing.removeAll(assoc.getData().keySet());
-                        if(missing.size()>0) {
-                            assoc.loadAttributesFromDatabase(true);
-                        }
+                        assoc.loadAttributesFromDatabase();
                     }
                     if (association.getType().equals(Association.Type.OneToMany)) {
                         associations.put(association, assocs);
@@ -1482,12 +1495,19 @@ public abstract class Model implements Serializable {
         }
     }
 
+    public boolean isMissingAttributes () {
+        if(data==null) return true;
+        Set<String> missing = new HashSet<>(getAvailableAttributes());
+        missing.removeAll(getData().keySet());
+        return missing.size()>0;
+    }
+
 
     public void loadAttributesFromDatabase(boolean force) {
         if(!existsInDatabase()) {
             throw new RuntimeException("Trying to select a record that does not exist in the database...");
         }
-        if(data!=null && !force) return;
+        if(!isMissingAttributes() && !force) return;
         try {
             System.out.println("Select "+getType()+" - "+id);
             this.data = Database.select(tableName, id, availableAttributes);

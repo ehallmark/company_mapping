@@ -91,14 +91,25 @@ var createResourceDynatable = function(resource) {
 };
 
 
-var showDiagramFunction = function(id,resourceId) {
+var showDiagramFunction = function(id,resourceId,$target) {
+    var inDiagram = $target && $target.length > 0;
     $.ajax({
         url: '/diagram/'+resourceId+'/'+id,
         dataType: 'json',
+        data: {
+            in_diagram: inDiagram
+        },
         type: 'POST',
         success: function(data) {
-            $('#results').html(data.result);
-            onShowResourceFunction($('#results'));
+            var $result = null;
+            if(inDiagram) {
+                $result = $target;
+                $result.html($(data.result).children());
+            } else {
+                $result = $('#results');
+                $result.html(data.result);
+            }
+            onShowResourceFunction($result);
         },
         error: function() {
             alert("An error occurred.");
@@ -316,7 +327,11 @@ var onShowResourceFunction = function($topElem) {
         var $this = $(this);
         var id = $this.attr('data-id');
         var resourceId = $this.attr('data-resource');
-        showDiagramFunction(id,resourceId);
+        var $target = null;
+        if ($this.hasClass('nested')) {
+            $target = $this.closest('ul');
+        }
+        showDiagramFunction(id,resourceId,$target);
     });
 
     $topElem.find('.report-button').click(function(e) {

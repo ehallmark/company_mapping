@@ -55,7 +55,9 @@ public class Main {
             Graph graph = Graph.load();
             Node node = graph.findNode(type, id);
             if(node!=null) {
-                return node.getModel();
+                Model model = node.getModel();
+                model.loadAttributesFromDatabase();
+
             } else {
                 return null;
             }
@@ -634,15 +636,20 @@ public class Main {
         post("/diagram/:resource/:id", (req, res)-> {
             authorize(req,res);
             Model model = loadModel(req);
+            boolean inDiagram = extractString(req, "in_diagram", null) != null;
             if(model!=null) {
-                ContainerTag diagram = model.loadNestedAssociations(1);
-                ContainerTag html = div().withClass("col-12").with(
-                        div().attr("display: none;").withId("in_diagram_flag").attr("data-id", model.getId().toString()).attr("data-resource", model.getType().toString()),
-                        model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
-                        h3("Diagram of "+model.getData().get(Constants.NAME)),
-                        diagram
-                );
-
+                ContainerTag html;
+                ContainerTag diagram = model.loadNestedAssociations(inDiagram, 0);
+                if(inDiagram) {
+                    html = diagram;
+                } else {
+                    html = div().withClass("col-12").with(
+                            div().attr("display: none;").withId("in_diagram_flag").attr("data-id", model.getId().toString()).attr("data-resource", model.getType().toString()),
+                            model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
+                            h3("Diagram of " + model.getData().get(Constants.NAME)),
+                            diagram
+                    );
+                }
                 return new Gson().toJson(Collections.singletonMap("result", html.render()));
             }
             return null;
@@ -753,6 +760,7 @@ public class Main {
             authorize(req, res);
             Model model = loadModel(req);
             if(model != null) {
+                model.loadAttributesFromDatabase();
                 model.loadAssociations();
                 model.loadShowTemplate(true);
                 return new Gson().toJson(model);
