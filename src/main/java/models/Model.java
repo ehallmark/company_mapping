@@ -77,7 +77,7 @@ public abstract class Model implements Serializable {
         }
         return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
                 getSimpleLink(additionalClasses),
-                (isRegion() || (associationModel.contains("Revenue") && referencesCountry()) ? span() :
+                (isRegion() || (associationName.equals("Parent Revenue")) ? span() :
                     span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
                         .attr("data-association-id", associationId.toString()).attr("style","cursor: pointer;").withClass("delete-node").attr("data-resource", this.getClass().getSimpleName()).attr("data-id", id)
