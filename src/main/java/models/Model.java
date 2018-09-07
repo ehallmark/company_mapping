@@ -1582,7 +1582,12 @@ public abstract class Model implements Serializable {
                 } else {
                     idToUse = assocId;
                 }
-                Database.nullifyFieldName(association.getChildTableName(), association.getParentIdField(), idToUse);
+                if(isRevenueModel && association.getModel().toString().contains("Revenue")) {
+                    // revenue to revenue model - need to delete dependent stuff
+                    Database.delete(association.getChildTableName(), idToUse);
+                } else {
+                    Database.nullifyFieldName(association.getChildTableName(), association.getParentIdField(), idToUse);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("Error deleting record from database: " + e.getMessage());

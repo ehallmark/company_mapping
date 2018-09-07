@@ -662,6 +662,7 @@ public class Main {
                 ContainerTag diagram = model.loadNestedAssociations();
 
                 ContainerTag html = div().withClass("col-12").with(
+                        div().attr("display: none;").withId("in_diagram_flag"),
                         model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
                         h3("Diagram of "+model.getData().get(Constants.NAME)),
                         diagram

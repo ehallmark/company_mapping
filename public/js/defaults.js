@@ -575,6 +575,7 @@ var onShowResourceFunction = function($topElem) {
         var associationName = $this.attr('data-association');
         var associationId = $this.attr('data-association-id');
         var associationRef = $this.attr('data-association-name');
+        var inDiagram = $('#in_diagram_flag');
         var url = '/resources_delete';
         if(confirm('Are you sure you want to unlink '+name+' from it\'s '+associationRef+'?')) {
             $.ajax({
@@ -592,7 +593,11 @@ var onShowResourceFunction = function($topElem) {
                     if(showData.hasOwnProperty('error')) {
                         alert(showData.error);
                     } else {
-                        showDiagramFunction(associationId,associationName);
+                        if(inDiagram && inDiagram.length>0) {
+                            showDiagramFunction(associationId,associationName);
+                        } else {
+                            showResourceFunction(associationName, associationId);
+                        }
                     }
                 },
                 error: function() {
