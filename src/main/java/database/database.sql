@@ -82,7 +82,7 @@ create table market_revenues (
     unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references market_revenues (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
-    check (region_id is null or (parent_revenue_id is not null and region_id is not null))
+    check ((parent_revenue_id is null and region_id is null) or (parent_revenue_id is not null and region_id is not null))
 );
 
 create index market_revenues_market_id_idx on market_revenues (market_id);
@@ -109,7 +109,7 @@ create table company_revenues (
     unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references company_revenues (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
-    check (region_id is null or (parent_revenue_id is not null and region_id is not null))
+    check ((parent_revenue_id is null and region_id is null) or (parent_revenue_id is not null and region_id is not null))
 );
 
 create index company_revenues_company_id_idx on company_revenues (company_id);
@@ -137,7 +137,7 @@ create table product_revenues (
     unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references product_revenues (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
-    check (region_id is null or (parent_revenue_id is not null and region_id is not null))
+    check ((parent_revenue_id is null and region_id is null) or (parent_revenue_id is not null and region_id is not null))
 );
 
 create index product_revenues_product_id_idx on product_revenues (product_id);
@@ -166,7 +166,7 @@ create table companies_markets (
     unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references companies_markets (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
-    check (region_id is null or (parent_revenue_id is not null and region_id is not null)),
-    check ((market_id is not null and company_id is not null) OR parent_revenue_id is not null)
+    check ((market_id is not null and company_id is not null) OR parent_revenue_id is not null),
+    check ((parent_revenue_id is null and region_id is null) or (parent_revenue_id is not null and region_id is not null))
 );
 
