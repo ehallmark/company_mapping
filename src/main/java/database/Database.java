@@ -300,7 +300,8 @@ public class Database {
 
     public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, String searchName, Association parentAssociation) throws SQLException {
         List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
-        if(isRevenueModel) {
+        boolean addNameToRevenue = attrList.contains(Constants.NAME);
+        if(isRevenueModel && addNameToRevenue) {
             attrList.remove(Constants.NAME);
         }
         PreparedStatement ps;
@@ -310,7 +311,10 @@ public class Database {
         }
         if(isRevenueModel) {
             if(model.equals(Association.Model.MarketShareRevenue)) {
-                String sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r left join companies as c on (c.id=r.company_id) left join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
+                String name = addNameToRevenue ? ",c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" : "";
+                String join = addNameToRevenue ? " left join companies as c on (c.id=r.company_id) left join markets as m on (r.market_id=m.id) " : "";
+                String order = addNameToRevenue ? " order by c.name" : "";
+                String sqlStr = "select r.id as id" + name + attrStr + " from " + tableName + " as r " + join + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + order;
                 ps = conn.prepareStatement(sqlStr);
 
             } else {
@@ -321,7 +325,10 @@ public class Database {
                     parentTableName = "companies"; // handle weird english language
                 }
                 parentIdField = model.toString().replace("Revenue", "").toLowerCase() + "_id";
-                String sqlStr = "select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r left join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
+                String name = addNameToRevenue ? ",j.name||' Revenue ('||r.year::text||')' as name" : "";
+                String join = addNameToRevenue ? (" left join "+parentTableName+" as j on (r." + parentIdField+"=j.id) ") : "";
+                String order = addNameToRevenue ? " order by lower(j.name)" : "";
+                String sqlStr = "select r.id as id" + name + attrStr + " from " + tableName + " as r " + join + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + order;
                 ps = conn.prepareStatement(sqlStr);
             }
 
@@ -333,7 +340,7 @@ public class Database {
         }
         ResultSet rs = ps.executeQuery();
         List<Model> models = new ArrayList<>();
-        if(isRevenueModel) {
+        if(isRevenueModel && addNameToRevenue) {
             attrList.add(0, Constants.NAME);
         }
         while(rs.next()) {
@@ -356,9 +363,6 @@ public class Database {
         if(depth>=maxDepth) return;
         for (int i = 0; i < associations.size(); i++) {
             Association association = associations.get(i);
-            if(association.getAssociationName().equals("Sub Market")) {
-                continue;
-            }
             Model m = buildModelFromDataAndType(null, null, association.getModel());
             if (m != null) {
                 String j = prefix + i;
@@ -387,7 +391,8 @@ public class Database {
 
     public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, List<Association> associations, Integer findId, int maxDepth) throws SQLException {
         List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
-        if(isRevenueModel) {
+        boolean addNameToRevenue = attrList.contains(Constants.NAME);
+        if(isRevenueModel && addNameToRevenue) {
             attrList.remove(Constants.NAME);
         }
         PreparedStatement ps;
@@ -416,19 +421,21 @@ public class Database {
         if(isRevenueModel) {
             if(model.equals(Association.Model.MarketShareRevenue)) {
                 String sqlStr;
+                String name = addNameToRevenue ? ",'Market Share' as name " : "";
                 if (associations != null && allJoins.size()>0 && joinAttrStrs.size()>0) {
-                    sqlStr = "select r.id as id,'Market Share' as name " + attrStr + ","+String.join(",", joinAttrStrs)+" from " + tableName + " as r " + String.join(" ", allJoins) + where + " " + groupBy;
+                    sqlStr = "select r.id as id " + name + attrStr + ","+String.join(",", joinAttrStrs)+" from " + tableName + " as r " + String.join(" ", allJoins) + where + " " + groupBy;
                 } else {
-                    sqlStr = "select id,'Market Share' as name " + attrStr + " from " + tableName + where;
+                    sqlStr = "select id " + name + attrStr + " from " + tableName + where;
                 }
                 ps = conn.prepareStatement(sqlStr);
 
             } else {
                 String sqlStr;
+                String name = addNameToRevenue ? ",'Revenue' as name " : "";
                 if (associations != null && allJoins.size()>0 && joinAttrStrs.size()>0) {
-                    sqlStr ="select r.id as id,'Revenue' as name " + attrStr + ","+String.join(",", joinAttrStrs)+" from " + tableName + " as r " + String.join(" ", allJoins) + where + " " + groupBy;
+                    sqlStr ="select r.id as id " + name + attrStr + ","+String.join(",", joinAttrStrs)+" from " + tableName + " as r " + String.join(" ", allJoins) + where + " " + groupBy;
                 } else {
-                    sqlStr ="select id,'Revenue' as name " + attrStr + " from " + tableName + where;
+                    sqlStr ="select id "+name + attrStr + " from " + tableName + where;
                 }
                 ps = conn.prepareStatement(sqlStr);
             }
@@ -447,7 +454,7 @@ public class Database {
         System.out.println("QUERY: "+ps.toString());
         ResultSet rs = ps.executeQuery();
         List<Model> models = new ArrayList<>();
-        if(isRevenueModel) {
+        if(isRevenueModel && addNameToRevenue) {
             attrList.add(0, Constants.NAME);
         }
         while(rs.next()) {

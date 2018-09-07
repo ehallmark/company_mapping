@@ -76,6 +76,7 @@ public class Graph {
     }
     public static Graph load(boolean force) throws Exception {
         if(graph!=null && !force) return graph;
+        System.out.println("BUILDING GRAPH!!!");
         lock.lock();
         try {
             // test graph
@@ -133,6 +134,7 @@ public class Graph {
             throw new RuntimeException("Error creating graph: "+e.getMessage());
         } finally {
             lock.unlock();
+            System.out.println("FINISHED GRAPH!!!");
         }
         return graph;
     }
