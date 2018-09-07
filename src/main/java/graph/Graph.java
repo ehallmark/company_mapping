@@ -2,7 +2,6 @@ package graph;
 
 import controllers.Main;
 import database.Database;
-import lombok.Getter;
 import models.Association;
 import models.Model;
 
@@ -50,10 +49,33 @@ public class Graph {
         }
     }
 
+    public void unlinkNodeFromAssociation(Association.Model model, int id, Association association) {
+        Node node = nodeCache.getOrDefault(model, new HashMap<>(1)).get(id);
+        unlinkNodeFromAssociation(node, association);
+    }
+
+    public void unlinkNodeFromAssociation(Node node, Association association) {
+        node.getEdgeMap().getOrDefault(association.getAssociationName(), Collections.emptyList()).forEach(edge->{
+            edge.getTarget().getEdgeMap().getOrDefault(association.getReverseAssociationName(), new ArrayList<>(1))
+                    .removeIf(e->e.getTarget().equals(node));
+        });
+        node.getEdgeMap().remove(association.getAssociationName());
+    }
+
     public Node deleteNode(Association.Model model, int id) {
         lock.lock();
         try {
-            return nodeCache.getOrDefault(model, new HashMap<>(1)).remove(id);
+            Node node = nodeCache.getOrDefault(model, new HashMap<>(1)).remove(id);
+            if(node!=null) {
+                // remove edges
+                node.getEdgeMap().values().forEach(edges->{
+                   edges.forEach(edge->{
+                        edge.getTarget().getEdgeMap().getOrDefault(edge.getAssociation().getReverseAssociationName(), new ArrayList<>(1))
+                        .removeIf(e->e.getTarget().equals(node));
+                   });
+                });
+            }
+            return node;
         } finally {
             lock.unlock();
         }

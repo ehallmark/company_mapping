@@ -7,7 +7,9 @@ import com.googlecode.wickedcharts.highcharts.jackson.JsonRenderer;
 import com.googlecode.wickedcharts.highcharts.options.Options;
 import database.Database;
 import graph.Graph;
+import graph.Node;
 import j2html.tags.ContainerTag;
+import lombok.NonNull;
 import models.*;
 import spark.QueryParamsMap;
 import spark.Request;
@@ -48,7 +50,16 @@ public class Main {
         return loadModel(type, null);
     }
 
-    private static Model loadModel(Association.Model type, Integer id) {
+    private static Model loadModel(@NonNull Association.Model type, Integer id) {
+        if(id!=null) {
+            Graph graph = Graph.load();
+            Node node = graph.findNode(type, id);
+            if(node!=null) {
+                return node.getModel();
+            } else {
+                return null;
+            }
+        }
         Model model;
         switch(type) {
             case Market: {

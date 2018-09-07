@@ -40,16 +40,16 @@ public abstract class Model implements Serializable {
     @Getter
     protected transient List<Association> associationsMeta;
     @Getter @Setter
-    protected Map<Association,List<Model>> associations;
+    protected transient Map<Association,List<Model>> associations;
     protected String template;
-    private Set<String> allReferences;
+    private transient Set<String> allReferences;
     @Getter
     private final boolean isRevenueModel;
     private Double revenue;
     private Double percentage;
     @Getter @Setter
-    private Graph nodeCache;
-    private List<CalculationInformation> calculationInformation;
+    private transient Graph nodeCache;
+    private transient List<CalculationInformation> calculationInformation;
     protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data, boolean isRevenueModel) {
         this.tableName = tableName;
         this.data = data;
@@ -313,7 +313,7 @@ public abstract class Model implements Serializable {
         if(association==null) {
             return null;
         }
-        if(associations==null) loadAssociations();
+        loadAssociations();
         List<Options> allOptions = new ArrayList<>();
         List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
         Options options = getDefaultChartOptions();
@@ -664,7 +664,7 @@ public abstract class Model implements Serializable {
         }
         if(nodeCache==null) {
             try {
-                nodeCache = Graph.load(true);
+                nodeCache = Graph.load();
             } catch(Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("Error loading node cache...");
@@ -690,7 +690,7 @@ public abstract class Model implements Serializable {
         }
         if(nodeCache==null) {
             try {
-                nodeCache = Graph.load(true);
+                nodeCache = Graph.load();
             } catch(Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("Error loading node cache...");
@@ -1115,6 +1115,9 @@ public abstract class Model implements Serializable {
     }
 
     public void removeManyToOneAssociations(String associationName) {
+        if(nodeCache==null) {
+            throw new RuntimeException("Unable to remove associations without node cache.");
+        }
         for(Association association : associationsMeta) {
             if(association.getAssociationName().equals(associationName)) {
                 switch (association.getType()) {
@@ -1122,6 +1125,7 @@ public abstract class Model implements Serializable {
                         // need to set parent id of current model
                         updateAttribute(association.getParentIdField(), null);
                         updateInDatabase();
+                        nodeCache.unlinkNodeFromAssociation(getType(), id, association);
                         break;
                     }
                 }
@@ -1417,9 +1421,6 @@ public abstract class Model implements Serializable {
         if (!existsInDatabase()) {
             throw new RuntimeException("Cannot load associations if the model does not yet exist in the database.");
         }
-        if(associations!=null) {
-            return;
-        }
         if (data == null) {
             loadAttributesFromDatabase();
         }
@@ -1439,30 +1440,27 @@ public abstract class Model implements Serializable {
                         }
                     }
                     if (association.getType().equals(Association.Type.OneToMany)) {
-                        data.put(association.getModel().toString(), assocs);
                         associations.put(association, assocs);
                     } else if (association.getType().equals(Association.Type.ManyToOne)) {
-                        data.put(association.getModel().toString(), assocs);
                         associations.put(association, assocs);
                     } else if (association.getType().equals(Association.Type.OneToOne)) {
                         throw new RuntimeException("One to one associations are not yet implemented.");
                     } else if (association.getType().equals(Association.Type.ManyToMany)) {
-                        data.put(association.getModel().toString(), assocs);
                         associations.put(association, assocs);
                     }
                 }
             }
-        }else {
+        } else {
+            throw new RuntimeException("Cannot load associations with node cache!");
+            /*
             for (Association association : associationsMeta) {
                 try {
                     if (association.getType().equals(Association.Type.OneToMany)) {
                         List<Model> children = Database.loadOneToManyAssociation(association.getModel(), this, association.getChildTableName(), association.getParentIdField());
-                        data.put(association.getModel().toString(), children);
                         associations.put(association, children);
                     } else if (association.getType().equals(Association.Type.ManyToOne)) {
                         Model parent = Database.loadManyToOneAssociation(association.getModel(), this, association.getChildTableName(), association.getParentIdField());
                         if (parent != null) {
-                            data.put(association.getModel().toString(), parent);
                             associations.put(association, Collections.singletonList(parent));
                         }
                     } else if (association.getType().equals(Association.Type.OneToOne)) {
@@ -1470,13 +1468,12 @@ public abstract class Model implements Serializable {
                     } else if (association.getType().equals(Association.Type.ManyToMany)) {
                         Map<Model, Map<String, Object>> children = Database.loadManyToManyAssociation(association.getModel(), this, association.getJoinTableName(), association.getParentIdField(), association.getChildIdField(), association.getJoinAttributes());
                         List<Model> childrenList = new ArrayList<>(children.keySet());
-                        data.put(association.getModel().toString(), childrenList);
                         associations.put(association, childrenList);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            }
+            }*/
         }
     }
 
@@ -1487,7 +1484,7 @@ public abstract class Model implements Serializable {
         }
         if(data!=null && !force) return;
         try {
-            System.out.println("Select "+this.getClass().getSimpleName()+" - "+id);
+            System.out.println("Select "+getType()+" - "+id);
             this.data = Database.select(tableName, id, availableAttributes);
         } catch(Exception e) {
             e.printStackTrace();
@@ -1500,6 +1497,7 @@ public abstract class Model implements Serializable {
     }
 
     public void updateInDatabase() {
+        if(nodeCache==null) throw new RuntimeException("Cannot update database without node cache...");
         // update database
         if(!existsInDatabase()) {
             throw new RuntimeException("Trying to update a record that does not exist in the database...");
@@ -1511,6 +1509,7 @@ public abstract class Model implements Serializable {
             keys.remove(Constants.UPDATED_AT);
             keys.remove(Constants.CREATED_AT);
             Database.update(tableName, id, dataCopy, keys);
+
         } catch(Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error inserting record into database: " + e.getMessage());
@@ -1559,9 +1558,13 @@ public abstract class Model implements Serializable {
         if(existsInDatabase()) {
             throw new RuntimeException("Trying to create a record that already exists in the database...");
         }
+        if(nodeCache==null) {
+            nodeCache = Graph.load();
+        }
         validateState();
         try {
             id = Database.insert(tableName, data);
+            nodeCache.addNode(getType(), id, new Node(this));
         } catch(Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error inserting record into database: "+e.getMessage());
@@ -1570,6 +1573,9 @@ public abstract class Model implements Serializable {
 
     // delete record from the database
     public void deleteFromDatabase(boolean cascade) {
+        if(nodeCache==null) {
+            nodeCache = Graph.load();
+        }
         if(!existsInDatabase()) {
             throw new RuntimeException("Trying to delete a record that does not exist in the database...");
         }
@@ -1590,16 +1596,25 @@ public abstract class Model implements Serializable {
         }
         try {
             Database.delete(tableName, id);
+            nodeCache.deleteNode(getType(), id);
         } catch(Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error deleting record from database: "+e.getMessage());
         }
     }
 
+    public Association.Model getType() {
+        return Association.Model.valueOf(this.getClass().getSimpleName());
+    }
+
     public void cleanUpParentIds(@NonNull Association association, int assocId) {
         // clean up join table if necessary
+        if(nodeCache==null) {
+            nodeCache = Graph.load();
+        }
         if (association.getType().equals(Association.Type.ManyToMany)) {
             try {
+                // TODO update Graph is there is every any many to many relationships
                 Database.deleteByFieldName(association.getJoinTableName(), association.getParentIdField(), id);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -1609,16 +1624,25 @@ public abstract class Model implements Serializable {
             // child table has the key
             try {
                 Integer idToUse;
+                Association.Model typeToUse;
                 if(association.getType().equals(Association.Type.ManyToOne)) {
                     idToUse = id;
+                    typeToUse = getType();
                 } else {
                     idToUse = assocId;
+                    typeToUse = association.getModel();
                 }
                 if(isRevenueModel && association.getModel().toString().contains("Revenue")) {
                     // revenue to revenue model - need to delete dependent stuff
                     Database.delete(association.getChildTableName(), idToUse);
+                    nodeCache.deleteNode(typeToUse, idToUse);
                 } else {
                     Database.nullifyFieldName(association.getChildTableName(), association.getParentIdField(), idToUse);
+                    Node node = nodeCache.findNode(typeToUse, idToUse);
+                    if(node!=null) {
+                        node.getModel().getData().put(association.getParentIdField(), null);
+                        nodeCache.unlinkNodeFromAssociation(node, association);
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
