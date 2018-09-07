@@ -507,6 +507,9 @@ public abstract class Model implements Serializable {
                             name = companyName+" - "+regionName+" (" + data.get(Constants.YEAR) + ")";
                         }
                     }
+                    if(name.startsWith(" - ")) {
+                        name = name.substring(3);
+                    }
                     data.put(Constants.NAME, name);
                 } else {
                     List<Model> parent = associations.get(associationsMeta.get(0));
