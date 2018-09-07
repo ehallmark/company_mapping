@@ -71,10 +71,10 @@ public class Graph {
     }
 
     private static Graph graph;
-    public static Graph load() throws Exception {
+    public static Graph load() {
         return load(false);
     }
-    public static Graph load(boolean force) throws Exception {
+    public static Graph load(boolean force) {
         if(graph!=null && !force) return graph;
         System.out.println("BUILDING GRAPH!!!");
         lock.lock();

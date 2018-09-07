@@ -658,17 +658,17 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag loadNestedAssociations() {
+        final int maxDepth = 5;
+        if(data==null) {
+            loadAttributesFromDatabase();
+        }
         if(nodeCache==null) {
             try {
-                nodeCache = Graph.load();
+                nodeCache = Graph.load(true);
             } catch(Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("Error loading node cache...");
             }
-        }
-        final int maxDepth = 5;
-        if(data==null) {
-            loadAttributesFromDatabase();
         }
         ContainerTag inner = ul();
         calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null, false);
@@ -687,6 +687,14 @@ public abstract class Model implements Serializable {
         final int maxDepth = 5;
         if(data==null) {
             loadAttributesFromDatabase();
+        }
+        if(nodeCache==null) {
+            try {
+                nodeCache = Graph.load(true);
+            } catch(Exception e) {
+                e.printStackTrace();
+                throw new RuntimeException("Error loading node cache...");
+            }
         }
         calculateRevenue(startYear, endYear, useCAGR, option, null, false);
         ContainerTag inner = ul();
