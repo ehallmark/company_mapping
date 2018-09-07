@@ -193,11 +193,12 @@ public class Graph {
 
 
     private class GarbageCollector implements Runnable {
-        private final long runEveryMS = 60 * 1000L;
+        private final long runEveryMS = 5 * 1000L;
         private final double keepDataPercent = 0.1;
         @Override
         public void run() {
             while(!Thread.interrupted()) {
+                System.out.println("Running GC... "+Runtime.getRuntime().freeMemory());
                 runGC();
                 try {
                     TimeUnit.MILLISECONDS.sleep(runEveryMS);
@@ -206,6 +207,7 @@ public class Graph {
                     break;
                 }
             }
+            System.out.println("Interrupted GC.");
         }
 
         private void runGC() {
@@ -219,6 +221,7 @@ public class Graph {
                         e.getKey().getModel().purgeMemory();
                         accessStatistics.put(e.getKey(), new AtomicDouble(0));
             });
+            System.gc();
         }
     }
 }

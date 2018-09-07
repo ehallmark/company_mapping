@@ -688,7 +688,7 @@ public abstract class Model implements Serializable {
 
 
     public ContainerTag loadReport(int startYear, int endYear, boolean useCAGR, Constants.MissingRevenueOption option) {
-        final int maxDepth = 1;
+        final int maxDepth = 10;
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -930,19 +930,16 @@ public abstract class Model implements Serializable {
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
     private void loadNestedAssociationHelper(String groupRevenuesBy, boolean allowEdit, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth) {
+        if(depth > maxDepth) return;
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
         Set<Association> linkToAssociations = new HashSet<>();
         for(Association association : associationsMeta) {
-            if(association.shouldNotExpand(isRevenueModel(), depth, maxDepth)) {
-                // check if we should add a link to expand
-                if(!association.shouldNotExpand(isRevenueModel(), 0, maxDepth)) {
-                    linkToAssociations.add(association);
-                } else {
-                    continue;
-                }
-            } else if(depth >= maxDepth) {
+            if(association.shouldNotExpand(isRevenueModel(), 0, 0)) {
+                continue;
+            }
+            if(depth == maxDepth) {
                 linkToAssociations.add(association);
             }
 
@@ -1639,6 +1636,8 @@ public abstract class Model implements Serializable {
                     data.remove(attr);
                 }
             }
+        }
+        if(associations!=null) {
             associations.clear();
             associations = null;
         }

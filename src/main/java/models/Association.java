@@ -102,10 +102,6 @@ public class Association implements Serializable {
         if(isRevenueModel && !(getAssociationName().equals("Sub Revenue"))) {
             return true;
         }
-        // if not revenue and node expanded then exit
-        if(!getModel().toString().contains("Revenue") && !getModel().equals(Association.Model.Region) && depth >= maxDepth) {
-            return true;
-        }
         return false;
     }
 
