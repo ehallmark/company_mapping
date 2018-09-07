@@ -475,23 +475,34 @@ public abstract class Model implements Serializable {
                 if(isMarketShare) {
                     String companyName = "";
                     String marketName = "";
+                    String regionName = "";
+                    if(associations==null) {
+                        loadNestedAssociations();
+                    }
                     for(Association association : associationsMeta) {
-                        if(association.getModel().equals(Association.Model.Company)) {
-                            companyName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
-                        } else if (association.getModel().equals(Association.Model.Market)) {
-                            marketName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
+                        if (associations.getOrDefault(association, Collections.emptyList()).size() > 0) {
+                            if(association.getModel().equals(Association.Model.Company)) {
+                                companyName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
+                            } else if (association.getModel().equals(Association.Model.Market)) {
+                                marketName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
+                            } else if(association.getModel().equals(Association.Model.Region)) {
+                                regionName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
+                            }
                         }
+                    }
+                    if(regionName.trim().isEmpty()) {
+                        regionName = "Global";
                     }
                     String name;
                     if(removePrefix) {
-                        name = marketName + " (" + data.get(Constants.YEAR) + ")";
+                        name = marketName + " - "+regionName+" (" + data.get(Constants.YEAR) + ")";
                     } else {
                         if (additionalClasses.length > 0 && additionalClasses[0].equals("market-share-market")) {
-                            name = companyName + " (" + data.get(Constants.YEAR) + ")";
+                            name = companyName +" - "+regionName+ " (" + data.get(Constants.YEAR) + ")";
                         } else if (additionalClasses.length > 0 && additionalClasses[0].equals("market-share-company")) {
-                            name = marketName + " (" + data.get(Constants.YEAR) + ")";
+                            name = marketName +" - "+regionName+ " (" + data.get(Constants.YEAR) + ")";
                         } else {
-                            name = companyName+" (" + data.get(Constants.YEAR) + ")";
+                            name = companyName+" - "+regionName+" (" + data.get(Constants.YEAR) + ")";
                         }
                     }
                     data.put(Constants.NAME, name);

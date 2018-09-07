@@ -443,7 +443,7 @@ public class Main {
                         if(actualModel.getData().get(Constants.PARENT_REVENUE_ID)==null) {
                             showTopLevelOnly = true;
                         }
-                        parentRegionId = (Integer) actualModel.getData().get(Constants.PARENT_REGION_ID);
+                        parentRegionId = (Integer) actualModel.getData().get(Constants.REGION_ID);
                     }
                     for(Association association : actualModel.getAssociationsMeta()) {
                         if(association.getModel().equals(type)) {
@@ -473,7 +473,7 @@ public class Main {
                     List<Model> models;
                     List<String> fieldsToUse = new ArrayList<>();
                     fieldsToUse.add(fieldToUse);
-                    if(_showTopLevelOnly) fieldsToUse.add(Constants.PARENT_REGION_ID);
+                    if(_showTopLevelOnly || type.equals(Association.Model.Region)) fieldsToUse.add(Constants.PARENT_REGION_ID);
                     models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, search, null).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
                     if(_showTopLevelOnly) {
                         models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
@@ -609,8 +609,14 @@ public class Main {
                                     map.put(fieldNameTextOnly, "");
                                 } else {
                                     if(model.isRevenueModel()) {
-                                        map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList())));
-                                        map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String) a.getData().get(Constants.NAME)).collect(Collectors.toList())));
+                                        String value = String.join("<br/>", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList()));
+                                        if(value.length()>0) {
+                                            map.put(fieldName, value);
+                                            map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String) a.getData().get(Constants.NAME)).collect(Collectors.toList())));
+                                        } else {
+                                            map.put(fieldName, "");
+                                            map.put(fieldNameTextOnly, "");
+                                        }
                                     } else {
                                         map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink(additionalClasses).render()).collect(Collectors.toList())));
                                         map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String) a.getData().get(Constants.NAME)).collect(Collectors.toList())));

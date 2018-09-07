@@ -288,64 +288,6 @@ public class Database {
         return id;
     }
 
-
-    public static synchronized List<Model> selectAllFromRevenueModel(@NonNull Association.Model model, @NonNull String tableName, Association association, String searchName) throws SQLException {
-        List<String> attrList = Collections.singletonList(Constants.NAME);
-        PreparedStatement ps = conn.prepareStatement("select r.id as id,j.name||' Revenue ('||r.year::text||')' as name from "+tableName+" as r join "+association.getParentTableName()+" as j on (r."+association.getParentIdField()+"=j.id) " + (searchName==null?"" : ( " where lower(j.name) like '%'||?||'%' order by lower(j.name)")));
-        if(searchName!=null) {
-            ps.setString(1, searchName);
-        }
-        ResultSet rs = ps.executeQuery();
-        List<Model> models = new ArrayList<>();
-        while(rs.next()) {
-            Map<String, Object> data = new HashMap<>();
-            int id = rs.getInt(1);
-            for (int i = 0; i < attrList.size(); i++) {
-                data.put(attrList.get(i), rs.getObject(i + 2));
-            }
-            Model m = null;
-            switch (model) {
-                case Company: {
-                    m = new Company(id, data);
-                    break;
-                }
-                case Product: {
-                    m = new Product(id, data);
-                    break;
-                }
-                case Market: {
-                    m = new Market(id, data);
-                    break;
-                }
-                case MarketRevenue: {
-                    m = new MarketRevenue(id, data);
-                    break;
-                }
-                case CompanyRevenue: {
-                    m = new CompanyRevenue(id, data);
-                    break;
-                }
-                case ProductRevenue: {
-                    m = new ProductRevenue(id, data);
-                    break;
-                }
-                case MarketShareRevenue: {
-                    m = new MarketShareRevenue(id, data);
-                    break;
-                }
-                case Region: {
-                    m = new Region(id, data);
-                    break;
-                }
-            }
-            models.add(m);
-
-        }
-        rs.close();
-        ps.close();
-        return models;
-    }
-
     public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes) throws SQLException {
         return selectAll(isRevenueModel, model, tableName, attributes, null, null);
     }
@@ -368,9 +310,9 @@ public class Database {
                 }
                 String sqlStr;
                 if(parentAssociation==null) {
-                    sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join companies as c on (c.id=r.company_id) join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
+                    sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r left join companies as c on (c.id=r.company_id) left join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
                 } else {
-                    sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + ",p.id as parent_id, \'Parent Revenue\' as parent_name from " + tableName + " as r join companies as c on (c.id=r.company_id) join markets as m on (r.market_id=m.id) left join "+parentAssociation.getParentTableName()+" as p on (r."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
+                    sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + ",p.id as parent_id, \'Parent Revenue\' as parent_name from " + tableName + " as r left join companies as c on (c.id=r.company_id) left join markets as m on (r.market_id=m.id) left join "+parentAssociation.getParentTableName()+" as p on (r."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
                 }
                 System.out.println("Market share sql str: "+sqlStr);
                 ps = conn.prepareStatement(sqlStr);
@@ -389,9 +331,9 @@ public class Database {
                 }
                 String sqlStr;
                 if(parentAssociation==null) {
-                    sqlStr ="select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
+                    sqlStr ="select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r left join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
                 } else {
-                    sqlStr ="select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + ",p.id as parent_id, \'Parent Revenue\' as parent_name from " + tableName + " as r join " + parentTableName + " as j on (r." + parentIdField + "=j.id) left join "+parentAssociation.getParentTableName()+" as p on (r."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
+                    sqlStr ="select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + ",p.id as parent_id, \'Parent Revenue\' as parent_name from " + tableName + " as r left join " + parentTableName + " as j on (r." + parentIdField + "=j.id) left join "+parentAssociation.getParentTableName()+" as p on (r."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
                 }
                 ps = conn.prepareStatement(sqlStr);
             }

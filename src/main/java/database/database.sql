@@ -79,6 +79,7 @@ create table market_revenues (
     check (is_estimate OR (source is not null)),
     check ((not is_estimate) OR estimate_type is not null),
     unique (market_id, year),
+    unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references market_revenues (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
     check (region_id is null or parent_revenue_id is not null)
@@ -105,6 +106,7 @@ create table company_revenues (
     check (is_estimate OR (source is not null)),
     check ((not is_estimate) OR estimate_type is not null),
     unique (company_id, year),
+    unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references company_revenues (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
     check (region_id is null or parent_revenue_id is not null)
@@ -132,6 +134,7 @@ create table product_revenues (
     check (is_estimate OR (source is not null)),
     check ((not is_estimate) OR estimate_type is not null),
     unique (product_id, year),
+    unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references product_revenues (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
     check (region_id is null or parent_revenue_id is not null)
@@ -160,6 +163,7 @@ create table companies_markets (
     check (is_estimate OR (source is not null)),
     check ((not is_estimate) OR estimate_type is not null),
     unique (market_id, company_id, year),
+    unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references companies_markets (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
     check (region_id is null or parent_revenue_id is not null),
