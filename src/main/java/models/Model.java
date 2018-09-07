@@ -1428,15 +1428,15 @@ public abstract class Model implements Serializable {
         template = html.render();
     }
 
-    public void updateAttribute(String attr, Object val) {
+    public synchronized void updateAttribute(String attr, Object val) {
         this.data.put(attr, val);
     }
 
-    public void removeAttribute(String attr) {
+    public synchronized void removeAttribute(String attr) {
         this.data.remove(attr);
     }
 
-    public void loadAssociations() {
+    public synchronized void loadAssociations() {
         if (!existsInDatabase()) {
             throw new RuntimeException("Cannot load associations if the model does not yet exist in the database.");
         }
@@ -1597,7 +1597,7 @@ public abstract class Model implements Serializable {
     }
 
     // delete record from the database
-    public void deleteFromDatabase(boolean cascade) {
+    public synchronized void deleteFromDatabase(boolean cascade) {
         if(nodeCache==null) {
             nodeCache = Graph.load();
         }
@@ -1630,6 +1630,18 @@ public abstract class Model implements Serializable {
 
     public Association.Model getType() {
         return Association.Model.valueOf(this.getClass().getSimpleName());
+    }
+
+    public synchronized void purgeMemory() {
+        if(data!=null) {
+            for(String attr : getAvailableAttributes()) {
+                if(!attr.endsWith("_id")) {
+                    data.remove(attr);
+                }
+            }
+            associations.clear();
+            associations = null;
+        }
     }
 
     public void cleanUpParentIds(@NonNull Association association, int assocId) {

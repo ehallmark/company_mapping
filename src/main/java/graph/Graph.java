@@ -1,25 +1,32 @@
 package graph;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import controllers.Main;
 import database.Database;
+import lombok.NonNull;
 import models.Association;
 import models.Model;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 public class Graph {
     private static final Lock lock = new ReentrantLock();
-
+    private Thread garbageCollector;
     private Map<Association.Model, Map<Integer, Node>> nodeCache;
-
+    private final Map<Node, AtomicDouble> accessStatistics;
     public Graph() {
         this.nodeCache = new HashMap<>();
+        this.accessStatistics = Collections.synchronizedMap(new HashMap<>());
+        this.garbageCollector = new Thread(new GarbageCollector());
+        this.garbageCollector.start();
     }
 
-    public void addNode(Association.Model model, int id, Node node) {
+    public void addNode(@NonNull Association.Model model, int id, @NonNull Node node) {
         lock.lock();
         try {
             node.getModel().setNodeCache(this);
@@ -31,7 +38,7 @@ public class Graph {
         }
     }
 
-    public void connectNodes(Node node, Node target, Association association) {
+    public void connectNodes(@NonNull Node node, @NonNull Node target, @NonNull Association association) {
         lock.lock();
         try {
             node.addEdge(new Edge(node, target, association));
@@ -40,21 +47,26 @@ public class Graph {
         }
     }
 
-    public Node findNode(Association.Model model, int id) {
+    public Node findNode(@NonNull Association.Model model, int id) {
         lock.lock();
         try {
-            return nodeCache.getOrDefault(model, Collections.emptyMap()).get(id);
+            Node node = nodeCache.getOrDefault(model, Collections.emptyMap()).get(id);
+            if(node!=null) {
+                accessStatistics.putIfAbsent(node, new AtomicDouble(0L));
+                accessStatistics.get(node).getAndAdd(1d);
+            }
+            return node;
         } finally {
             lock.unlock();
         }
     }
 
-    public void unlinkNodeFromAssociation(Association.Model model, int id, Association association) {
+    public void unlinkNodeFromAssociation(@NonNull Association.Model model, int id, @NonNull Association association) {
         Node node = nodeCache.getOrDefault(model, new HashMap<>(1)).get(id);
         unlinkNodeFromAssociation(node, association);
     }
 
-    public void unlinkNodeFromAssociation(Node node, Association association) {
+    public void unlinkNodeFromAssociation(@NonNull Node node, @NonNull Association association) {
         node.getEdgeMap().getOrDefault(association.getAssociationName(), Collections.emptyList()).forEach(edge->{
             edge.getTarget().getEdgeMap().getOrDefault(association.getReverseAssociationName(), new ArrayList<>(1))
                     .removeIf(e->e.getTarget().equals(node));
@@ -66,11 +78,12 @@ public class Graph {
         node.getEdgeMap().remove(association.getAssociationName());
     }
 
-    public Node deleteNode(Association.Model model, int id) {
+    public Node deleteNode(@NonNull Association.Model model, int id) {
         lock.lock();
         try {
             Node node = nodeCache.getOrDefault(model, new HashMap<>(1)).remove(id);
             if(node!=null) {
+                accessStatistics.remove(node);
                 // remove edges
                 node.getEdgeMap().values().forEach(edges->{
                    edges.forEach(edge->{
@@ -89,7 +102,7 @@ public class Graph {
         }
     }
 
-    public List<Model> getModelList(Association.Model model) {
+    public List<Model> getModelList(@NonNull Association.Model model) {
         lock.lock();
         try {
             Map<Integer, Node> idMap = nodeCache.getOrDefault(model, Collections.emptyMap());
@@ -106,6 +119,10 @@ public class Graph {
     }
     public static Graph load(boolean force) {
         if(graph!=null && !force) return graph;
+        if(graph!=null) {
+            // stop garbage collector
+            graph.garbageCollector.interrupt();
+        }
         System.out.println("BUILDING GRAPH!!!");
         lock.lock();
         try {
@@ -174,4 +191,34 @@ public class Graph {
         load();
     }
 
+
+    private class GarbageCollector implements Runnable {
+        private final long runEveryMS = 60 * 1000L;
+        private final double keepDataPercent = 0.1;
+        @Override
+        public void run() {
+            while(!Thread.interrupted()) {
+                runGC();
+                try {
+                    TimeUnit.MILLISECONDS.sleep(runEveryMS);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    break;
+                }
+            }
+        }
+
+        private void runGC() {
+            // Delete inner data/associations from nodes that are rarely accessed
+            Map<Node, AtomicDouble> accessStatisticsCopy = new HashMap<>(accessStatistics);
+            final int limit = Math.round(accessStatisticsCopy.size() * (float)keepDataPercent);
+            AtomicInteger cnt = new AtomicInteger(0);
+            accessStatisticsCopy.entrySet().stream().sorted(Comparator.comparingDouble(e->e.getValue().get()))
+                    .filter(e->cnt.getAndIncrement()<limit || e.getValue().get()<= 1 || !e.getKey().getModel().existsInDatabase())
+                    .limit(limit).forEach(e->{
+                        e.getKey().getModel().purgeMemory();
+                        accessStatistics.put(e.getKey(), new AtomicDouble(0));
+            });
+        }
+    }
 }
