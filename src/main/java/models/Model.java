@@ -922,7 +922,7 @@ public abstract class Model implements Serializable {
         Map<Association,List<Model>> modelMap = new HashMap<>();
         Set<Association> linkToAssociations = new HashSet<>();
         for(Association association : associationsMeta) {
-            if(association.shouldNotExpand(isRevenueModel(), 0, 0)) {
+            if(association.shouldNotExpand(isRevenueModel())) {
                 continue;
             }
             if(depth == maxDepth) {
@@ -1037,6 +1037,7 @@ public abstract class Model implements Serializable {
                     List<Model> groupedModelList = groupedModels.get(key);
                     if(association.getModel().toString().contains("Revenue")) {
                         groupedModelList = new ArrayList<>(groupedModelList);
+                        groupedModelList.forEach(Model::loadAttributesFromDatabase);
                         groupedModelList.sort((d1,d2)->Integer.compare((Integer)d2.getData().get(Constants.YEAR), (Integer)d1.getData().get(Constants.YEAR)));
                     }
                     for(Model model : groupedModelList) {

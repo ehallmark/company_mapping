@@ -189,16 +189,8 @@ public class Main {
             }
         }
         List<Association> associations = model.getAssociationsMeta();
-        if(!model.isRevenueModel()) {
-            associations = associations.stream().filter(a->!a.getModel().toString().contains("Revenue"))
-                    .collect(Collectors.toList());
-        } else {
-            associations = associations.stream().filter(a->!a.getAssociationName().contains("Sub Revenue"))
-                    .collect(Collectors.toList());
-        }
-
         associations = associations.stream().filter(association->{
-            return association.getType().equals(Association.Type.ManyToOne) || !association.shouldNotExpand(model.isRevenueModel(), Integer.MAX_VALUE, 1);
+            return association.getType().equals(Association.Type.ManyToOne);
         }).collect(Collectors.toList());
 
         for(Association association : associations) {
@@ -573,7 +565,7 @@ public class Main {
                             map.put(Constants.NAME, m.getSimpleLink().render());
                             //m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
-                                if(!assoc.getType().equals(Association.Type.ManyToOne) && assoc.shouldNotExpand(model.isRevenueModel(), Integer.MAX_VALUE, 0)) {
+                                if(!assoc.getType().equals(Association.Type.ManyToOne)) {
                                     return;
                                 }
                                 List<Model> assocModel = m.getAssociations().get(assoc);

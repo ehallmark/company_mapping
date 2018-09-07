@@ -95,7 +95,7 @@ public class Association implements Serializable {
         }
     }
 
-    public boolean shouldNotExpand(boolean isRevenueModel, int depth, int maxDepth) {
+    public boolean shouldNotExpand(boolean isRevenueModel) {
         if(getAssociationName().startsWith("Parent ")||getAssociationName().equals("Sub Company")) {
             return true;
         }
