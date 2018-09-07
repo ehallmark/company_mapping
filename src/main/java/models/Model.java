@@ -5,6 +5,9 @@ import com.googlecode.wickedcharts.highcharts.options.*;
 import com.googlecode.wickedcharts.highcharts.options.series.Point;
 import com.googlecode.wickedcharts.highcharts.options.series.PointSeries;
 import database.Database;
+import graph.Edge;
+import graph.Graph;
+import graph.Node;
 import j2html.tags.ContainerTag;
 import j2html.tags.Tag;
 import lombok.Getter;
@@ -44,6 +47,8 @@ public abstract class Model implements Serializable {
     private final boolean isRevenueModel;
     private Double revenue;
     private Double percentage;
+    @Getter @Setter
+    private Graph nodeCache;
     private List<CalculationInformation> calculationInformation;
     protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data, boolean isRevenueModel) {
         this.tableName = tableName;
@@ -653,6 +658,14 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag loadNestedAssociations() {
+        if(nodeCache==null) {
+            try {
+                nodeCache = Graph.load();
+            } catch(Exception e) {
+                e.printStackTrace();
+                throw new RuntimeException("Error loading node cache...");
+            }
+        }
         final int maxDepth = 5;
         if(data==null) {
             loadAttributesFromDatabase();
@@ -1402,58 +1415,80 @@ public abstract class Model implements Serializable {
         if (data == null) {
             loadAttributesFromDatabase();
         }
-
         this.associations = new HashMap<>();
-        for(Association association : associationsMeta) {
-            try {
-                if (association.getType().equals(Association.Type.OneToMany)) {
-                    List<Model> children = Database.loadOneToManyAssociation(association.getModel(), this, association.getChildTableName(), association.getParentIdField());
-                    data.put(association.getModel().toString(), children);
-                    associations.put(association, children);
-                } else if (association.getType().equals(Association.Type.ManyToOne)) {
-                    Model parent = Database.loadManyToOneAssociation(association.getModel(), this, association.getChildTableName(), association.getParentIdField());
-                    if(parent!=null) {
-                        data.put(association.getModel().toString(), parent);
-                        associations.put(association, Collections.singletonList(parent));
+        if(nodeCache!=null) {
+            Node node = nodeCache.findNode(Association.Model.valueOf(getClass().getSimpleName()), id);
+            for (Association association : associationsMeta) {
+                List<Edge> edges = node.getEdgeMap().get(association.getAssociationName());
+                if(edges!=null && edges.size()>0) {
+                    List<Model> assocs = edges.stream().map(edge->edge.getTarget().getModel())
+                            .collect(Collectors.toList());
+                    for(Model assoc : assocs) {
+                        Set<String> missing = new HashSet<>(assoc.getAvailableAttributes());
+                        missing.removeAll(assoc.getData().keySet());
+                        if(missing.size()>0) {
+                            assoc.loadAttributesFromDatabase(true);
+                        }
                     }
-                } else if (association.getType().equals(Association.Type.OneToOne)) {
-                    if(association.getChildIdField()==null) {
-
-                    } else {
-
+                    if (association.getType().equals(Association.Type.OneToMany)) {
+                        data.put(association.getModel().toString(), assocs);
+                        associations.put(association, assocs);
+                    } else if (association.getType().equals(Association.Type.ManyToOne)) {
+                        data.put(association.getModel().toString(), assocs);
+                        associations.put(association, assocs);
+                    } else if (association.getType().equals(Association.Type.OneToOne)) {
+                        throw new RuntimeException("One to one associations are not yet implemented.");
+                    } else if (association.getType().equals(Association.Type.ManyToMany)) {
+                        data.put(association.getModel().toString(), assocs);
+                        associations.put(association, assocs);
                     }
-                    throw new RuntimeException("One to one associations are not yet implemented.");
-                } else if (association.getType().equals(Association.Type.ManyToMany)) {
-                    Map<Model,Map<String,Object>> children = Database.loadManyToManyAssociation(association.getModel(), this, association.getJoinTableName(), association.getParentIdField(), association.getChildIdField(), association.getJoinAttributes());
-                    List<Model> childrenList = new ArrayList<>(children.keySet());
-                    data.put(association.getModel().toString(), childrenList);
-                    associations.put(association, childrenList);
                 }
-            } catch(Exception e) {
-                e.printStackTrace();
             }
-        } /*
-        try {
-            List<Model> select = Database.selectAll(isRevenueModel, Association.Model.valueOf(this.getClass().getSimpleName()), tableName, Collections.emptyList(), associationsMeta, id);
-            if(select.size()>0) {
-                this.associations = select.get(0).getAssociations();
+        }else {
+            for (Association association : associationsMeta) {
+                try {
+                    if (association.getType().equals(Association.Type.OneToMany)) {
+                        List<Model> children = Database.loadOneToManyAssociation(association.getModel(), this, association.getChildTableName(), association.getParentIdField());
+                        data.put(association.getModel().toString(), children);
+                        associations.put(association, children);
+                    } else if (association.getType().equals(Association.Type.ManyToOne)) {
+                        Model parent = Database.loadManyToOneAssociation(association.getModel(), this, association.getChildTableName(), association.getParentIdField());
+                        if (parent != null) {
+                            data.put(association.getModel().toString(), parent);
+                            associations.put(association, Collections.singletonList(parent));
+                        }
+                    } else if (association.getType().equals(Association.Type.OneToOne)) {
+                        throw new RuntimeException("One to one associations are not yet implemented.");
+                    } else if (association.getType().equals(Association.Type.ManyToMany)) {
+                        Map<Model, Map<String, Object>> children = Database.loadManyToManyAssociation(association.getModel(), this, association.getJoinTableName(), association.getParentIdField(), association.getChildIdField(), association.getJoinAttributes());
+                        List<Model> childrenList = new ArrayList<>(children.keySet());
+                        data.put(association.getModel().toString(), childrenList);
+                        associations.put(association, childrenList);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
-        } catch(Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error loading associations for: "+getClass().getSimpleName()+" - "+id);
-        }*/
+        }
     }
 
-    public void loadAttributesFromDatabase() {
+
+    public void loadAttributesFromDatabase(boolean force) {
         if(!existsInDatabase()) {
             throw new RuntimeException("Trying to select a record that does not exist in the database...");
         }
+        if(data!=null && !force) return;
         try {
+            System.out.println("Select "+this.getClass().getSimpleName()+" - "+id);
             this.data = Database.select(tableName, id, availableAttributes);
         } catch(Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error loading attributes from database: " + e.getMessage());
         }
+    }
+
+    public void loadAttributesFromDatabase() {
+        loadAttributesFromDatabase(false);
     }
 
     public void updateInDatabase() {

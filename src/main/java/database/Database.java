@@ -8,6 +8,7 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -303,19 +304,13 @@ public class Database {
             attrList.remove(Constants.NAME);
         }
         PreparedStatement ps;
+        String attrStr = String.join(",", attrList.stream().map(a -> "r." + a).collect(Collectors.toList()));
+        if(attrList.size()>0) {
+            attrStr = ","+attrStr;
+        }
         if(isRevenueModel) {
             if(model.equals(Association.Model.MarketShareRevenue)) {
-                String attrStr = String.join(",", attrList.stream().map(a -> "r." + a).collect(Collectors.toList()));
-                if(attrList.size()>0) {
-                    attrStr = ","+attrStr;
-                }
-                String sqlStr;
-                if(parentAssociation==null) {
-                    sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r left join companies as c on (c.id=r.company_id) left join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
-                } else {
-                    sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + ",p.id as parent_id, \'Parent Revenue\' as parent_name from " + tableName + " as r left join companies as c on (c.id=r.company_id) left join markets as m on (r.market_id=m.id) left join "+parentAssociation.getParentTableName()+" as p on (r."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
-                }
-                System.out.println("Market share sql str: "+sqlStr);
+                String sqlStr = "select r.id as id,c.name||'''s share of ' || m.name||' market ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r left join companies as c on (c.id=r.company_id) left join markets as m on (r.market_id=m.id) " + (searchName == null ? "" : (" where (lower(m.name) || lower(c.name)) like '%'||?||'%' ")) + " order by c.name";
                 ps = conn.prepareStatement(sqlStr);
 
             } else {
@@ -326,26 +321,12 @@ public class Database {
                     parentTableName = "companies"; // handle weird english language
                 }
                 parentIdField = model.toString().replace("Revenue", "").toLowerCase() + "_id";
-                String attrStr = String.join(",", attrList.stream().map(a -> "r." + a).collect(Collectors.toList()));
-                if(attrList.size()>0) {
-                    attrStr = ","+attrStr;
-                }
-                String sqlStr;
-                if(parentAssociation==null) {
-                    sqlStr ="select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r left join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
-                } else {
-                    sqlStr ="select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + ",p.id as parent_id, \'Parent Revenue\' as parent_name from " + tableName + " as r left join " + parentTableName + " as j on (r." + parentIdField + "=j.id) left join "+parentAssociation.getParentTableName()+" as p on (r."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
-                }
+                String sqlStr = "select r.id as id,j.name||' Revenue ('||r.year::text||')' as name" + attrStr + " from " + tableName + " as r left join " + parentTableName + " as j on (r." + parentIdField + "=j.id) " + (searchName == null ? "" : (" where lower(j.name) like '%'||?||'%' ")) + " order by lower(j.name)";
                 ps = conn.prepareStatement(sqlStr);
             }
 
         } else {
-            if (parentAssociation != null) {
-                ps = conn.prepareStatement("select c.id as id," + String.join(",",  attrList.stream().map(a -> "c." + a).collect(Collectors.toList())) + ",p.id as parent_id, p.name as parent_name from " + tableName + " as c left join "+parentAssociation.getParentTableName()+" as p on (c."+parentAssociation.getParentIdField()+"=p.id) " + (searchName == null ? "" : (" where lower(c.name) like '%'||?||'%' ")) + " order by lower(c.name)");
-
-            } else {
-                ps = conn.prepareStatement("select id," + String.join(",", attrList) + " from " + tableName + "" + (searchName == null ? "" : (" where lower(name) like '%'||?||'%' ")) + " order by lower(name)");
-            }
+            ps = conn.prepareStatement("select id" + attrStr + " from " + tableName + " as r " + (searchName == null ? "" : (" where lower(name) like '%'||?||'%' ")) + " order by lower(name)");
         }
         if(searchName!=null) {
             ps.setString(1, searchName);
@@ -362,26 +343,6 @@ public class Database {
                 data.put(attrList.get(i), rs.getObject(i + 2));
             }
             Model m = buildModelFromDataAndType(id, data, model);
-            Map<Association, List<Model>> associationsMap = new HashMap<>();
-            if(parentAssociation!=null) {
-                // add association
-                Association modelsAssociation = m.getAssociationsMeta().stream().filter(a->a.getAssociationName().equals(parentAssociation.getAssociationName())).findAny().orElse(null);
-                if(modelsAssociation!=null) {
-                    List<Model> parentList = new ArrayList<>();
-                    Integer parentId = (Integer)rs.getObject(attrList.size()+2);
-                    if(parentId!=null) {
-                        String parentName = (String) rs.getObject(attrList.size() + 3);
-                        Map<String, Object> parentData = new HashMap<>();
-                        parentData.put(Constants.NAME, parentName);
-                        Model parent = buildModelFromDataAndType(parentId, parentData, model);
-                        if(parent!=null) {
-                            parentList.add(parent);
-                        }
-                    }
-                    associationsMap.put(modelsAssociation, parentList);
-                }
-                m.setAssociations(associationsMap);
-            }
             models.add(m);
 
         }
@@ -390,7 +351,41 @@ public class Database {
         return models;
     }
 
-    public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, List<Association> associations, Integer findId) throws SQLException {
+
+    private static void selectAllHelper(String parentPrefix, String prefix, List<Association> associations, Map<String,Association> prefixToAssocMap, Collection<String> joinAttrStrs, Collection<String> allJoins, Collection<String> groups, AtomicBoolean useGroups, int depth, int maxDepth)  {
+        if(depth>=maxDepth) return;
+        for (int i = 0; i < associations.size(); i++) {
+            Association association = associations.get(i);
+            if(association.getAssociationName().equals("Sub Market")) {
+                continue;
+            }
+            Model m = buildModelFromDataAndType(null, null, association.getModel());
+            if (m != null) {
+                String j = prefix + i;
+                String joinStr;
+                List<String> assocAttrList = new ArrayList<>(m.getAvailableAttributes());
+                if (m.isRevenueModel()) {
+                    assocAttrList.remove(Constants.NAME);
+                }
+                if (association.getType().equals(Association.Type.ManyToOne)) {
+                    allJoins.add("left join " + association.getParentTableName() + " as " + j + " on (" + j + ".id="+parentPrefix+"." + association.getParentIdField() + ")");
+                    joinStr = j + ".id," + String.join(",", assocAttrList.stream().map(a -> j + "." + a).collect(Collectors.toList()));
+                    groups.add(j + ".id");
+                } else if (association.getType().equals(Association.Type.OneToMany)) {
+                    allJoins.add("left join " + association.getChildTableName() + " as " + j + " on (" + j + "." + association.getParentIdField() + "="+parentPrefix+".id)");
+                    joinStr = "array_agg(" + j + ".id)," + String.join(",", assocAttrList.stream().map(a -> "array_agg(" + j + "." + a + ")").collect(Collectors.toList()));
+                    groups.add(parentPrefix + ".id");
+                    useGroups.set(true);
+                } else {
+                    throw new RuntimeException("Unsupported join type: " + association.getType());
+                }
+                joinAttrStrs.add(joinStr);
+                prefixToAssocMap.put(j, association);
+            }
+        }
+    }
+
+    public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, List<Association> associations, Integer findId, int maxDepth) throws SQLException {
         List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
         if(isRevenueModel) {
             attrList.remove(Constants.NAME);
@@ -400,42 +395,15 @@ public class Database {
         List<String> allJoins = new ArrayList<>();
         Map<String, Association> prefixToAssocMap = new HashMap<>();
         Set<String> groups = new HashSet<>();
-        boolean useGroups = false;
+        AtomicBoolean useGroups = new AtomicBoolean(false);
         if(associations!=null) {
             // add other attr strs
-            for(int i = 0; i < associations.size(); i++) {
-                Association association = associations.get(i);
-                Model m = buildModelFromDataAndType(null, null, association.getModel());
-                if (m != null) {
-                    String j = "j"+i;
-                    String joinStr;
-                    List<String> assocAttrList = new ArrayList<>(m.getAvailableAttributes());
-                    if(m.isRevenueModel()) {
-                        assocAttrList.remove(Constants.NAME);
-                    }
-                    if(j.equals("j0")) {
-                        System.out.println("Attr list: "+assocAttrList);
-                    }
-                    if(association.getType().equals(Association.Type.ManyToOne)) {
-                        allJoins.add("left join "+association.getParentTableName()+ " as "+j+" on ("+j+".id=r."+association.getParentIdField()+")");
-                        joinStr = j+".id,"+String.join(",", assocAttrList.stream().map(a -> j + "." + a).collect(Collectors.toList()));
-                        groups.add(j+".id");
-                    } else if (association.getType().equals(Association.Type.OneToMany)) {
-                        allJoins.add("left join "+association.getChildTableName()+ " as "+j+" on ("+j+"."+association.getParentIdField()+"=r.id)");
-                        joinStr = "array_agg("+j+".id),"+String.join(",", assocAttrList.stream().map(a -> "array_agg("+ j + "." + a+")").collect(Collectors.toList()));
-                        groups.add("r.id");
-                        useGroups = true;
-                    } else {
-                        throw new RuntimeException("Unsupported join type: "+association.getType());
-                    }
-                    joinAttrStrs.add(joinStr);
-                    prefixToAssocMap.put(j, association);
-                }
-            }
+            selectAllHelper("r", "j", associations, prefixToAssocMap, joinAttrStrs, allJoins, groups, useGroups, 0, maxDepth);
         }
         String groupBy = "";
-        if(useGroups && groups.size() > 0) {
-           groupBy = " group by "+String.join(",", groups);
+        if(useGroups.get() && groups.size() > 0) {
+            groups.add("r.id");
+            groupBy = " group by "+String.join(",", groups);
         }
         String where = "";
         if(findId!=null) {
@@ -517,7 +485,7 @@ public class Database {
                                     }
                                 } else if(modelsAssociation.getType().equals(Association.Type.OneToMany)) {
                                     Array assocIdsArr = rs.getArray(queryIdx.getAndIncrement());
-                                    if (assocIdsArr != null) {
+                                    if (assocIdsArr != null && assocIdsArr.getResultSet()!=null) {
                                         Integer[] assocIds = (Integer[])assocIdsArr.getArray();
                                         List<Map<String,Object>> dataMaps = new ArrayList<>(assocIds.length);
                                         for(int i = 0; i < assocIds.length; i++) {

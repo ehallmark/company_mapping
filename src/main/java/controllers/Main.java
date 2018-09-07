@@ -6,6 +6,7 @@ import com.google.gson.Gson;
 import com.googlecode.wickedcharts.highcharts.jackson.JsonRenderer;
 import com.googlecode.wickedcharts.highcharts.options.Options;
 import database.Database;
+import graph.Graph;
 import j2html.tags.ContainerTag;
 import models.*;
 import spark.QueryParamsMap;
@@ -43,7 +44,7 @@ public class Main {
         return loadModel(type, id);
     }
 
-    private static Model getModelByType(Association.Model type) {
+    public static Model getModelByType(Association.Model type) {
         return loadModel(type, null);
     }
 
@@ -210,7 +211,7 @@ public class Main {
             humanHeaders.add(0, Constants.humanAttrFor(Constants.NAME));
             headers.add(0, Constants.NAME);
         }
-        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes(), associations, null);
+        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes(), associations, null, 1);
     }
 
     public static ContainerTag getReportOptionsForm(Model model, String clazz) {
