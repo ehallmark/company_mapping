@@ -594,7 +594,7 @@ var onShowResourceFunction = function($topElem) {
                         alert(showData.error);
                     } else {
                         if(inDiagram && inDiagram.length>0) {
-                            showDiagramFunction(associationId,associationName);
+                            showDiagramFunction(inDiagram.attr("data-id"),inDiagram.attr('data-resource'));
                         } else {
                             showResourceFunction(associationName, associationId);
                         }

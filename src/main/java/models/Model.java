@@ -92,6 +92,10 @@ public abstract class Model implements Serializable {
         );
     }
 
+    public Association findAssociation(@NonNull String associationName) {
+        return associationsMeta.stream().filter(a->a.getAssociationName().equals(associationName))
+                .findAny().orElse(null);
+    }
 
     public void buildTimelineSeries(String groupByField, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
         // yearly timeline
@@ -657,8 +661,7 @@ public abstract class Model implements Serializable {
         }
     }
 
-    public ContainerTag loadNestedAssociations() {
-        final int maxDepth = 1;
+    public ContainerTag loadNestedAssociations(int maxDepth) {
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -673,12 +676,12 @@ public abstract class Model implements Serializable {
         ContainerTag inner = ul();
         calculateRevenue(null, null, false, Constants.MissingRevenueOption.replace, null, false);
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
-                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
+                li().with(getSimpleLink().attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(Constants.YEAR,true, null, null, false, Constants.MissingRevenueOption.replace, inner, allReferences, new AtomicInteger(0), this, 0, maxDepth);
+        loadNestedAssociationHelper(Constants.YEAR,true, null, null, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth);
         return tag;
     };
 
@@ -704,7 +707,7 @@ public abstract class Model implements Serializable {
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(Constants.YEAR,false, startYear, endYear, useCAGR, option, inner, allReferences, new AtomicInteger(0), this, 0, maxDepth);
+        loadNestedAssociationHelper(Constants.YEAR,false, startYear, endYear, useCAGR, option, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth);
         return tag;
     };
 
@@ -925,7 +928,7 @@ public abstract class Model implements Serializable {
          If no revenue is present for a company, do nothing. If no revenue is present for a product, do nothing.
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
-    private void loadNestedAssociationHelper(String groupRevenuesBy, boolean allowEdit, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original, int depth, int maxDepth) {
+    private void loadNestedAssociationHelper(String groupRevenuesBy, boolean allowEdit, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth) {
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
@@ -1092,8 +1095,9 @@ public abstract class Model implements Serializable {
                             } else {
                                 group = groupRevenuesBy;
                             }
-                            model.loadNestedAssociationHelper(group, allowEdit, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), cnt, original, depth + 1, maxDepth);
+                            model.loadNestedAssociationHelper(group, allowEdit, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth);
                         }
+                        references.add(_id);
                         alreadySeen.add(_id);
                     }
                 }
@@ -1150,7 +1154,7 @@ public abstract class Model implements Serializable {
                 // make sure we haven't introduced in cycles
                 if(association.getModel().toString().equals(this.getClass().getSimpleName())) {
                     System.out.println("Checking for cycles...");
-                    loadNestedAssociations(); // hack to access allReferences
+                    loadNestedAssociations(10); // hack to access allReferences
                     String otherRef = otherModel.getClass().getSimpleName() + otherModel.getId();
                     if (this.allReferences.contains(otherRef)) {
                         throw new RuntimeException("Unable to assign association. Cycle detected.");

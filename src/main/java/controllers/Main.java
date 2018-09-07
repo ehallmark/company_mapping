@@ -635,10 +635,9 @@ public class Main {
             authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
-                ContainerTag diagram = model.loadNestedAssociations();
-
+                ContainerTag diagram = model.loadNestedAssociations(1);
                 ContainerTag html = div().withClass("col-12").with(
-                        div().attr("display: none;").withId("in_diagram_flag"),
+                        div().attr("display: none;").withId("in_diagram_flag").attr("data-id", model.getId().toString()).attr("data-resource", model.getType().toString()),
                         model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
                         h3("Diagram of "+model.getData().get(Constants.NAME)),
                         diagram
@@ -749,44 +748,6 @@ public class Main {
             }
             return null;
         });
-
-        // diagram all
-
-        post("/diagram/:resource", (req, res)-> {
-            authorize(req,res);
-            Association.Model type;
-            String resource = req.params("resource");
-            try {
-                type = Association.Model.valueOf(resource);
-            } catch (Exception e) {
-                e.printStackTrace();
-                return null;
-            }
-            Model _model = loadModel(type, null);
-            if(_model!=null) {
-                List<String> headers = new ArrayList<>();
-                Set<String> numericAttrs = new HashSet<>();
-                List<String> humanHeaders = new ArrayList<>();
-                List<Model> data = selectAll(_model, type, headers, humanHeaders, numericAttrs);
-                ContainerTag html  = div().withClass("col-12").with(
-                        h3("Diagram of All "+Constants.pluralizeAssociationName(Constants.humanAttrFor(_model.getClass().getSimpleName())))
-                );
-                for(Model model : data) {
-                    if(!model.getClass().getSimpleName().equals(Association.Model.Market.toString()) || model.getData().get(Constants.PARENT_MARKET_ID)==null) {
-                        ContainerTag diagram = model.loadNestedAssociations();
-                        html.with(div().withClass("col-12").with(
-                                h4("Diagram of " + model.getData().get(Constants.NAME)).attr("style", "cursor: pointer;")
-                                .attr("onclick", "$(this).next().slideToggle();"),
-                                diagram
-                                )
-                        );
-                    }
-                }
-                return new Gson().toJson(Collections.singletonMap("result", html.render()));
-            }
-            return null;
-        });
-
 
         get("/resources/:resource/:id", (req, res) -> {
             authorize(req, res);

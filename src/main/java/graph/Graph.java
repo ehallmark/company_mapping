@@ -59,7 +59,8 @@ public class Graph {
             edge.getTarget().getEdgeMap().getOrDefault(association.getReverseAssociationName(), new ArrayList<>(1))
                     .removeIf(e->e.getTarget().equals(node));
             edge.getTarget().getModel().loadAssociations();
-            edge.getTarget().getModel().getAssociations().getOrDefault(association, new ArrayList<>(1))
+            Association targetAssoc = edge.getTarget().getModel().findAssociation(association.getReverseAssociationName());
+            edge.getTarget().getModel().getAssociations().getOrDefault(targetAssoc, new ArrayList<>(1))
                     .removeIf(e->new Node(e).equals(node));
         });
         node.getEdgeMap().remove(association.getAssociationName());
@@ -76,7 +77,8 @@ public class Graph {
                         edge.getTarget().getEdgeMap().getOrDefault(edge.getAssociation().getReverseAssociationName(), new ArrayList<>(1))
                         .removeIf(e->e.getTarget().equals(node));
                         edge.getTarget().getModel().loadAssociations();
-                        edge.getTarget().getModel().getAssociations().getOrDefault(edge.getAssociation(), new ArrayList<>(1))
+                        Association targetAssoc = edge.getTarget().getModel().findAssociation(edge.getAssociation().getReverseAssociationName());
+                        edge.getTarget().getModel().getAssociations().getOrDefault(targetAssoc, new ArrayList<>(1))
                                .removeIf(e->new Node(e).equals(node));
                    });
                 });
