@@ -168,25 +168,27 @@ public class Main {
         return true;
     }
 
-    public static List<Model> selectAll(Model model, Association.Model type, List<String> headers, List<String> humanHeaders, Set<String> numericAttrs, Association parentAssociation) throws Exception {
+    public static List<Model> selectAll(Model model, Association.Model type, List<String> headers, List<String> humanHeaders, Set<String> numericAttrs) throws Exception {
         for(String header : model.getAvailableAttributes()) {
             if (!Constants.isHiddenAttr(header) && !Arrays.asList(Constants.UPDATED_AT,Constants.CREATED_AT).contains(header)) {
                 headers.add(header);
                 humanHeaders.add(Constants.humanAttrFor(header));
             }
         }
-        if(parentAssociation!=null) {
-            if(model.isRevenueModel()) {
-                headers.add(0, parentAssociation.getAssociationName().toLowerCase().replace(" ", "-"));
-                boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(parentAssociation.getType());
-                humanHeaders.add(0, pluralize ? Constants.pluralizeAssociationName(parentAssociation.getAssociationName()) : parentAssociation.getAssociationName());
-            } else {
-                headers.add(parentAssociation.getAssociationName().toLowerCase().replace(" ", "-"));
-                boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(parentAssociation.getType());
-                humanHeaders.add(pluralize ? Constants.pluralizeAssociationName(parentAssociation.getAssociationName()) : parentAssociation.getAssociationName());
-            }
+        List<Association> associations = model.getAssociationsMeta();
+        if(!model.isRevenueModel()) {
+            associations = associations.stream().filter(a->!a.getModel().toString().contains("Revenue"))
+                    .collect(Collectors.toList());
+        } else {
+            associations = associations.stream().filter(a->!a.getAssociationName().contains("Sub Revenue"))
+                    .collect(Collectors.toList());
         }
-       /* for(Association association : model.getAssociationsMeta()) {
+
+        associations = associations.stream().filter(association->{
+            return association.getType().equals(Association.Type.ManyToOne) || !association.shouldNotExpand(model.isRevenueModel(), Integer.MAX_VALUE);
+        }).collect(Collectors.toList());
+
+        for(Association association : associations) {
             if(model.isRevenueModel()) {
                 headers.add(0, association.getAssociationName().toLowerCase().replace(" ", "-"));
                 boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
@@ -197,7 +199,6 @@ public class Main {
                 humanHeaders.add(pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName());
             }
         }
-        */
 
         for(String header : headers) {
             if(Constants.fieldTypeForAttr(header).equals(Constants.NUMBER_FIELD_TYPE)) {
@@ -209,8 +210,7 @@ public class Main {
             humanHeaders.add(0, Constants.humanAttrFor(Constants.NAME));
             headers.add(0, Constants.NAME);
         }
-
-        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes(), parentAssociation);
+        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes(), associations, null);
     }
 
     public static ContainerTag getReportOptionsForm(Model model, String clazz) {
@@ -474,7 +474,7 @@ public class Main {
                     List<String> fieldsToUse = new ArrayList<>();
                     fieldsToUse.add(fieldToUse);
                     if(_showTopLevelOnly || type.equals(Association.Model.Region)) fieldsToUse.add(Constants.PARENT_REGION_ID);
-                    models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, search, null).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
+                    models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, search, (Association)null).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
                     if(_showTopLevelOnly) {
                         models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
                     } else if(type.equals(Association.Model.Region) && _parentRegionId!=null) {
@@ -549,33 +549,8 @@ public class Main {
                 List<String> headers = new ArrayList<>();
                 Set<String> numericAttrs = new HashSet<>();
                 List<String> humanHeaders = new ArrayList<>();
-                String parentAssocName = null;
-                switch (type) {
-                    case Region: {
-                        parentAssocName = Constants.PARENT_REGION_ID;
-                        break;
-                    }
-                    case Market: {
-                        parentAssocName = Constants.PARENT_MARKET_ID;
-                        break;
-                    }
-                    case Company: {
-                        parentAssocName = Constants.PARENT_COMPANY_ID;
-                        break;
-                    }
-                    case Product: {
-                        break;
-                    }
-                    default: { // Must be revenue
-                        parentAssocName = Constants.PARENT_REVENUE_ID;
-                        break;
-                    }
-                }
-                final String _parentAssocName = parentAssocName;
-                Association parentAssoc = _parentAssocName == null ? null :
-                        model.getAssociationsMeta().stream().filter(a->a.getType().equals(Association.Type.ManyToOne) && a.getParentIdField().equals(_parentAssocName)).findAny().orElse(null);
 
-                List<Map<String,String>> data = selectAll(model, type, headers, humanHeaders, numericAttrs, parentAssoc)
+                List<Map<String,String>> data = selectAll(model, type, headers, humanHeaders, numericAttrs)
                         .stream().map(m->{
                             Map<String,String> map = new HashMap<>(m.getData().size()+m.getAssociationsMeta().size());
                             m.getData().forEach((k,v)->{
@@ -585,7 +560,7 @@ public class Main {
                             map.put(Constants.NAME, m.getSimpleLink().render());
                             //m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
-                                if(parentAssoc==null) {
+                                if(!assoc.getType().equals(Association.Type.ManyToOne) && assoc.shouldNotExpand(model.isRevenueModel(), Integer.MAX_VALUE)) {
                                     return;
                                 }
                                 List<Model> assocModel = m.getAssociations().get(assoc);
@@ -608,19 +583,8 @@ public class Main {
                                     map.put(fieldName, "");
                                     map.put(fieldNameTextOnly, "");
                                 } else {
-                                    if(model.isRevenueModel()) {
-                                        String value = String.join("<br/>", assocModel.stream().map(a -> (String)a.getData().get(Constants.NAME)).collect(Collectors.toList()));
-                                        if(value.length()>0) {
-                                            map.put(fieldName, value);
-                                            map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String) a.getData().get(Constants.NAME)).collect(Collectors.toList())));
-                                        } else {
-                                            map.put(fieldName, "");
-                                            map.put(fieldNameTextOnly, "");
-                                        }
-                                    } else {
-                                        map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink(additionalClasses).render()).collect(Collectors.toList())));
-                                        map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String) a.getData().get(Constants.NAME)).collect(Collectors.toList())));
-                                    }
+                                    map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink(additionalClasses).render()).collect(Collectors.toList())));
+                                    map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String) a.getData().get(Constants.NAME)).collect(Collectors.toList())));
                                 }
                             });
 
@@ -791,7 +755,7 @@ public class Main {
                 List<String> headers = new ArrayList<>();
                 Set<String> numericAttrs = new HashSet<>();
                 List<String> humanHeaders = new ArrayList<>();
-                List<Model> data = selectAll(_model, type, headers, humanHeaders, numericAttrs, null);
+                List<Model> data = selectAll(_model, type, headers, humanHeaders, numericAttrs);
                 ContainerTag html  = div().withClass("col-12").with(
                         h3("Diagram of All "+Constants.pluralizeAssociationName(Constants.humanAttrFor(_model.getClass().getSimpleName())))
                 );

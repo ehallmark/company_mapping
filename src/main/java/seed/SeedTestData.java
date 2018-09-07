@@ -164,7 +164,7 @@ public class SeedTestData {
         if(depth > 2) return; // clip depth
 
         for(int i = 1; i <= numSamples; i++) {
-            String name = "Test " + model + (depth > 0 ? " "+depth : "") + " - " + i;
+            String name = "Test " + model + (depth > 0 ? " "+depth : "") + " - " + Math.abs(rand.nextInt());
             System.out.println("FOUND: "+name);
             Map<String,Object> data = new HashMap<>();
             if(parentId!=null) {

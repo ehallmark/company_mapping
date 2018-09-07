@@ -8,6 +8,7 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class Database {
@@ -289,7 +290,7 @@ public class Database {
     }
 
     public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes) throws SQLException {
-        return selectAll(isRevenueModel, model, tableName, attributes, null, null);
+        return selectAll(isRevenueModel, model, tableName, attributes, null, (Association)null);
     }
 
     public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, Association parentAssociation) throws SQLException {
@@ -378,6 +379,171 @@ public class Database {
                         }
                     }
                     associationsMap.put(modelsAssociation, parentList);
+                }
+                m.setAssociations(associationsMap);
+            }
+            models.add(m);
+
+        }
+        rs.close();
+        ps.close();
+        return models;
+    }
+
+    public static synchronized List<Model> selectAll(boolean isRevenueModel, @NonNull Association.Model model, @NonNull String tableName, @NonNull Collection<String> attributes, List<Association> associations, Integer findId) throws SQLException {
+        List<String> attrList = new ArrayList<>(new HashSet<>(attributes));
+        if(isRevenueModel) {
+            attrList.remove(Constants.NAME);
+        }
+        PreparedStatement ps;
+        List<String> joinAttrStrs = new ArrayList<>();
+        List<String> allJoins = new ArrayList<>();
+        Map<String, Association> prefixToAssocMap = new HashMap<>();
+        Set<String> groups = new HashSet<>();
+        boolean useGroups = false;
+        if(associations!=null) {
+            // add other attr strs
+            for(int i = 0; i < associations.size(); i++) {
+                Association association = associations.get(i);
+                Model m = buildModelFromDataAndType(null, null, association.getModel());
+                if (m != null) {
+                    String j = "j"+i;
+                    String joinStr;
+                    List<String> assocAttrList = new ArrayList<>(m.getAvailableAttributes());
+                    if(m.isRevenueModel()) {
+                        assocAttrList.remove(Constants.NAME);
+                    }
+                    if(j.equals("j0")) {
+                        System.out.println("Attr list: "+assocAttrList);
+                    }
+                    if(association.getType().equals(Association.Type.ManyToOne)) {
+                        allJoins.add("left join "+association.getParentTableName()+ " as "+j+" on ("+j+".id=r."+association.getParentIdField()+")");
+                        joinStr = j+".id,"+String.join(",", assocAttrList.stream().map(a -> j + "." + a).collect(Collectors.toList()));
+                        groups.add(j+".id");
+                    } else if (association.getType().equals(Association.Type.OneToMany)) {
+                        allJoins.add("left join "+association.getChildTableName()+ " as "+j+" on ("+j+"."+association.getParentIdField()+"=r.id)");
+                        joinStr = "array_agg("+j+".id),"+String.join(",", assocAttrList.stream().map(a -> "array_agg("+ j + "." + a+")").collect(Collectors.toList()));
+                        groups.add("r.id");
+                        useGroups = true;
+                    } else {
+                        throw new RuntimeException("Unsupported join type: "+association.getType());
+                    }
+                    joinAttrStrs.add(joinStr);
+                    prefixToAssocMap.put(j, association);
+                }
+            }
+        }
+        String groupBy = "";
+        if(useGroups && groups.size() > 0) {
+           groupBy = " group by "+String.join(",", groups);
+        }
+        String where = "";
+        if(findId!=null) {
+            where = " where r.id = ? ";
+        }
+        String attrStr = String.join(",", attrList.stream().map(a -> "r." + a).collect(Collectors.toList()));
+        if(attrList.size()>0) {
+            attrStr = ","+attrStr;
+        }
+        if(isRevenueModel) {
+            if(model.equals(Association.Model.MarketShareRevenue)) {
+                String sqlStr;
+                if (associations != null && allJoins.size()>0 && joinAttrStrs.size()>0) {
+                    sqlStr = "select r.id as id,'Market Share' as name " + attrStr + ","+String.join(",", joinAttrStrs)+" from " + tableName + " as r " + String.join(" ", allJoins) + where + " " + groupBy;
+                } else {
+                    sqlStr = "select id,'Market Share' as name " + attrStr + " from " + tableName + where;
+                }
+                ps = conn.prepareStatement(sqlStr);
+
+            } else {
+                String sqlStr;
+                if (associations != null && allJoins.size()>0 && joinAttrStrs.size()>0) {
+                    sqlStr ="select r.id as id,'Revenue' as name " + attrStr + ","+String.join(",", joinAttrStrs)+" from " + tableName + " as r " + String.join(" ", allJoins) + where + " " + groupBy;
+                } else {
+                    sqlStr ="select id,'Revenue' as name " + attrStr + " from " + tableName + where;
+                }
+                ps = conn.prepareStatement(sqlStr);
+            }
+
+        } else {
+            if (associations != null && allJoins.size()>0 && joinAttrStrs.size()>0) {
+                ps = conn.prepareStatement("select r.id as id" + attrStr + "," + String.join(",",joinAttrStrs) + " from " + tableName + " as r "+ String.join(" ", allJoins)+ where + " " + groupBy);
+
+            } else {
+                ps = conn.prepareStatement("select id" + attrStr + " from " + tableName + where);
+            }
+        }
+        if(findId!=null) {
+            ps.setInt(1, findId);
+        }
+        System.out.println("QUERY: "+ps.toString());
+        ResultSet rs = ps.executeQuery();
+        List<Model> models = new ArrayList<>();
+        if(isRevenueModel) {
+            attrList.add(0, Constants.NAME);
+        }
+        while(rs.next()) {
+            AtomicInteger queryIdx = new AtomicInteger(1);
+            Map<String, Object> data = new HashMap<>();
+            int id = rs.getInt(queryIdx.getAndIncrement());
+            for (int i = 0; i < attrList.size(); i++) {
+                data.put(attrList.get(i), rs.getObject(queryIdx.getAndIncrement()));
+            }
+            Model m = buildModelFromDataAndType(id, data, model);
+            Map<Association, List<Model>> associationsMap = new HashMap<>();
+            if (associations != null) {
+                if(allJoins.size()>0 && joinAttrStrs.size()>0) {
+                    List<String> prefixes = new ArrayList<>(prefixToAssocMap.keySet());
+                    prefixes.sort(Comparator.naturalOrder());
+                    for (String prefix : prefixes) {
+                        Association association = prefixToAssocMap.get(prefix);
+                        // add association
+                        Association modelsAssociation = m.getAssociationsMeta().stream().filter(a -> a.getAssociationName().equals(association.getAssociationName())).findAny().orElse(null);
+                        if (modelsAssociation != null) {
+                            Model assoc = buildModelFromDataAndType(null, null, modelsAssociation.getModel());
+                            List<Model> assocList = new ArrayList<>();
+                            if (assoc != null) {
+                                if(modelsAssociation.getType().equals(Association.Type.ManyToOne)) {
+                                    Integer assocId = (Integer) rs.getObject(queryIdx.getAndIncrement());
+                                    if (assocId != null) {
+                                        Map<String, Object> assocData = new HashMap<>();
+                                        for (String attr : assoc.getAvailableAttributes()) {
+                                            assocData.put(attr, rs.getObject(queryIdx.getAndIncrement()));
+                                        }
+                                        assoc = buildModelFromDataAndType(assocId, assocData, association.getModel());
+                                        if (assoc != null) {
+                                            assocList.add(assoc);
+                                        }
+                                    }
+                                } else if(modelsAssociation.getType().equals(Association.Type.OneToMany)) {
+                                    Array assocIdsArr = rs.getArray(queryIdx.getAndIncrement());
+                                    if (assocIdsArr != null) {
+                                        Integer[] assocIds = (Integer[])assocIdsArr.getArray();
+                                        List<Map<String,Object>> dataMaps = new ArrayList<>(assocIds.length);
+                                        for(int i = 0; i < assocIds.length; i++) {
+                                            dataMaps.add(new HashMap<>());
+                                        }
+                                        for (String attr : assoc.getAvailableAttributes()) {
+                                            Object[] assocFieldArr = (Object[])rs.getArray(queryIdx.getAndIncrement()).getArray();
+                                            for(int i = 0; i < assocFieldArr.length; i++) {
+                                                dataMaps.get(i).put(attr, assocFieldArr[i]);
+                                            }
+                                        }
+                                        for(int i = 0; i < assocIds.length; i++) {
+                                            if(assocIds[i] != null) {
+                                                Model newAssoc = buildModelFromDataAndType(assocIds[i], dataMaps.get(i), association.getModel());
+                                                if (newAssoc != null) {
+                                                    assocList.add(newAssoc);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                            }
+                            associationsMap.put(modelsAssociation, assocList);
+                        }
+                    }
                 }
                 m.setAssociations(associationsMap);
             }

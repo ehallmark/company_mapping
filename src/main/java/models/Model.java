@@ -448,20 +448,6 @@ public abstract class Model implements Serializable {
         return allOptions;
     }
 
-    public boolean hasSubMarkets() {
-        if(associations==null) loadAssociations();
-
-        for(Association association : associationsMeta) {
-            if(association.getAssociationName().equals("Sub Market")) {
-                List<Model> subMarkets = associations.get(association);
-                if(subMarkets!=null && subMarkets.size()>0) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     public ContainerTag getSimpleLink(@NonNull String... additionalClasses) {
         if(isRevenueModel) {
             boolean isMarketShare = this.getClass().getSimpleName().equals(Association.Model.MarketShareRevenue.toString());
@@ -469,18 +455,18 @@ public abstract class Model implements Serializable {
             // TODO speed up this query
             if(!data.containsKey(Constants.NAME)) {
                 loadAssociations();
-                if(data.get(Constants.REGION_ID)!=null) {
-                    Region region = new Region((Integer)data.get(Constants.REGION_ID), null);
-                    region.loadAttributesFromDatabase();
-                    data.put(Constants.NAME, region.data.get(Constants.NAME));
+                Association regional = associationsMeta.stream().filter(a->a.getModel().equals(Association.Model.Region)).findAny().orElse(null);
+                if(regional!=null) {
+                    List<Model> regions = associations.get(regional);
+                    if(regions!=null && regions.size()>0) {
+                        Model region = regions.get(0);
+                        data.put(Constants.NAME, region.data.get(Constants.NAME));
+                    }
                 }
                 if(isMarketShare) {
                     String companyName = "";
                     String marketName = "";
                     String regionName = "";
-                    if(associations==null) {
-                        loadNestedAssociations();
-                    }
                     for(Association association : associationsMeta) {
                         if (associations.getOrDefault(association, Collections.emptyList()).size() > 0) {
                             if(association.getModel().equals(Association.Model.Company)) {
@@ -667,7 +653,7 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag loadNestedAssociations() {
-        final int maxDepth = 10;
+        final int maxDepth = 5;
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -685,7 +671,7 @@ public abstract class Model implements Serializable {
 
 
     public ContainerTag loadReport(int startYear, int endYear, boolean useCAGR, Constants.MissingRevenueOption option) {
-        final int maxDepth = 10;
+        final int maxDepth = 5;
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -927,19 +913,10 @@ public abstract class Model implements Serializable {
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
         for(Association association : associationsMeta) {
-            //if(!association.getModel().equals(Association.Model.MarketShareRevenue) && association.getModel().toString().endsWith("Revenue")) {
-            //    continue;
-            //}
-            if(association.getAssociationName().startsWith("Parent ")||association.getAssociationName().equals("Sub Company")) {
+            if(association.shouldNotExpand(isRevenueModel(), depth)) {
                 continue;
             }
-            if(isRevenueModel() && !(association.getAssociationName().equals("Sub Revenue"))) {
-                continue;
-            }
-            // if not revenue and node expanded then exit
-            if(!association.getModel().toString().contains("Revenue") && !association.getModel().equals(Association.Model.Region) && depth >= 2) {
-                continue;
-            }
+
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
             if(startYear!=null && endYear!=null) {
                 assocModels = assocModels.stream().filter(m -> {
@@ -947,9 +924,8 @@ public abstract class Model implements Serializable {
                     return ((Integer) m.getData().get(Constants.YEAR)) >= startYear && ((Integer) m.getData().get(Constants.YEAR)) <= endYear;
                 }).collect(Collectors.toList());
             }
-            //if(assocModels.size()>0) {
-                modelMap.put(association, assocModels);
-            //}
+
+            modelMap.put(association, assocModels);
         }
         calculateRevenue(startYear, endYear, useCAGR, option, null, true);
         if(modelMap.size()>0) {
@@ -1417,12 +1393,16 @@ public abstract class Model implements Serializable {
     }
 
     public void loadAssociations() {
-        if(!existsInDatabase()) {
+        if (!existsInDatabase()) {
             throw new RuntimeException("Cannot load associations if the model does not yet exist in the database.");
         }
-        if(data==null) {
+        if(associations!=null) {
+            return;
+        }
+        if (data == null) {
             loadAttributesFromDatabase();
         }
+
         this.associations = new HashMap<>();
         for(Association association : associationsMeta) {
             try {
@@ -1452,7 +1432,16 @@ public abstract class Model implements Serializable {
             } catch(Exception e) {
                 e.printStackTrace();
             }
-        }
+        } /*
+        try {
+            List<Model> select = Database.selectAll(isRevenueModel, Association.Model.valueOf(this.getClass().getSimpleName()), tableName, Collections.emptyList(), associationsMeta, id);
+            if(select.size()>0) {
+                this.associations = select.get(0).getAssociations();
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error loading associations for: "+getClass().getSimpleName()+" - "+id);
+        }*/
     }
 
     public void loadAttributesFromDatabase() {

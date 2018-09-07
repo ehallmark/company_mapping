@@ -26,12 +26,16 @@ public class Ingester {
         CSVReader nyseReader = new CSVReader(new BufferedReader(new FileReader(new File("NYSE_tickers.csv"))));
         List<String[]> nyseLines = nyseReader.readAll();
 
+        CSVReader aseReader = new CSVReader(new BufferedReader(new FileReader(new File("AMEX_tickers.csv"))));
+        List<String[]> aseLines = aseReader.readAll();
+
         nasdaqReader.close();
         nyseReader.close();
+        aseReader.close();
 
         ingest(nasdaqLines, Scraper.Prefix.xnas);
-        //ingest(nyseLines, Scraper.Prefix.xnys);
-        //ingest(nasdaqLines, Scraper.Prefix.xase);
+        ingest(nyseLines, Scraper.Prefix.xnys);
+        ingest(aseLines, Scraper.Prefix.xase);
 
     }
 
