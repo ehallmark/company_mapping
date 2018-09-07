@@ -714,20 +714,6 @@ public abstract class Model implements Serializable {
 
     private ContainerTag getRevenueAsSpan(Model originalModel) {
         ContainerTag updateRev = span();
-        /*if(isRevenueModel) {
-            updateRev = span();
-        } else {
-            if(associations==null) loadAssociations();
-            Association association = associationsMeta.stream().filter(a->!a.getModel().equals(Association.Model.MarketShareRevenue) && a.getModel().toString().contains("Revenue")).findAny().orElse(null);
-            if(association!=null) {
-                updateRev = getAddAssociationPanel(association,null,originalModel,"(New)").attr("style", "display: inline; margin-left: 10px;");
-            } else {
-                updateRev = span();
-            }
-            if(revenueLink!=null) {
-                return revenueLink.with(li().attr("style","list-style: none;").with(updateRev));
-            }
-        }*/
         String revStr = "(Revenue: "+formatRevenueString(revenue)+")";
         if(percentage!=null) {
             double percentageFull = percentage * 100;
@@ -736,7 +722,7 @@ public abstract class Model implements Serializable {
         return span(revStr).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
-    private Double calculateFromCAGR(Model best, int year) {
+    private synchronized Double calculateFromCAGR(Model best, int year) {
         if(best!=null) {
             System.out.println("Using CAGR...");
             int cagrYear = (Integer) best.getData().get(Constants.YEAR);
@@ -760,13 +746,13 @@ public abstract class Model implements Serializable {
         return null;
     }
 
-    private Double calculateFromCAGR(List<Model> list, int year) {
+    private synchronized Double calculateFromCAGR(List<Model> list, int year) {
         // check cagr for other years
         Model best = list.stream().filter(m->m.getData().get(Constants.CAGR)!=null).min((e1,e2)->Integer.compare(Math.abs((Integer)e1.getData().get(Constants.YEAR)-year), Math.abs((Integer)e2.getData().get(Constants.YEAR)-year))).orElse(null);
         return calculateFromCAGR(best, year);
     }
 
-    public double calculateRevenue(Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue) {
+    public synchronized double calculateRevenue(Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue) {
         //if(revenue!=null && parentRevenue==null) return revenue;
         revenue = null;
         this.calculationInformation = new ArrayList<>();
@@ -854,7 +840,7 @@ public abstract class Model implements Serializable {
                         if(!association.getModel().equals(Association.Model.MarketShareRevenue)) {
                             List<Model> revenues = associations.get(association);
                             if (revenues != null && revenues.size() > 0) {
-                                List<Model> revenueModelsSorted = revenues.stream().sorted((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).collect(Collectors.toList());
+                                List<Model> revenueModelsSorted = revenues.stream().peek(Model::loadAttributesFromDatabase).sorted((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).collect(Collectors.toList());
                                 List<Double> byCagr = new ArrayList<>();
                                 if(startYear!=null && endYear != null) {
                                     List<Model> byYear = new ArrayList<>();
@@ -1632,7 +1618,7 @@ public abstract class Model implements Serializable {
     public synchronized void purgeMemory() {
         if(data!=null) {
             for(String attr : getAvailableAttributes()) {
-                if(!attr.endsWith("_id")) {
+                if(!attr.endsWith("_id") && Arrays.asList(Constants.YEAR, Constants.VALUE, Constants.CAGR).contains(attr)) {
                     data.remove(attr);
                 }
             }
