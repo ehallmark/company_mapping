@@ -1469,7 +1469,7 @@ public abstract class Model implements Serializable {
                 }
             }
         } else {
-            throw new RuntimeException("Cannot load associations with node cache!");
+            throw new RuntimeException("Cannot load associations without node cache!");
             /*
             for (Association association : associationsMeta) {
                 try {

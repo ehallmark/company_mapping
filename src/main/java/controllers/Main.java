@@ -51,57 +51,56 @@ public class Main {
     }
 
     private static Model loadModel(@NonNull Association.Model type, Integer id) {
+        Model model;
         if(id!=null) {
             Graph graph = Graph.load();
             Node node = graph.findNode(type, id);
             if(node!=null) {
-                Model model = node.getModel();
-                model.loadAttributesFromDatabase();
-
+                model = node.getModel();
             } else {
-                return null;
-            }
-        }
-        Model model;
-        switch(type) {
-            case Market: {
-                model = new Market(id, null);
-                break;
-            }
-            case Product: {
-                model = new Product(id, null);
-                break;
-            }
-            case Company: {
-                model = new Company(id, null);
-                break;
-            }
-            case MarketRevenue: {
-                model = new MarketRevenue(id, null);
-                break;
-            }
-            case CompanyRevenue: {
-                model = new CompanyRevenue(id, null);
-                break;
-            }
-            case ProductRevenue: {
-                model = new ProductRevenue(id, null);
-                break;
-            }
-            case MarketShareRevenue: {
-                model = new MarketShareRevenue(id, null);
-                break;
-            }
-            case Region: {
-                model = new Region(id, null);
-                break;
-            }
-            default: {
                 model = null;
-                break;
+            }
+        } else {
+            switch (type) {
+                case Market: {
+                    model = new Market(null, null);
+                    break;
+                }
+                case Product: {
+                    model = new Product(null, null);
+                    break;
+                }
+                case Company: {
+                    model = new Company(null, null);
+                    break;
+                }
+                case MarketRevenue: {
+                    model = new MarketRevenue(null, null);
+                    break;
+                }
+                case CompanyRevenue: {
+                    model = new CompanyRevenue(null, null);
+                    break;
+                }
+                case ProductRevenue: {
+                    model = new ProductRevenue(null, null);
+                    break;
+                }
+                case MarketShareRevenue: {
+                    model = new MarketShareRevenue(null, null);
+                    break;
+                }
+                case Region: {
+                    model = new Region(null, null);
+                    break;
+                }
+                default: {
+                    model = null;
+                    break;
+                }
             }
         }
-        if(model.existsInDatabase()) {
+        if(model != null && model.existsInDatabase()) {
             model.loadAttributesFromDatabase();
         }
         return model;
@@ -639,7 +638,7 @@ public class Main {
             boolean inDiagram = extractString(req, "in_diagram", null) != null;
             if(model!=null) {
                 ContainerTag html;
-                ContainerTag diagram = model.loadNestedAssociations(inDiagram, 0);
+                ContainerTag diagram = model.loadNestedAssociations(inDiagram, 1);
                 if(inDiagram) {
                     html = diagram;
                 } else {
