@@ -95,7 +95,7 @@ public class Association implements Serializable {
         }
     }
 
-    public boolean shouldNotExpand(boolean isRevenueModel, int depth) {
+    public boolean shouldNotExpand(boolean isRevenueModel, int depth, int maxDepth) {
         if(getAssociationName().startsWith("Parent ")||getAssociationName().equals("Sub Company")) {
             return true;
         }
@@ -103,7 +103,7 @@ public class Association implements Serializable {
             return true;
         }
         // if not revenue and node expanded then exit
-        if(!getModel().toString().contains("Revenue") && !getModel().equals(Association.Model.Region) && depth >= 2) {
+        if(!getModel().toString().contains("Revenue") && !getModel().equals(Association.Model.Region) && depth >= maxDepth) {
             return true;
         }
         return false;

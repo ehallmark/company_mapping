@@ -658,7 +658,7 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag loadNestedAssociations() {
-        final int maxDepth = 5;
+        final int maxDepth = 1;
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -684,7 +684,7 @@ public abstract class Model implements Serializable {
 
 
     public ContainerTag loadReport(int startYear, int endYear, boolean useCAGR, Constants.MissingRevenueOption option) {
-        final int maxDepth = 5;
+        final int maxDepth = 1;
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -926,18 +926,16 @@ public abstract class Model implements Serializable {
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
     private void loadNestedAssociationHelper(String groupRevenuesBy, boolean allowEdit, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, AtomicInteger cnt, Model original, int depth, int maxDepth) {
-        if(depth > maxDepth) return;
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
-        if(associations==null) {
-            loadAssociations();
-        }
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
         for(Association association : associationsMeta) {
-            if(association.shouldNotExpand(isRevenueModel(), depth)) {
+            if(association.shouldNotExpand(isRevenueModel(), depth, maxDepth)) {
                 continue;
             }
-
+            if(associations==null) {
+                loadAssociations();
+            }
             List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
             if(startYear!=null && endYear!=null) {
                 assocModels = assocModels.stream().filter(m -> {
@@ -1420,6 +1418,9 @@ public abstract class Model implements Serializable {
     public void loadAssociations() {
         if (!existsInDatabase()) {
             throw new RuntimeException("Cannot load associations if the model does not yet exist in the database.");
+        }
+        if(associations!=null) {
+            return;
         }
         if (data == null) {
             loadAttributesFromDatabase();
