@@ -1269,6 +1269,7 @@ public abstract class Model implements Serializable {
         }
         boolean isRegion = association.getModel().equals(Association.Model.Region);
         boolean isGlobalRegion = isRegion && data.get(Constants.PARENT_REVENUE_ID) == null;
+        boolean revenueAssociation = association.getModel().toString().contains("Revenue");
         Collection<Tag> inputs = new ArrayList<>(Arrays.asList(input().withType("hidden").withName("_association_name").withValue(association.getAssociationName()),
                 label(association.getAssociationName()+" Name:").with(
                         select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName("id")
@@ -1285,7 +1286,7 @@ public abstract class Model implements Serializable {
                                 .attr("data-id", id.toString()).withClass("association").with(
                                 input().withType("hidden").withName("_association_name").withValue(association.getAssociationName())
                         )
-                ),(isGlobalRegion ? span() : form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("#"+listRef)).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
+                ),(isGlobalRegion || revenueAssociation ? span() : form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("#"+listRef)).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
                         .attr("data-resource", this.getClass().getSimpleName())
                         .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
                         .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")
