@@ -107,8 +107,9 @@ public class DataTable {
                                 if (v2 == null) return -1;
                                 return v1.compareTo(v2) * (reversed ? -1 : 1);
                             } else {
-                                return d1.getOrDefault(k+Constants.TEXT_ONLY, d1.get(k)).
-                                        compareTo(d2.getOrDefault(k+Constants.TEXT_ONLY, d2.get(k))) * (reversed ? -1 : 1);
+
+                                return d1.getOrDefault(k+Constants.TEXT_ONLY, d1.getOrDefault(k,"")).
+                                        compareTo(d2.getOrDefault(k+Constants.TEXT_ONLY, d2.getOrDefault(k, ""))) * (reversed ? -1 : 1);
                             }
                         };
                         queriedData.sort(comp);

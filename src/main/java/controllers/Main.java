@@ -211,11 +211,13 @@ public class Main {
             }
         }
 
+        List<String> availableAttributes = new ArrayList<>(model.getAvailableAttributes());
         if(model.isRevenueModel()) {
             humanHeaders.add(0, Constants.humanAttrFor(Constants.NAME));
             headers.add(0, Constants.NAME);
+            availableAttributes.add(0, Constants.NAME);
         }
-        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes(), associations, null);
+        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), availableAttributes, associations, null);
     }
 
     public static ContainerTag getReportOptionsForm(Model model, String clazz) {
@@ -560,7 +562,11 @@ public class Main {
                             m.getData().forEach((k,v)->{
                                 map.put(k,Constants.getFieldFormatter(k).apply(v));
                             });
-                            map.put(Constants.NAME + Constants.TEXT_ONLY, (String) m.getData().get(Constants.NAME));
+                            String name = (String) m.getData().get(Constants.NAME);
+                            if(name==null) {
+                                name = "";
+                            }
+                            map.put(Constants.NAME + Constants.TEXT_ONLY, name);
                             map.put(Constants.NAME, m.getSimpleLink().render());
                             //m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
