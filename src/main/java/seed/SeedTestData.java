@@ -19,8 +19,8 @@ public class SeedTestData {
         seedResource(Association.Model.Product,0,  4, null, null);
 
         // add market shares
-        List<Model> markets = Database.selectAll(false, Association.Model.Market, Constants.MARKET_TABLE, Collections.singletonList(Constants.PARENT_MARKET_ID));
-        List<Model> companies = Database.selectAll(false, Association.Model.Company, Constants.COMPANY_TABLE, Collections.singletonList(Constants.PARENT_COMPANY_ID));
+        List<Model> markets = Database.selectAll(false, Association.Model.Market, Constants.MARKET_TABLE, Collections.singletonList(Constants.PARENT_MARKET_ID), null, null);
+        List<Model> companies = Database.selectAll(false, Association.Model.Company, Constants.COMPANY_TABLE, Collections.singletonList(Constants.PARENT_COMPANY_ID), null, null);
 
         for(Model market : markets) {
             if(market.getData().get(Constants.PARENT_MARKET_ID) != null) {
@@ -64,7 +64,7 @@ public class SeedTestData {
                 if(rand.nextBoolean()) {
                     // get regions
                     try {
-                        List<Model> regions = Database.selectAll(false, Association.Model.Region, Constants.REGION_TABLE, Arrays.asList(Constants.NAME, Constants.PARENT_REGION_ID));
+                        List<Model> regions = Database.selectAll(false, Association.Model.Region, Constants.REGION_TABLE, Arrays.asList(Constants.NAME, Constants.PARENT_REGION_ID), null, null);
                         regions = regions.stream().filter(region->region.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
                         for(Model region : regions) {
                             addSubRevenues(revenueModel, region.getId(), new ExponentialDistribution(50d + rand.nextInt(800)));

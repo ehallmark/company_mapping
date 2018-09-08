@@ -13,6 +13,7 @@ $(document).ready(function() {
         var $btn = $(this);
         var resource = $btn.attr('data-resource');
         $btn.click(function(e) {
+            e.stopPropagation();
             e.preventDefault();
             $.ajax({
                 url: '/resources/'+resource,
@@ -30,6 +31,7 @@ $(document).ready(function() {
     });
 
     $('.change-password-link').click(function(e) {
+        e.stopPropagation();
         e.preventDefault();
         $(this).next().slideToggle();
     });
@@ -204,7 +206,7 @@ var updateResourceFormHelper = function($this) {
 
             } else {
                 $(document.body).off('dblclick');
-                // refresh
+                // refresh // keep tab
                 showResourceFunction(resourceId, id);
             }
         },
@@ -294,6 +296,7 @@ var onShowResourceFunction = function($topElem) {
     // delete node
     $topElem.find('.delete-button').click(function(e) {
         e.preventDefault();
+        e.stopPropagation();
         var $this = $(this);
         var resourceId = $this.attr('data-resource');
         var resourceName = $this.attr('data-resource-name');
@@ -323,6 +326,7 @@ var onShowResourceFunction = function($topElem) {
     });
 
     $topElem.find('.diagram-button').click(function(e) {
+        e.stopPropagation();
         e.preventDefault();
         var $this = $(this);
         var id = $this.attr('data-id');
@@ -335,6 +339,7 @@ var onShowResourceFunction = function($topElem) {
     });
 
     $topElem.find('.report-button').click(function(e) {
+        e.stopPropagation();
         e.preventDefault();
         var $this = $(this);
         var id = $this.attr('data-id');
@@ -343,6 +348,7 @@ var onShowResourceFunction = function($topElem) {
     });
 
     $topElem.find('.graph-button').click(function(e) {
+        e.stopPropagation();
         e.preventDefault();
         var $this = $(this);
         var id = $this.attr('data-id');
@@ -421,6 +427,7 @@ var onShowResourceFunction = function($topElem) {
     });
 
     $topElem.find('.back-button').click(function(e) {
+        e.stopPropagation();
         e.preventDefault();
         var target = $(this).attr('data-target');
         target = $(target);
@@ -428,6 +435,7 @@ var onShowResourceFunction = function($topElem) {
     });
 
     $topElem.find('.resource-new-link').click(function(e) {
+        e.stopPropagation();
         e.preventDefault();
         $(this).next().slideToggle();
     });
@@ -582,7 +590,9 @@ var onShowResourceFunction = function($topElem) {
         return false;
     });
 
-    $topElem.find('span.delete-node').click(function() {
+    $topElem.find('.delete-node').click(function(e) {
+        e.stopPropagation();
+        e.preventDefault();
         var $this = $(this);
         var id = $this.attr('data-id');
         var name = $this.prev().text();
@@ -673,6 +683,7 @@ var createNewResourceForm = function(resourceId, resourceName, data) {
             return false;
         });
         $new.click(function(e) {
+            e.stopPropagation();
             e.preventDefault();
             $form.slideToggle();
             return false;
@@ -685,6 +696,8 @@ var createNewResourceForm = function(resourceId, resourceName, data) {
 };
 
 var showResourceFunction = function(resourceId, id) {
+    // check for open tabs
+    var $tabId = $('#results .nav.nav-tabs .active.show').filter(':first').attr('id');
     $.ajax({
         url: '/resources/'+resourceId+'/'+id,
         dataType: 'json',
@@ -692,9 +705,19 @@ var showResourceFunction = function(resourceId, id) {
         success: function(showData) {
             var $results = $('#results');
             $results.empty();
+            $results.hide();
             $results.html(showData.template);
             onShowResourceFunction(($(document.body)));
-            $('#results .nav.nav-tabs .nav-link').filter(':first').trigger('click');
+            var $tab = false;
+            if($tabId && $tabId.length>0) {
+                $tab = $('#' + $tabId);
+            }
+            if($tab && $tab.length>0) {
+                $tab.trigger('click');
+            } else {
+                $('#results .nav.nav-tabs .nav-link').filter(':first').trigger('click');
+            }
+            $results.show();
         }
     });
 };

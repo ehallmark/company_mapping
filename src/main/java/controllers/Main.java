@@ -215,7 +215,7 @@ public class Main {
             humanHeaders.add(0, Constants.humanAttrFor(Constants.NAME));
             headers.add(0, Constants.NAME);
         }
-        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes(), associations, null, 1);
+        return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), model.getAvailableAttributes(), associations, null);
     }
 
     public static ContainerTag getReportOptionsForm(Model model, String clazz) {
@@ -479,7 +479,7 @@ public class Main {
                     List<String> fieldsToUse = new ArrayList<>();
                     fieldsToUse.add(fieldToUse);
                     if(_showTopLevelOnly || type.equals(Association.Model.Region)) fieldsToUse.add(Constants.PARENT_REGION_ID);
-                    models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, search, (Association)null).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
+                    models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, null, search).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
                     if(_showTopLevelOnly) {
                         models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
                     } else if(type.equals(Association.Model.Region) && _parentRegionId!=null) {
@@ -496,8 +496,7 @@ public class Main {
                 }
             };
             Function<String,String> displayFunction = result ->  idToNameMap.getOrDefault(result, "");
-            Function<String,String> htmlFunction = null; //result -> "<span>"+ (result+" ("+titlePartMap.getOrDefault(result,"")+")").replace(" ()","") + "</span>";
-            return handleAjaxRequest(req, resultsSearchFunction, displayFunction, htmlFunction);
+            return handleAjaxRequest(req, resultsSearchFunction, displayFunction, null);
         });
 
         // Host my own image asset!

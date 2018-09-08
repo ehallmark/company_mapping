@@ -1385,7 +1385,8 @@ public abstract class Model implements Serializable {
                                             boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
                                             String assocId = "tab-link-"+association.getAssociationName().toLowerCase().replace(" ","-");
                                             return li().withClass("nav-item").with(
-                                                    a(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName()).withClass("nav-link").attr("data-toggle", "tab").withHref("#" + assocId).attr("role", "tab")
+                                                    a(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName())
+                                                            .attr("id", "association-show-"+association.getAssociationName().toLowerCase().replace(" ","-")).withClass("nav-link").attr("data-toggle", "tab").withHref("#" + assocId).attr("role", "tab")
                                             );
                                         }).collect(Collectors.toList())
                                 )

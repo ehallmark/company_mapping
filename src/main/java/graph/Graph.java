@@ -135,7 +135,7 @@ public class Graph {
                 System.out.println("Loading model type: " + modelType);
                 Model model = Main.getModelByType(modelType);
                 List<Model> models = Database.selectAll(model.isRevenueModel(), modelType, model.getTableName(),
-                        model.getAvailableAttributes().stream().filter(f -> f.endsWith("_id")).collect(Collectors.toList()));
+                        model.getAvailableAttributes().stream().filter(f -> f.endsWith("_id")).collect(Collectors.toList()), null, null);
                 allModels.addAll(models);
                 for (Model instance : models) {
                     graph.addNode(modelType, instance.getId(), new Node(instance));
