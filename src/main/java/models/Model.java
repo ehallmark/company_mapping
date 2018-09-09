@@ -2,6 +2,8 @@ package models;
 
 import com.google.gson.Gson;
 import com.googlecode.wickedcharts.highcharts.options.*;
+import com.googlecode.wickedcharts.highcharts.options.color.ColorReference;
+import com.googlecode.wickedcharts.highcharts.options.color.RgbaColor;
 import com.googlecode.wickedcharts.highcharts.options.series.Point;
 import com.googlecode.wickedcharts.highcharts.options.series.PointSeries;
 import database.Database;
@@ -227,7 +229,7 @@ public abstract class Model implements Serializable {
         for(int year = minYear; year <= maxYear; year ++ ) {
             categories.add(String.valueOf(year));
         }
-        options.setPlotOptions(new PlotOptionsChoice().setPie(new PlotOptions().setAllowPointSelect(true).setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT))));
+        options.setPlotOptions(new PlotOptionsChoice().setPie(new PlotOptions().setAllowPointSelect(false).setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT))));
         options.setChartOptions(new ChartOptions().setWidth(900).setHeight(600).setType(SeriesType.PIE));
         options.setTitle(new Title().setText(title));
         options.setSubtitle(new Title().setText(data.get(Constants.NAME).toString()));
@@ -348,21 +350,32 @@ public abstract class Model implements Serializable {
             PointSeries group = groups.get(i);
             if(group.getData()==null) continue;;
             Point oldPoint = priorSeries.getData().get(i);
+            int[] color = ChartHelper.getColor(i, 0);
+            RgbaColor colorRef = new RgbaColor(color[0], color[1], color[2], 1f);
+            oldPoint.setColor(colorRef);
 
             double sumOfGroup = group.getData() == null ? 0d : group.getData().stream().mapToDouble(p->p.getY().doubleValue()).sum();
             double modelRevenue = oldPoint.getY().doubleValue();
+            int p = 0;
             for(Point point : group.getData()) {
                 series.addPoint(point);
+                int[] innerColor = ChartHelper.getColor(i, Math.min(90, p*10));
+                RgbaColor innerColorRef = new RgbaColor(innerColor[0], innerColor[1], innerColor[2], 1f);
+                point.setColor(innerColorRef);
+                p++;
             }
 
             // add other point
             if(modelRevenue-sumOfGroup > 0.00001) {
-                series.addPoint(new Point("Remaining", modelRevenue-sumOfGroup));
+                Point point = new Point("Remaining", modelRevenue-sumOfGroup);
+                series.addPoint(point);
+                int[] innerColor = ChartHelper.getColor(i, Math.min(90, p*10));
+                RgbaColor innerColorRef = new RgbaColor(innerColor[0], innerColor[1], innerColor[2], 1f);
+                point.setColor(innerColorRef);
             }
         }
         return series;
     }
-
 
     private static Options getDefaultChartOptions() {
         return new Options()
