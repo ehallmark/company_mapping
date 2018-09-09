@@ -316,7 +316,11 @@ public abstract class Model implements Serializable {
 
             });
         }
+        // sort series
+        if (series.getData() != null) {
+            series.setData(series.getData().stream().sorted((e1, e2) -> Double.compare(e2.getY().doubleValue(), e1.getY().doubleValue())).collect(Collectors.toList()));
 
+        }
         return series;
     }
 
@@ -324,11 +328,6 @@ public abstract class Model implements Serializable {
     public void buildMarketShare(String groupByField, String title, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association, Map<String,String> groupToFieldMap, String... groupByFields) {
         final PointSeries series = buildPieSeries(groupByField, title,revenueDomain, regionId,  minYear, maxYear, useCAGR, option, models, options, association);
         if (series != null) {
-            // sort series
-            if (series.getData() != null) {
-                series.setData(series.getData().stream().sorted((e1, e2) -> Double.compare(e2.getY().doubleValue(), e1.getY().doubleValue())).collect(Collectors.toList()));
-
-            }
             options.addSeries(series);
             if (groupByFields.length > 0) {
                 series.setSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT));

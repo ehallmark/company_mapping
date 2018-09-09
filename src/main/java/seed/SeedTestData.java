@@ -40,9 +40,7 @@ public class SeedTestData {
             data.put(Constants.YEAR, LocalDate.now().getYear()-i);
             data.put(Constants.VALUE, valueDistribution.sample());
             data.put(Constants.SOURCE, "The Intelligent Designer");
-            if(rand.nextBoolean()) {
-                data.put(Constants.CAGR, rand.nextDouble() * 30.0 - 5.0);
-            }
+            data.put(Constants.CAGR, rand.nextDouble() * 20.0 - 5.0);
             Model revenueModel = null;
             if(model instanceof Company) {
                 data.put(Constants.COMPANY_ID, model.getId());
@@ -86,9 +84,7 @@ public class SeedTestData {
         data.put(Constants.REGION_ID, regionId);
         Model revenueModel = null;
         data.put(Constants.PARENT_REVENUE_ID, model.getId());
-        if(rand.nextBoolean()) {
-            data.put(Constants.CAGR, rand.nextDouble() * 30.0 - 5.0);
-        }
+        data.put(Constants.CAGR, rand.nextDouble() * 20.0 - 5.0);
         if(model instanceof CompanyRevenue) {
             revenueModel = new CompanyRevenue(null, data);
         } else if(model instanceof MarketRevenue) {
@@ -113,6 +109,7 @@ public class SeedTestData {
             data.put(Constants.SOURCE, "The Intelligent Designer");
             data.put(Constants.MARKET_ID, market.getId());
             data.put(Constants.COMPANY_ID, company.getId());
+            data.put(Constants.CAGR, rand.nextDouble() * 20.0 - 5.0);
             Model revenueModel = new MarketShareRevenue(null, data);
             try {
                 revenueModel.createInDatabase();

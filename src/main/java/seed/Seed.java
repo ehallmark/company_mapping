@@ -8,5 +8,6 @@ public class Seed {
         SeedTestData.main(args);
         SeedMarketTaxonomy.main(args);
         Ingester.main(args);
+        System.exit(0);
     }
 }
