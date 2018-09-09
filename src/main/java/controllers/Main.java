@@ -814,22 +814,23 @@ public class Main {
                     AtomicInteger idx = new AtomicInteger(0);
                     final List<Model> allComparables = new ArrayList<>(compareModels);
                     allComparables.add(model);
+
+                    // add Overall revenue pie chart and revenue by year
+                    Model fakeParents = getModelByType(model.getType());
+                    fakeParents.setData(Collections.singletonMap(Constants.NAME, "Total Revenue"));
+                    Association fakeAssoc = new Association("Sub "+Model.capitalize(model.getType().toString()), model.getType(), model.getTableName(),  model.getTableName(), null, Association.Type.OneToMany,  "parent_"+model.getType().toString()+"_id", model.getType().toString()+"_id", false, "All Revenue");
+                    fakeParents.setAssociations(Collections.singletonMap(fakeAssoc, allComparables));
+                    List<Options> parentOptions = fakeParents.buildCharts(allComparables, fakeAssoc,
+                            revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                    for(Options options : parentOptions) {
+                        String json = new JsonRenderer().toJson(options);
+                        results.put("chart_" + idx.getAndIncrement(), json);
+                    }
+
                     Stream.of(Association.Model.values()).forEach(type->{
                         if(type.equals(Association.Model.Region)) return;
                         if(modelGroups.containsKey(type)) {
                             List<Model> models = modelGroups.get(type);
-                            // add Overall revenue pie chart and revenue by year
-                            // TODO
-                            Model fakeParents = getModelByType(type);
-                            fakeParents.setData(Collections.singletonMap(Constants.NAME, "Total Revenue"));
-                            Association fakeAssoc = new Association("Sub "+type.toString(), type, "", "", null, Association.Type.OneToMany, "", "", false, "All Revenue");
-                            fakeParents.setAssociations(Collections.singletonMap(fakeAssoc, allComparables));
-                            List<Options> parentOptions = fakeParents.buildCharts(allComparables, fakeAssoc,
-                                    revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
-                            for(Options options : parentOptions) {
-                                String json = new JsonRenderer().toJson(options);
-                                results.put("chart_" + idx.getAndIncrement(), json);
-                            }
                             for(Model assoc : models) {
                                 assoc.loadAssociations();
                                 // get associations relevant to model and compareModel

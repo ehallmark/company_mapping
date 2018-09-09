@@ -435,7 +435,7 @@ public abstract class Model implements Serializable {
                 case Market: {
                     if(association.getAssociationName().startsWith("Sub")) {
                         // sub market
-                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Sub Markets", revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association, Collections.singletonMap("Market Share",Constants.COMPANY_ID), "Market Share");
+                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Sub Markets", revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association, null); //, Collections.singletonMap("Market Share",Constants.COMPANY_ID), "Market Share");
                     } else {
                         options.setSubtitle(new Title().setText("Parent Market"));
                         // parent market
@@ -1413,7 +1413,7 @@ public abstract class Model implements Serializable {
         }
     }
 
-    private static String capitalize(String in) {
+    public static String capitalize(String in) {
         return in.substring(0, 1).toUpperCase() + in.substring(1);
     }
 
