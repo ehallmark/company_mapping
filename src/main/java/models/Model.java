@@ -97,6 +97,7 @@ public abstract class Model implements Serializable {
                 .findAny().orElse(null);
     }
 
+
     public void buildTimelineSeries(String groupByField, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
         // yearly timeline
         if(minYear==null || maxYear==null) return;
@@ -217,18 +218,17 @@ public abstract class Model implements Serializable {
     }
 
 
-    public void buildMarketShare(String groupByField, String title, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
+    public PointSeries buildPieSeries(String groupByField, String title, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
         // yearly timeline
-        if(minYear==null || maxYear==null) return;
-        if(maxYear - minYear <= 0) {
-            return;
-        }
+        if(minYear==null || maxYear==null) return null;
+        if(maxYear - minYear <= 0) return null;
+
         List<String> categories = new ArrayList<>();
         for(int year = minYear; year <= maxYear; year ++ ) {
             categories.add(String.valueOf(year));
         }
         options.setPlotOptions(new PlotOptionsChoice().setPie(new PlotOptions().setAllowPointSelect(true).setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT))));
-        options.setChartOptions(new ChartOptions().setType(SeriesType.PIE));
+        options.setChartOptions(new ChartOptions().setWidth(900).setHeight(600).setType(SeriesType.PIE));
         options.setTitle(new Title().setText(title));
         options.setSubtitle(new Title().setText(data.get(Constants.NAME).toString()));
         options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>Percentage: {point.percentage:.1f}%</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
@@ -298,7 +298,37 @@ public abstract class Model implements Serializable {
                 }
             });
         }
-        options.addSeries(series);
+        // sort series
+        if(series.getData()!=null) {
+            series.setData(series.getData().stream().sorted((e1, e2) -> Double.compare(e2.getY().doubleValue(), e1.getY().doubleValue())).collect(Collectors.toList()));
+
+        }
+        return series;
+    }
+
+
+    public void buildMarketShare(String groupByField, String title, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association, String secondaryGroupBy, String... groupByFields) {
+        PointSeries series = buildPieSeries(groupByField, title, minYear, maxYear, useCAGR, option, models, options, association);
+        if (series != null) {
+            options.addSeries(series);
+            if(groupByFields.length>0) {
+                for (String additionalGroup : groupByFields) {
+                    models = models.stream().flatMap(model -> {
+                        model.loadAssociations();
+                        return model.getAssociations().getOrDefault(model.findAssociation(additionalGroup), Collections.emptyList()).stream();
+                    }).collect(Collectors.toList());
+                }
+                series.setSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT));
+                series.setDataLabels(new DataLabels(true).setColor(Color.WHITE).setDistance(-40));
+                series = buildPieSeries(secondaryGroupBy, title, minYear, maxYear, useCAGR, option, models, options, association);
+                if (series != null) {
+                    series.setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT));
+                    series.setInnerSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT));
+
+                    options.addSeries(series);
+                }
+            }
+        }
     }
 
 
@@ -332,7 +362,7 @@ public abstract class Model implements Serializable {
                 case Market: {
                     if(association.getAssociationName().startsWith("Sub")) {
                         // sub market
-                        buildMarketShare(null,"Sub Markets", minYear, maxYear, useCAGR, option, assocModels, options, association);
+                        buildMarketShare(null,"Sub Markets", minYear, maxYear, useCAGR, option, assocModels, options, association, Constants.COMPANY_ID, "Market Share");
                     } else {
                         options.setTitle(new Title().setText("Parent Market"));
                         // parent market
@@ -344,7 +374,7 @@ public abstract class Model implements Serializable {
                             if(subs!=null) {
                                 List<Model> associationSubs = parent.getAssociations().get(subs);
                                 if(associationSubs!=null) {
-                                    parent.buildMarketShare(null,"Parent Market", minYear, maxYear, useCAGR, option, associationSubs, options, association);
+                                    parent.buildMarketShare(null,"Parent Market", minYear, maxYear, useCAGR, option, associationSubs, options, association, null);
                                 }
                             }
                         }
@@ -353,7 +383,7 @@ public abstract class Model implements Serializable {
                 }
                 case MarketShareRevenue: {
                     // graph of all companies associated with this market
-                    buildMarketShare(Constants.COMPANY_ID,"Companies", minYear, maxYear, useCAGR, option, assocModels, options, association);
+                    buildMarketShare(Constants.COMPANY_ID,"Companies", minYear, maxYear, useCAGR, option, assocModels, options, association, null);
                     if(maxYear - minYear > 0) {
                         Options timelineOptions = getDefaultChartOptions();
                         buildTimelineSeries(Constants.COMPANY_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions, association);
@@ -362,7 +392,7 @@ public abstract class Model implements Serializable {
                     break;
                 }
                 case Product: {
-                    buildMarketShare(null,"Market Products", minYear, maxYear, useCAGR, option, assocModels, options, association);
+                    buildMarketShare(null,"Market Products", minYear, maxYear, useCAGR, option, assocModels, options, association, null);
                     break;
                 }
             }
@@ -377,7 +407,7 @@ public abstract class Model implements Serializable {
                     // check sub company or parent company
                     if(association.getAssociationName().startsWith("Sub")) {
                         // children
-                        buildMarketShare(null,"Subsidiaries", minYear, maxYear, useCAGR, option, assocModels, options, association);
+                        buildMarketShare(null,"Subsidiaries", minYear, maxYear, useCAGR, option, assocModels, options, association, null);
                     } else {
                         // parent
                         options.setTitle(new Title().setText("Parent Company"));
@@ -389,7 +419,7 @@ public abstract class Model implements Serializable {
                             if(subs!=null) {
                                 List<Model> associationSubs = parent.getAssociations().get(subs);
                                 if(associationSubs!=null) {
-                                    parent.buildMarketShare(null,"Parent Company", minYear, maxYear, useCAGR, option, associationSubs, options, association);
+                                    parent.buildMarketShare(null,"Parent Company", minYear, maxYear, useCAGR, option, associationSubs, options, association, null);
                                 }
                             }
                         }
@@ -398,7 +428,7 @@ public abstract class Model implements Serializable {
                 }
                 case MarketShareRevenue: {
                     // graph of all markets associated with this company
-                    buildMarketShare(Constants.MARKET_ID,"Markets", minYear, maxYear, useCAGR, option, assocModels, options, association);
+                    buildMarketShare(Constants.MARKET_ID,"Markets", minYear, maxYear, useCAGR, option, assocModels, options, association, null);
                     if(maxYear - minYear > 0) {
                         Options timelineOptions = getDefaultChartOptions();
                         buildTimelineSeries(Constants.MARKET_ID, minYear, maxYear, useCAGR, option, assocModels, timelineOptions, association);
@@ -406,7 +436,7 @@ public abstract class Model implements Serializable {
                     }
                     break;
                 } case Product: {
-                    buildMarketShare(null,"Company Products", minYear, maxYear, useCAGR, option, assocModels, options, association);
+                    buildMarketShare(null,"Company Products", minYear, maxYear, useCAGR, option, assocModels, options, association, null);
                     break;
                 }
             }
@@ -429,7 +459,7 @@ public abstract class Model implements Serializable {
                         if(subs!=null) {
                             List<Model> associationSubs = parent.getAssociations().get(subs);
                             if(associationSubs!=null) {
-                                parent.buildMarketShare(null,"Company Products", minYear, maxYear, useCAGR, option, associationSubs, options, association);
+                                parent.buildMarketShare(null,"Company Products", minYear, maxYear, useCAGR, option, associationSubs, options, association, null);
                             }
                         }
                     }
@@ -446,7 +476,7 @@ public abstract class Model implements Serializable {
                         if(subs!=null) {
                             List<Model> associationSubs = parent.getAssociations().get(subs);
                             if(associationSubs!=null) {
-                                parent.buildMarketShare(null,"Market Products", minYear, maxYear, useCAGR, option, associationSubs, options, association);
+                                parent.buildMarketShare(null,"Market Products", minYear, maxYear, useCAGR, option, associationSubs, options, association, null);
                             }
                         }
                     }

@@ -764,7 +764,8 @@ public class Main {
                     model.loadAssociations();
                     compareModel.loadAssociations();
                     Graph graph = Graph.load();
-                    Collection<Node> commonRelatives = graph.findMutualRelatives(model, compareModel);
+                    Collection<Node> commonRelatives = graph.findMutualRelatives(model, compareModel).stream()
+                            .filter(n->!n.getModel().getType().equals(model.getType())).collect(Collectors.toList());
                     for(Node node : commonRelatives) {
                         System.out.println("Relative: "+new Gson().toJson(node.getModel()));
                     }

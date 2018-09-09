@@ -152,7 +152,7 @@ public class Graph {
         if(!seenAll) { // recurse on revenues
             for (String key : keys) {
                 List<Edge> edges = edgeMap.getOrDefault(key, Collections.emptyList());
-                if (key.contains("Revenue")||key.contains("Region")) {
+                if (key.contains("Revenue")) {
                     for (Edge edge : edges) {
                         findRelativesHelper(edge.getTarget(), relatives);
                     }
