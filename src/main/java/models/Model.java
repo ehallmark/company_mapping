@@ -912,7 +912,7 @@ public abstract class Model implements Serializable {
         return revenue == null ? 0 : revenue;
     }
 
-    private static List<Model> getSubRevenuesByRegionId(@NonNull List<Model> models, @NonNull RevenueDomain revenueDomain, Integer regionId) {
+    public static List<Model> getSubRevenuesByRegionId(@NonNull List<Model> models, @NonNull RevenueDomain revenueDomain, Integer regionId) {
         return models.stream().map(m->m.getSubRevenueByRegionId(revenueDomain, regionId)).filter(m->m!=null).collect(Collectors.toList());
     }
 

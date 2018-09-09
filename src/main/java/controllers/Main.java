@@ -847,6 +847,8 @@ public class Main {
                                                 return false;
                                             }
                                         }).collect(Collectors.toList());
+                                        // convert to regions
+                                        marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
                                         if (marketShares.size() > 0) {
                                             List<Options> allOptions = assoc.buildCharts(marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
                                             for(Options options : allOptions) {
