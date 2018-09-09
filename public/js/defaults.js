@@ -241,6 +241,29 @@ var updateResourceFormHelper = function($this) {
 var onShowResourceFunction = function($topElem) {
     updateAssociationTotals();
 
+    $topElem.find('.chart-ajax-select').on('change', function(e) {
+        var $results = $('#additional-charts');
+        $results.html('');
+        var $this = $(this);
+        var chartId = $this.val();
+        if(chartId) {
+            $.ajax({
+                url: '/chart_cache/'+chartId.toString(),
+                dataType: 'json',
+                type: 'POST',
+                success: function($results, chartId) { return function(data) {
+                    var i = 0;
+                    while(data.hasOwnProperty('chart_'+chartId.toString()+'_'+i.toString())) {
+                        var id = 'chart_'+chartId.toString()+'_'+i.toString();
+                        $results.append('<div align="center" id="'+id+'"></div>');
+                        Highcharts.chart(id, JSON.parse(data[id]));
+                        i = i+1;
+                    }
+                }}($results,chartId)
+            });
+        }
+    });
+
     $topElem.find(".revenue_domain").on('change', function(e) {
         var val = $(this).val();
         var $regional = $('.revenue-regional');
@@ -329,6 +352,9 @@ var onShowResourceFunction = function($topElem) {
                         $innerResults.append('<div align="center" id="chart_'+i.toString()+'"></div>');
                         Highcharts.chart(chartId, JSON.parse(data[chartId]));
                         i = i+1;
+                    }
+                    if(data.hasOwnProperty('template')) {
+                        $innerResults.append(data.template);
                     }
                     onShowResourceFunction($('#inner-results'));
                 }

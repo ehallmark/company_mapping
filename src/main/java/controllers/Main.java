@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.OutputStream;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,6 +38,7 @@ import static spark.Spark.*;
 public class Main {
     private static final String NAVIGATION_HANDLER = "navigation_handler";
     private static final String NAVIGATION_LOCK = "navigation_lock";
+    private static final String CHART_CACHE = "chart_cache";
     private static final int MAX_NAVIGATION_HISTORY = 20;
 
     public static ContainerTag getBackButton(@NonNull Request req) {
@@ -752,6 +754,32 @@ public class Main {
             return null;
         });
 
+
+        post("/chart_cache/:chart_id", (req, res)-> {
+            authorize(req, res);
+            int chartId = Integer.valueOf(req.params("chart_id"));
+            Map<Integer, RecursiveTask<List<Options>>> taskMap = req.session().attribute(CHART_CACHE);
+            Map<String,Object> result = new HashMap<>();
+            if(taskMap!=null) {
+                RecursiveTask<List<Options>> optionsTask = taskMap.get(chartId);
+                if(optionsTask!=null) {
+                    List<Options> options;
+                    if(optionsTask.isDone()) {
+                        options = optionsTask.getRawResult();
+                    } else {
+                        options = optionsTask.invoke();
+                    }
+                    if(options!=null) {
+                        for(int i = 0; i < options.size(); i++) {
+                            String json = new JsonRenderer().toJson(options.get(i));
+                            result.put("chart_"+chartId+"_"+i, json);
+                        }
+                    }
+                }
+            }
+            return new Gson().toJson(result);
+        });
+
         get("/comparison/:resource/:id", (req, res)-> {
             authorize(req,res);
             Model model = loadModel(req);
@@ -775,6 +803,8 @@ public class Main {
 
 
         post("/generate-comparison/:resource/:id", (req, res)->{
+            authorize(req, res);
+            req.session().removeAttribute(CHART_CACHE);
             Model model = loadModel(req);
             List<Model> compareModels = new ArrayList<>();
             String[] otherIds = req.queryParamsValues("other_ids[]");
@@ -827,40 +857,65 @@ public class Main {
                         results.put("chart_" + idx.getAndIncrement(), json);
                     }
 
+                    ContainerTag select = select().withClass("multiselect form-control chart-ajax-select");
+                    ContainerTag html = div().withClass("col-12").with(
+                            h5("Additional Charts"),
+                            select.attr("style", "width: 300px;").with(
+                                    option("")
+                            ),
+                            div().withClass("col-12").withId("additional-charts")
+                    );
+
+                    Map<Integer, RecursiveTask<List<Options>>> idxToChartTaskMap = Collections.synchronizedMap(new HashMap<>());
+
                     Stream.of(Association.Model.values()).forEach(type->{
                         if(type.equals(Association.Model.Region)) return;
                         if(modelGroups.containsKey(type)) {
                             List<Model> models = modelGroups.get(type);
                             for(Model assoc : models) {
-                                assoc.loadAssociations();
-                                // get associations relevant to model and compareModel
-                                Association association = assoc.findAssociation("Market Share");
-                                if (association != null) {
-                                    List<Model> marketShares = assoc.getAssociations().get(association);
-                                    if (marketShares != null) {
-                                        marketShares = marketShares.stream().filter(share -> {
-                                            if (resource.equals(Association.Model.Market)) {
-                                                return modelIds.contains(share.getData().get(Constants.MARKET_ID));
-                                            } else if (resource.equals(Association.Model.Company)) {
-                                                return modelIds.contains(share.getData().get(Constants.COMPANY_ID));
-                                            } else {
-                                                return false;
-                                            }
-                                        }).collect(Collectors.toList());
-                                        // convert to regions
-                                        marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
-                                        if (marketShares.size() > 0) {
-                                            List<Options> allOptions = assoc.buildCharts(marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
-                                            for(Options options : allOptions) {
-                                                String json = new JsonRenderer().toJson(options);
-                                                results.put("chart_" + idx.getAndIncrement(), json);
+                                final int index = idx.getAndIncrement();
+                                select.with(
+                                        option().with(assoc.getSimpleLink()).withValue(String.valueOf(index))
+                                );
+                                RecursiveTask<List<Options>> task = new RecursiveTask<List<Options>>() {
+                                    @Override
+                                    protected List<Options> compute() {
+                                        assoc.loadAssociations();
+                                        // get associations relevant to model and compareModel
+                                        Association association = assoc.findAssociation("Market Share");
+                                        if (association != null) {
+                                            List<Model> marketShares = assoc.getAssociations().get(association);
+                                            if (marketShares != null) {
+                                                marketShares = marketShares.stream().filter(share -> {
+                                                    if (resource.equals(Association.Model.Market)) {
+                                                        return modelIds.contains(share.getData().get(Constants.MARKET_ID));
+                                                    } else if (resource.equals(Association.Model.Company)) {
+                                                        return modelIds.contains(share.getData().get(Constants.COMPANY_ID));
+                                                    } else {
+                                                        return false;
+                                                    }
+                                                }).collect(Collectors.toList());
+                                                // convert to regions
+                                                marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
+                                                if (marketShares.size() > 0) {
+                                                    List<Options> allOptions = assoc.buildCharts(marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                                                    return allOptions;
+                                                }
                                             }
                                         }
+                                        return Collections.emptyList();
                                     }
-                                }
+                                };
+                                idxToChartTaskMap.put(index, task);
                             }
                         }
                     });
+                    req.session().attribute(CHART_CACHE, idxToChartTaskMap);
+                    if(idxToChartTaskMap.size()>0) {
+                        results.put("template", html.render());
+                    } else {
+                        results.put("template", h5("No additional charts found.").render());
+                    }
                     return new Gson().toJson(results);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -891,6 +946,7 @@ public class Main {
 
 
         post("/generate-graph/:resource/:id", (req, res)->{
+            authorize(req, res);
             Model model = loadModel(req);
             if(model!=null) {
                 try {

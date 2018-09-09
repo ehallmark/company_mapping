@@ -52,8 +52,10 @@ public class Graph {
         try {
             Node node = nodeCache.getOrDefault(model, Collections.emptyMap()).get(id);
             if(node!=null) {
-                accessStatistics.putIfAbsent(node, new AtomicDouble(0L));
-                accessStatistics.get(node).getAndAdd(1d);
+                synchronized (accessStatistics) {
+                    accessStatistics.putIfAbsent(node, new AtomicDouble(0L));
+                    accessStatistics.get(node).getAndAdd(1d);
+                }
             }
             return node;
         } finally {
@@ -248,7 +250,7 @@ public class Graph {
         public void run() {
             while(!Thread.interrupted()) {
                 System.out.println("Running GC... "+Runtime.getRuntime().freeMemory());
-                //runGC();
+                runGC();
                 try {
                     TimeUnit.MILLISECONDS.sleep(runEveryMS);
                 } catch (Exception e) {
@@ -261,15 +263,16 @@ public class Graph {
 
         private void runGC() {
             // Delete inner data/associations from nodes that are rarely accessed
-            Map<Node, AtomicDouble> accessStatisticsCopy = new HashMap<>(accessStatistics);
-            final int limit = Math.round(accessStatisticsCopy.size() * (float)keepDataPercent);
-            AtomicInteger cnt = new AtomicInteger(0);
-            accessStatisticsCopy.entrySet().stream().sorted(Comparator.comparingDouble(e->e.getValue().get()))
-                    .filter(e->cnt.getAndIncrement()<limit || e.getValue().get()<= 1 || !e.getKey().getModel().existsInDatabase())
-                    .limit(limit).forEach(e->{
-                        e.getKey().getModel().purgeMemory();
-                        accessStatistics.put(e.getKey(), new AtomicDouble(0));
-            });
+            synchronized (accessStatistics) {
+                final int limit = Math.round(accessStatistics.size() * (float) keepDataPercent);
+                AtomicInteger cnt = new AtomicInteger(0);
+                accessStatistics.entrySet().stream().sorted(Comparator.comparingDouble(e -> e.getValue().get()))
+                        .filter(e -> cnt.getAndIncrement() < limit || e.getValue().get() <= 1 || !e.getKey().getModel().existsInDatabase())
+                        .limit(limit).forEach(e -> {
+                    e.getKey().getModel().purgeMemory();
+                    accessStatistics.put(e.getKey(), new AtomicDouble(0));
+                });
+            }
             System.gc();
         }
     }
