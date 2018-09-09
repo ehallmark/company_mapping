@@ -862,27 +862,26 @@ public abstract class Model implements Serializable {
     private double calculateRevenueForRevenueModel(Integer startYear, Integer endYear) {
         if(!isRevenueModel) throw new RuntimeException("Unable to get subrevenues for non revenue model: "+getType());
         revenue = null;
-        int year = (Integer) data.get(Constants.YEAR);
-        if(year >= startYear && year <= endYear) {
+        if(startYear==null || endYear == null) {
             revenue = ((Number)data.get(Constants.VALUE)).doubleValue();
-        }// else {
-           // if(useCAGR) { // USE CAGR HERE?
+        } else {
+            int year = (Integer) data.get(Constants.YEAR);
+            if (year >= startYear && year <= endYear) {
+                revenue = ((Number) data.get(Constants.VALUE)).doubleValue();
+            }// else {
+            // if(useCAGR) { // USE CAGR HERE?
 
-           // }
-        //}
+            // }
+            //}
+        }
         return revenue==null ? 0 : revenue;
     }
 
     private double calculateSubRevenueForRevenueModel(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear) {
         revenue = null;
-        if(startYear!=null && endYear != null) {
-            Model subRevenue = getSubRevenueByRegionId(revenueDomain, regionId);
-            if(subRevenue!=null) {
-                subRevenue.calculateRevenueForRevenueModel(startYear, endYear);
-            }
-
-        } else {
-            revenue = ((Number) data.get(Constants.VALUE)).doubleValue();
+        Model subRevenue = getSubRevenueByRegionId(revenueDomain, regionId);
+        if(subRevenue!=null) {
+            subRevenue.calculateRevenueForRevenueModel(startYear, endYear);
         }
         return revenue == null ? 0 : revenue;
     }
@@ -903,13 +902,13 @@ public abstract class Model implements Serializable {
             }
             case regional: {
                 if(regionId==null) throw new RuntimeException("Please specify a region.");
-                model = getSubRevenues().stream()
+                model = Stream.of(Stream.of(this),getSubRevenues().stream()).flatMap(stream->stream)
                         .filter(m->regionId.equals(m.getData().get(Constants.REGION_ID))).findAny().orElse(null);
                 break;
             }
             case national: {
                 if(regionId==null) throw new RuntimeException("Please specify a country.");
-                model = getSubRevenues().stream().flatMap(m->m.getSubRevenues().stream())
+                model = Stream.of(Stream.of(this),getSubRevenues().stream(),getSubRevenues().stream().flatMap(m->m.getSubRevenues().stream())).flatMap(stream->stream)
                         .filter(m->regionId.equals(m.getData().get(Constants.REGION_ID))).findAny().orElse(null);
                 break;
             }default: {
@@ -1201,7 +1200,7 @@ public abstract class Model implements Serializable {
                     }
                     for(Model model : groupedModelList) {
                         if(model.isRevenueModel() && model.getData().get(Constants.REGION_ID)==null) { // global revenue model
-                            model = getSubRevenueByRegionId(revenueDomain, regionId);
+                            model = model.getSubRevenueByRegionId(revenueDomain, regionId);
                         }
                         if(model==null) continue;
                         if (model.isRevenueModel && startYear != null && endYear != null) {
