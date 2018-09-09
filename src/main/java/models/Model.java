@@ -362,6 +362,7 @@ public abstract class Model implements Serializable {
     }
 
     private PointSeries combineSeriesGroups(@NonNull List<PointSeries> groups, @NonNull PointSeries priorSeries) {
+        if(priorSeries.getData()==null) return new PointSeries();
         if(groups.size()!=priorSeries.getData().size()) throw new RuntimeException("Groups and models must have the same cardinality "+groups.size()+" != "+priorSeries.getData().size());
         final int n = groups.size();
         PointSeries series = new PointSeries();
@@ -859,6 +860,8 @@ public abstract class Model implements Serializable {
     }
 
     private double calculateRevenueForRevenueModel(Integer startYear, Integer endYear) {
+        if(!isRevenueModel) throw new RuntimeException("Unable to get subrevenues for non revenue model: "+getType());
+        revenue = null;
         int year = (Integer) data.get(Constants.YEAR);
         if(year >= startYear && year <= endYear) {
             revenue = ((Number)data.get(Constants.VALUE)).doubleValue();
@@ -870,40 +873,59 @@ public abstract class Model implements Serializable {
         return revenue==null ? 0 : revenue;
     }
 
+    private double calculateSubRevenueForRevenueModel(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear) {
+        revenue = null;
+        if(startYear!=null && endYear != null) {
+            Model subRevenue = getSubRevenueByRegionId(revenueDomain, regionId);
+            if(subRevenue!=null) {
+                subRevenue.calculateRevenueForRevenueModel(startYear, endYear);
+            }
+
+        } else {
+            revenue = ((Number) data.get(Constants.VALUE)).doubleValue();
+        }
+        return revenue == null ? 0 : revenue;
+    }
+
+    private static List<Model> getSubRevenuesByRegionId(@NonNull List<Model> models, @NonNull RevenueDomain revenueDomain, Integer regionId) {
+        return models.stream().map(m->m.getSubRevenueByRegionId(revenueDomain, regionId)).filter(m->m!=null).collect(Collectors.toList());
+    }
+
+    private Model getSubRevenueByRegionId(@NonNull RevenueDomain revenueDomain, Integer regionId) {
+        if(!isRevenueModel) throw new RuntimeException("Unable to get subrevenue for non revenue model.");
+        Model model;
+        switch (revenueDomain) {
+            case global: {
+                if(regionId!=null) throw new RuntimeException("Cannot specify a region when calculating revenues globally.");
+                // proceed
+                model = this;
+                break;
+            }
+            case regional: {
+                if(regionId==null) throw new RuntimeException("Please specify a region.");
+                model = getSubRevenues().stream()
+                        .filter(m->regionId.equals(m.getData().get(Constants.REGION_ID))).findAny().orElse(null);
+                break;
+            }
+            case national: {
+                if(regionId==null) throw new RuntimeException("Please specify a country.");
+                model = getSubRevenues().stream().flatMap(m->m.getSubRevenues().stream())
+                        .filter(m->regionId.equals(m.getData().get(Constants.REGION_ID))).findAny().orElse(null);
+                break;
+            }default: {
+                model = null;
+                break;
+            }
+        }
+        return model;
+    }
+
     public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue) {
         //if(revenue!=null && parentRevenue==null) return revenue;
         revenue = null;
         this.calculationInformation = new ArrayList<>();
         if(isRevenueModel) {
-            if(startYear!=null && endYear != null) {
-                switch (revenueDomain) {
-                    case global: { // get normally
-                        if(regionId!=null) throw new RuntimeException("Cannot specify a region when calculating revenues globally.");
-                        calculateRevenueForRevenueModel(startYear, endYear);
-                        break;
-                    }
-                    case regional: {
-                        if(regionId==null) throw new RuntimeException("Please choose a region.");
-                        revenue = Stream.of(Stream.of(this),getSubRevenues().stream()) // go down 1 level
-                                .flatMap(stream->stream).filter(r->regionId.equals(r.getData().get(Constants.REGION_ID))).mapToDouble(subRevenue->{
-                                    return calculateRevenueForRevenueModel(startYear, endYear);
-                                }).sum();
-                        break;
-                    } // continue
-                    case national: {
-                        if(regionId==null) throw new RuntimeException("Please choose a country.");
-                        // global, so recurse to children
-                        revenue = Stream.of(Stream.of(this),getSubRevenues().stream().flatMap(r->r.getSubRevenues().stream())) // go down two levels
-                                .flatMap(stream->stream).filter(r->regionId.equals(r.getData().get(Constants.REGION_ID))).mapToDouble(subRevenue->{
-                            return calculateRevenueForRevenueModel(startYear, endYear);
-                        }).sum();
-                        break;
-                    }
-                }
-
-            } else {
-                revenue = ((Number) data.get(Constants.VALUE)).doubleValue();
-            }
+            calculateSubRevenueForRevenueModel(revenueDomain, regionId, startYear, endYear);
         } else {
             // find revenues
             if(associations==null) loadAssociations();
@@ -933,6 +955,8 @@ public abstract class Model implements Serializable {
                             // group
                             Map<Integer, List<Model>> revenueGroups = revenues.stream().collect(Collectors.groupingBy(e -> (Integer) e.getData().get(Constants.MARKET_ID), Collectors.toList()));
                             totalRevenueFromMarketShares = revenueGroups.values().stream().mapToDouble(list -> {
+                                list = getSubRevenuesByRegionId(list, revenueDomain, regionId); // sub revenues if necessary
+
                                 List<Double> byCagr = new ArrayList<>();
                                 if (startYear != null && endYear != null) {
                                     List<Model> byYear = new ArrayList<>();
@@ -975,7 +999,7 @@ public abstract class Model implements Serializable {
                         if(!association.getModel().equals(Association.Model.MarketShareRevenue)) {
                             List<Model> revenues = associations.get(association);
                             if (revenues != null && revenues.size() > 0) {
-                                List<Model> revenueModelsSorted = revenues.stream().peek(Model::loadAttributesFromDatabase).sorted((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).collect(Collectors.toList());
+                                List<Model> revenueModelsSorted = getSubRevenuesByRegionId(revenues, revenueDomain, regionId).stream().peek(Model::loadAttributesFromDatabase).sorted((e1, e2) -> ((Integer) e2.getData().get(Constants.YEAR)).compareTo((Integer) e1.getData().get(Constants.YEAR))).collect(Collectors.toList());
                                 List<Double> byCagr = new ArrayList<>();
                                 if(startYear!=null && endYear != null) {
                                     List<Model> byYear = new ArrayList<>();
@@ -1177,25 +1201,7 @@ public abstract class Model implements Serializable {
                     }
                     for(Model model : groupedModelList) {
                         if(model.isRevenueModel() && model.getData().get(Constants.REGION_ID)==null) { // global revenue model
-                            switch (revenueDomain) {
-                                case global: {
-                                    if(regionId!=null) throw new RuntimeException("Cannot specify a region when calculating revenues globally.");
-                                    // proceed
-                                    break;
-                                }
-                                case regional: {
-                                    if(regionId==null) throw new RuntimeException("Please specify a region.");
-                                    model = Stream.of(model).flatMap(m->m.getSubRevenues().stream())
-                                            .filter(m->regionId.equals(m.getData().get(Constants.REGION_ID))).findAny().orElse(null);
-                                    break;
-                                }
-                                case national: {
-                                    if(regionId==null) throw new RuntimeException("Please specify a country.");
-                                    model = Stream.of(model).flatMap(m->m.getSubRevenues().stream()).flatMap(m->m.getSubRevenues().stream())
-                                            .filter(m->regionId.equals(m.getData().get(Constants.REGION_ID))).findAny().orElse(null);
-                                    break;
-                                }
-                            }
+                            model = getSubRevenueByRegionId(revenueDomain, regionId);
                         }
                         if(model==null) continue;
                         if (model.isRevenueModel && startYear != null && endYear != null) {
