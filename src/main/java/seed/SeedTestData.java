@@ -26,7 +26,7 @@ public class SeedTestData {
             if(market.getData().get(Constants.PARENT_MARKET_ID) != null) {
                 for(Model company : companies) {
                     if(rand.nextBoolean() && rand.nextBoolean()) {
-                        addMarketShares(company, market, rand.nextInt(10)+1, new ExponentialDistribution(50d + rand.nextInt(800)));
+                        addMarketShares(company, market, rand.nextInt(10)+1, new ExponentialDistribution(50d + rand.nextInt(100)));
                     }
                 }
             }
@@ -67,7 +67,7 @@ public class SeedTestData {
                         List<Model> regions = Database.selectAll(false, Association.Model.Region, Constants.REGION_TABLE, Arrays.asList(Constants.NAME, Constants.PARENT_REGION_ID), null, null);
                         regions = regions.stream().filter(region->region.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
                         for(Model region : regions) {
-                            addSubRevenues(revenueModel, region.getId(), new ExponentialDistribution(50d + rand.nextInt(800)));
+                            addSubRevenues(revenueModel, region.getId(), new ExponentialDistribution(50000d + rand.nextInt(6000)));
                         }
                     } catch(Exception e) {
                         e.printStackTrace();
@@ -185,7 +185,7 @@ public class SeedTestData {
                     }
                 }
                 if(rand.nextBoolean()) {
-                    addRevenuesToResource(resource, rand.nextInt(5)+5, new ExponentialDistribution(100d + rand.nextInt(1000)));
+                    addRevenuesToResource(resource, rand.nextInt(5)+5, new ExponentialDistribution(1000000d + rand.nextInt(100000)));
                 }
             }
         }

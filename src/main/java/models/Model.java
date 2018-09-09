@@ -293,9 +293,11 @@ public abstract class Model implements Serializable {
                         }
                     }
                 }
-                if(y!=null) {
-                    series.addPoint(new Point(label, y));
+                if(y==null) {
+                    y = 0d;
                 }
+                series.addPoint(new Point(label, y));
+
             });
         }
         // sort series
@@ -307,28 +309,58 @@ public abstract class Model implements Serializable {
     }
 
 
-    public void buildMarketShare(String groupByField, String title, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association, String secondaryGroupBy, String... groupByFields) {
+    public void buildMarketShare(String groupByField, String title, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association, Map<String,String> groupToFieldMap, String... groupByFields) {
         PointSeries series = buildPieSeries(groupByField, title, minYear, maxYear, useCAGR, option, models, options, association);
         if (series != null) {
             options.addSeries(series);
             if(groupByFields.length>0) {
-                for (String additionalGroup : groupByFields) {
-                    models = models.stream().flatMap(model -> {
-                        model.loadAssociations();
-                        return model.getAssociations().getOrDefault(model.findAssociation(additionalGroup), Collections.emptyList()).stream();
-                    }).collect(Collectors.toList());
-                }
                 series.setSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT));
                 series.setDataLabels(new DataLabels(true).setColor(Color.WHITE).setDistance(-40));
-                series = buildPieSeries(secondaryGroupBy, title, minYear, maxYear, useCAGR, option, models, options, association);
-                if (series != null) {
-                    series.setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT));
-                    series.setInnerSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT));
-
-                    options.addSeries(series);
+                PointSeries priorSeries = series;
+                for (String additionalGroup : groupByFields) {
+                    List<PointSeries> groups = new ArrayList<>();
+                    models = models.stream().flatMap(model -> {
+                        model.loadAssociations();
+                        List<Model> assocs = model.getAssociations().getOrDefault(model.findAssociation(additionalGroup), Collections.emptyList());
+                        PointSeries innerSeries = buildPieSeries(groupToFieldMap.get(additionalGroup), title, minYear, maxYear, useCAGR, option, assocs, options, association);
+                        if (innerSeries != null) {
+                            groups.add(innerSeries);
+                        } else {
+                            groups.add(new PointSeries());
+                        }
+                        return assocs.stream();
+                    }).collect(Collectors.toList());
+                    PointSeries innerSeries = combineSeriesGroups(groups, priorSeries);
+                    priorSeries = innerSeries;
+                    innerSeries.setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT));
+                    innerSeries.setInnerSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT));
+                    options.addSeries(innerSeries);
                 }
             }
         }
+    }
+
+    private PointSeries combineSeriesGroups(@NonNull List<PointSeries> groups, @NonNull PointSeries priorSeries) {
+        if(groups.size()!=priorSeries.getData().size()) throw new RuntimeException("Groups and models must have the same cardinality "+groups.size()+" != "+priorSeries.getData().size());
+        final int n = groups.size();
+        PointSeries series = new PointSeries();
+        for(int i = 0; i < n; i++) {
+            PointSeries group = groups.get(i);
+            if(group.getData()==null) continue;;
+            Point oldPoint = priorSeries.getData().get(i);
+
+            double sumOfGroup = group.getData() == null ? 0d : group.getData().stream().mapToDouble(p->p.getY().doubleValue()).sum();
+            double modelRevenue = oldPoint.getY().doubleValue();
+            for(Point point : group.getData()) {
+                series.addPoint(point);
+            }
+
+            // add other point
+            if(modelRevenue-sumOfGroup > 0.00001) {
+                series.addPoint(new Point("Remaining", modelRevenue-sumOfGroup));
+            }
+        }
+        return series;
     }
 
 
@@ -362,7 +394,7 @@ public abstract class Model implements Serializable {
                 case Market: {
                     if(association.getAssociationName().startsWith("Sub")) {
                         // sub market
-                        buildMarketShare(null,"Sub Markets", minYear, maxYear, useCAGR, option, assocModels, options, association, Constants.COMPANY_ID, "Market Share");
+                        buildMarketShare(null,"Sub Markets", minYear, maxYear, useCAGR, option, assocModels, options, association, Collections.singletonMap("Market Share",Constants.COMPANY_ID), "Market Share");
                     } else {
                         options.setTitle(new Title().setText("Parent Market"));
                         // parent market
