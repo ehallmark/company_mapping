@@ -721,10 +721,9 @@ public class Main {
                             h3("Diagram of " + model.getData().get(Constants.NAME)),
                             diagram
                     );
+                    registerNextPage(req, res);
                 }
-                String str = new Gson().toJson(Collections.singletonMap("result", html.render()));
-                registerNextPage(req, res);
-                return str;
+                return new Gson().toJson(Collections.singletonMap("result", html.render()));
             }
             return null;
         });
