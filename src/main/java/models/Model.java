@@ -757,6 +757,7 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag loadNestedAssociations(boolean nested, int maxDepth) {
+        RevenueDomain revenueDomain = RevenueDomain.global;
         if(data==null) {
             loadAttributesFromDatabase();
         }
@@ -769,18 +770,36 @@ public abstract class Model implements Serializable {
             }
         }
         ContainerTag inner = ul();
-        calculateRevenue(RevenueDomain.global, null, null, null, false, Constants.MissingRevenueOption.replace, null, false);
+        calculateRevenue(revenueDomain, null, null, null, false, Constants.MissingRevenueOption.replace, null, false);
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(getSimpleLink().attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(Constants.YEAR,true, RevenueDomain.global, null, null, null, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth);
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, null), Constants.YEAR,true, revenueDomain, null, null, null, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth);
         if(nested) return inner;
         return tag;
     };
 
+    private static String getRegionDomainName(RevenueDomain domain, Integer regionId) {
+        String name;
+        switch(domain) {
+            case global: {
+                if(regionId!=null) throw new RuntimeException("Cannot specify a region when calculating revenues globally.");
+                name = "Global";
+                break;
+            }
+            default: {
+                if(regionId==null) throw new RuntimeException("Please specify a region.");
+                Model region = Graph.load().findNode(Association.Model.Region, regionId).getModel();
+                region.loadAttributesFromDatabase();
+                name = (String)region.getData().get(Constants.NAME);
+                break;
+            }
+        }
+        return name;
+    }
 
     public ContainerTag loadReport(RevenueDomain revenueDomain, Integer regionId, int startYear, int endYear, boolean useCAGR, Constants.MissingRevenueOption option) {
         final int maxDepth = 10;
@@ -803,7 +822,7 @@ public abstract class Model implements Serializable {
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(Constants.YEAR,false, revenueDomain, regionId, startYear, endYear, useCAGR, option, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth);
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, regionId), Constants.YEAR,false, revenueDomain, regionId, startYear, endYear, useCAGR, option, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth);
         return tag;
     };
 
@@ -1073,7 +1092,7 @@ public abstract class Model implements Serializable {
          If no revenue is present for a company, do nothing. If no revenue is present for a product, do nothing.
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
-    private void loadNestedAssociationHelper(String groupRevenuesBy, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth) {
+    private void loadNestedAssociationHelper(@NonNull String regionDomainName, String groupRevenuesBy, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth) {
         if(depth > maxDepth) return;
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
         String originalId = original.getClass().getSimpleName()+original.getId();
@@ -1121,7 +1140,7 @@ public abstract class Model implements Serializable {
                     if(association.getAssociationName().startsWith("Sub")) {
                         name = pluralize ? "Sub Revenues" : "Sub Revenue";
                     } else {
-                        name = pluralize ? "Global Revenues" : "Global Revenue";
+                        name = regionDomainName + (pluralize ? " Revenues" : " Revenue");
                     }
                 } else {
                     name = pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName();
@@ -1186,7 +1205,7 @@ public abstract class Model implements Serializable {
                     if(yearlyRevenue!=null) {
                         String percentStr = totalRevAllYears == null ? "" : (String.format("%.1f", (yearlyRevenue * 100d) / totalRevAllYears) + "%");
                         groupUl = ul().attr("data-val", yearlyRevenue.toString()).withClass("resource-data-field");
-                        ul.with(li().with(div(String.valueOf(key) + " (Revenue: " + formatRevenueString(yearlyRevenue) + ") - "+percentStr)
+                        ul.with(li().with(div( String.valueOf(key) + " - "+regionDomainName  + " (Revenue: " + formatRevenueString(yearlyRevenue) + ") - "+percentStr)
                                 .attr("style", "cursor: pointer;").attr("onclick", "$(this).next().slideToggle();")
                         ).attr("style", "display: inline; list-style: none;").with(groupUl));
                     } else {
@@ -1257,7 +1276,7 @@ public abstract class Model implements Serializable {
                                         .attr("data-resource", model.getType().toString())
                                 );
                             } else {
-                                model.loadNestedAssociationHelper(group, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth);
+                                model.loadNestedAssociationHelper(regionDomainName, group, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth);
                             }
                         }
                         references.add(_id);
