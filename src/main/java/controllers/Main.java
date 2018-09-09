@@ -299,12 +299,12 @@ public class Main {
                         ),
                         label("Country").attr("style", "display: none; width: 250px; margin-left: auto; margin-right: auto;").with(
                                 select().attr("disabled", "disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
-                                        .withName("revenue_country")
+                                        .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+model.getType()+"/-1?nationalities_only=true")
                         ),
                         label("Region").attr("style", "display: none; width: 250px; margin-left: auto; margin-right: auto;").with(
                                 select().attr("disabled", "disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
-                                        .withName("revenue_region")
+                                        .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+model.getType()+"/-1?regions_only=true")
                         ), br(),
                         label("Use CAGR when applicable?").with(br(),
@@ -826,15 +826,22 @@ public class Main {
         post("/generate-graph/:resource/:id", (req, res)->{
             Model model = loadModel(req);
             if(model!=null) {
-                boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
-                int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
-                int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
-                Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
-                Map<String, Object> results = new HashMap<>();
-                AtomicInteger idx = new AtomicInteger(0);
                 try {
+                    boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
+                    int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
+                    int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                    Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
+                    Integer regionId = DataTable.extractInt(req, Constants.REGION_ID, null);
+                    Model.RevenueDomain revenueDomain;
+                    try {
+                        revenueDomain = Model.RevenueDomain.valueOf(req.queryParams("revenue_domain"));
+                    } catch (Exception e) {
+                        throw new RuntimeException("Please select a valid Revenue Domain.");
+                    }
+                    Map<String, Object> results = new HashMap<>();
+                    AtomicInteger idx = new AtomicInteger(0);
                     for(Association association : model.getAssociationsMeta()) {
-                        List<Options> allOptions = model.buildCharts(association.getAssociationName(), startYear, endYear, useCAGR, missingRevenueOption);
+                        List<Options> allOptions = model.buildCharts(association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
                         if(allOptions!=null) {
                             for(Options options : allOptions) {
                                 String json = new JsonRenderer().toJson(options);
@@ -860,9 +867,16 @@ public class Main {
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                 int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
                 Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
-
                 try {
-                    ContainerTag diagram = model.loadReport(startYear, endYear, useCAGR, missingRevenueOption);
+                    Integer regionId = DataTable.extractInt(req, Constants.REGION_ID, null);
+                    Model.RevenueDomain revenueDomain;
+                    try {
+                        revenueDomain = Model.RevenueDomain.valueOf(req.queryParams("revenue_domain"));
+                    } catch (Exception e) {
+                        throw new RuntimeException("Please select a valid Revenue Domain.");
+                    }
+
+                    ContainerTag diagram = model.loadReport(revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
 
                     ContainerTag html = div().withClass("col-12").with(h4("Date Range: "+startYear+" - "+endYear), br(), diagram);
                     return new Gson().toJson(Collections.singletonMap("result", html.render()));
