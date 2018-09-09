@@ -259,6 +259,9 @@ var onShowResourceFunction = function($topElem) {
                         Highcharts.chart(id, JSON.parse(data[id]));
                         i = i+1;
                     }
+                    $([document.body, document.documentElement]).animate({
+                        scrollTop: $this.offset().top-100
+                    }, 500);
                 }}($results,chartId)
             });
         }

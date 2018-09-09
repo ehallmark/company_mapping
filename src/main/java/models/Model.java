@@ -243,7 +243,7 @@ public abstract class Model implements Serializable {
             categories.add(String.valueOf(year));
         }
         options.setPlotOptions(new PlotOptionsChoice().setPie(new PlotOptions().setAllowPointSelect(false).setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT))));
-        options.setChartOptions(new ChartOptions().setWidth(900).setHeight(600).setType(SeriesType.PIE));
+        options.setChartOptions(new ChartOptions().setWidth(800).setType(SeriesType.PIE));
         options.setSubtitle(new Title().setText(title));
         options.setTitle(new Title().setText(data.get(Constants.NAME).toString()));
         options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>Percentage: {point.percentage:.1f}%</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
@@ -352,6 +352,17 @@ public abstract class Model implements Serializable {
                     innerSeries.setInnerSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT));
                     options.addSeries(innerSeries);
                 }
+            } else {
+                // set colors
+                List<int[]> colors = ChartHelper.RGB_COLORS;
+                List<ColorReference> colorReferences = new ArrayList<>(colors.size());
+                for (int[] color : colors) {
+                    ColorReference colorRef = ChartHelper.radialColorReference(color);
+                    colorReferences.add(colorRef);
+                }
+                series.setInnerSize(new PixelOrPercent(55, PixelOrPercent.Unit.PERCENT));
+                series.setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT));
+                options.setColors(colorReferences);
             }
             // clear Zero points
             for(Series<?> seriesOptions : options.getSeries()) {

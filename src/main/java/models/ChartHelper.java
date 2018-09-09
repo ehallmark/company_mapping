@@ -46,4 +46,5 @@ public class ChartHelper {
         int[] rgb = RGB_COLORS.get(i%RGB_COLORS.size());
         return brighten(rgb[0], rgb[1], rgb[2], brightenPercent);
     }
+
 }
