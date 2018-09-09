@@ -12,11 +12,16 @@ import java.util.stream.Collectors;
 
 public class SeedTestData {
     private static final Random rand = new Random(120);
+    private static List<Model> regions;
 
     public static void main(String[] args) throws Exception {
-        seedResource(Association.Model.Market,0,  4, null, null);
-        seedResource(Association.Model.Company,0,  4, null, null);
-        seedResource(Association.Model.Product,0,  4, null, null);
+        regions = Database.selectAll(false, Association.Model.Region, Constants.REGION_TABLE, Arrays.asList(Constants.NAME, Constants.PARENT_REGION_ID), null, null);
+        regions = regions.stream().filter(region->region.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
+
+
+        seedResource(Association.Model.Market,0,  10, null, null);
+        seedResource(Association.Model.Company,0,  20, null, null);
+        seedResource(Association.Model.Product,0,  10, null, null);
 
         // add market shares
         List<Model> markets = Database.selectAll(false, Association.Model.Market, Constants.MARKET_TABLE, Collections.singletonList(Constants.PARENT_MARKET_ID), null, null);
@@ -62,8 +67,6 @@ public class SeedTestData {
                 if(rand.nextBoolean()) {
                     // get regions
                     try {
-                        List<Model> regions = Database.selectAll(false, Association.Model.Region, Constants.REGION_TABLE, Arrays.asList(Constants.NAME, Constants.PARENT_REGION_ID), null, null);
-                        regions = regions.stream().filter(region->region.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
                         for(Model region : regions) {
                             addSubRevenues(revenueModel, region.getId(), new ExponentialDistribution(50000d + rand.nextInt(6000)));
                         }

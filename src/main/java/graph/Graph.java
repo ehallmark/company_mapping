@@ -248,7 +248,7 @@ public class Graph {
         public void run() {
             while(!Thread.interrupted()) {
                 System.out.println("Running GC... "+Runtime.getRuntime().freeMemory());
-                runGC();
+                //runGC();
                 try {
                     TimeUnit.MILLISECONDS.sleep(runEveryMS);
                 } catch (Exception e) {
