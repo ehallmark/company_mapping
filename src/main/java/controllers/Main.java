@@ -28,6 +28,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static j2html.TagCreator.*;
 import static j2html.TagCreator.head;
@@ -759,7 +760,7 @@ public class Main {
                         getBackButton(req),
                         h3("Comparison of "+model.getData().get(Constants.NAME)),
                         label(Constants.humanAttrFor(model.getType().toString())+" Name:").with(
-                                select().attr("id", "compare-model-select").attr("style","width: 100%").withClass("form-control multiselect-ajax")
+                                select().attr("multiple", "multiple").attr("id", "compare-model-select").attr("style","width: 100%").withClass("form-control multiselect-ajax")
                                         .attr("data-url", "/ajax/resources/"+model.getType()+"/"+model.getType()+"/"+model.getId())
                         ), br(),
                         getReportOptionsForm(model,"comparison"),
@@ -773,27 +774,90 @@ public class Main {
         });
 
 
-        post("/generate-comparison/:resource/:id/:id2", (req, res)->{
+        post("/generate-comparison/:resource/:id", (req, res)->{
             Model model = loadModel(req);
-            Model compareModel = loadModel(Association.Model.valueOf(req.params("resource")), Integer.valueOf(req.params("id2")));
-            if(model!=null && compareModel!=null) {
+            List<Model> compareModels = new ArrayList<>();
+            String[] otherIds = req.queryParamsValues("other_ids[]");
+            for(String otherId : otherIds) {
+                Model compareModel = loadModel(Association.Model.valueOf(req.params("resource")), Integer.valueOf(otherId));
+                compareModels.add(compareModel);
+            }
+
+            if(model!=null && compareModels.size()>0) {
                 boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                 int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
                 Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
                 Map<String, Object> results = new HashMap<>();
+                Association.Model resource;
                 try {
-                    model.loadAssociations();
-                    compareModel.loadAssociations();
-                    Graph graph = Graph.load();
-                    Collection<Node> commonRelatives = graph.findMutualRelatives(model, compareModel).stream()
-                            .filter(n->!n.getModel().getType().equals(model.getType())).collect(Collectors.toList());
-                    for(Node node : commonRelatives) {
-                        System.out.println("Relative: "+new Gson().toJson(node.getModel()));
+                    resource = Association.Model.valueOf(req.params("resource"));
+                    Integer regionId = DataTable.extractInt(req, Constants.REGION_ID, null);
+                    Model.RevenueDomain revenueDomain;
+                    try {
+                        revenueDomain = Model.RevenueDomain.valueOf(req.queryParams("revenue_domain"));
+                    } catch (Exception e) {
+                        throw new RuntimeException("Please select a valid Revenue Domain.");
                     }
-                    List<Model> models = commonRelatives.stream().map(n->n.getModel())
-                            .collect(Collectors.toList());
-                    results.put("result", models);
+                    model.loadAssociations();
+                    Graph graph = Graph.load();
+                    for(Model compareModel : compareModels) {
+                        compareModel.loadAssociations();
+                    }
+                    Collection<Node> commonRelatives = compareModels.stream().flatMap(compareModel->graph.findMutualRelatives(model, compareModel).stream())
+                            .filter(n->!n.getModel().getType().equals(model.getType())).collect(Collectors.toSet());
+
+                    Map<Association.Model,List<Model>> modelGroups = commonRelatives.stream().map(n->n.getModel()).collect(Collectors.groupingBy(e->e.getType()));
+                    final Set<Integer> modelIds = compareModels.stream().map(m->m.getId()).collect(Collectors.toCollection(HashSet::new));
+                    modelIds.add(model.getId());
+
+                    AtomicInteger idx = new AtomicInteger(0);
+                    final List<Model> allComparables = new ArrayList<>(compareModels);
+                    allComparables.add(model);
+                    Stream.of(Association.Model.values()).forEach(type->{
+                        if(type.equals(Association.Model.Region)) return;
+                        if(modelGroups.containsKey(type)) {
+                            List<Model> models = modelGroups.get(type);
+                            // add Overall revenue pie chart and revenue by year
+                            // TODO
+                            Model fakeParents = getModelByType(type);
+                            fakeParents.setData(Collections.singletonMap(Constants.NAME, "All Revenues"));
+                            Association fakeAssoc = new Association("Sub "+type.toString(), type, "", "", null, Association.Type.OneToMany, "", "", false, "All Revenue");
+                            fakeParents.setAssociations(Collections.singletonMap(fakeAssoc, allComparables));
+                            List<Options> parentOptions = fakeParents.buildCharts(models, fakeAssoc,
+                                    revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                            for(Options options : parentOptions) {
+                                String json = new JsonRenderer().toJson(options);
+                                results.put("chart_" + idx.getAndIncrement(), json);
+                            }
+                            for(Model assoc : models) {
+                                assoc.loadAssociations();
+                                // get associations relevant to model and compareModel
+                                Association association = assoc.findAssociation("Market Share");
+                                if (association != null) {
+                                    List<Model> marketShares = assoc.getAssociations().get(association);
+                                    if (marketShares != null) {
+                                        marketShares = marketShares.stream().filter(share -> {
+                                            if (resource.equals(Association.Model.Market)) {
+                                                return modelIds.contains(share.getData().get(Constants.MARKET_ID));
+                                            } else if (resource.equals(Association.Model.Company)) {
+                                                return modelIds.contains(share.getData().get(Constants.COMPANY_ID));
+                                            } else {
+                                                return false;
+                                            }
+                                        }).collect(Collectors.toList());
+                                        if (marketShares.size() > 0) {
+                                            List<Options> allOptions = assoc.buildCharts(marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                                            for(Options options : allOptions) {
+                                                String json = new JsonRenderer().toJson(options);
+                                                results.put("chart_" + idx.getAndIncrement(), json);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
                     return new Gson().toJson(results);
                 } catch (Exception e) {
                     e.printStackTrace();

@@ -297,14 +297,19 @@ var onShowResourceFunction = function($topElem) {
         var id = $form.attr("data-id");
         var resourceId = $form.attr('data-resource');
         var otherId = $('#compare-model-select').val();
+        var data = objectifyForm($form.serializeArray());
+        if(!data) {
+            data = {};
+        }
         if(!otherId) {
             alert("Please specify a "+ resourceId + " to compare.");
             return;
         }
+        data['other_ids'] = otherId;
         $.ajax({
-            url: '/generate-comparison/'+resourceId+'/'+id+'/'+otherId,
+            url: '/generate-comparison/'+resourceId+'/'+id,
             dataType: 'json',
-            data: $form.serialize(),
+            data: data,
             type: 'POST',
             success: function(data) {
                 if(data.hasOwnProperty('error')) {
@@ -317,7 +322,14 @@ var onShowResourceFunction = function($topElem) {
                         $('#inner-results').html('');
                     }
                 } else {
-                    $('#inner-results').html(data.result);
+                    var $innerResults = $('#inner-results');
+                    var i = 0;
+                    while(data.hasOwnProperty('chart_'+i.toString())) {
+                        var chartId = 'chart_'+i.toString();
+                        $innerResults.append('<div align="center" id="chart_'+i.toString()+'"></div>');
+                        Highcharts.chart(chartId, JSON.parse(data[chartId]));
+                        i = i+1;
+                    }
                     onShowResourceFunction($('#inner-results'));
                 }
             },

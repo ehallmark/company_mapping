@@ -108,14 +108,18 @@ public abstract class Model implements Serializable {
                 .findAny().orElse(null);
     }
 
-
     public void buildTimelineSeries(String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
+        buildTimelineSeries(data.get(Constants.NAME).toString(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, option, models, options, association);
+    }
+
+
+    public static void buildTimelineSeries(@NonNull String name, @NonNull Association.Model type, Integer id, Double revenue, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
         // yearly timeline
         if(minYear==null || maxYear==null) return;
         if(maxYear - minYear <= 0) {
             return;
         }
-        options.setSubtitle(new Title().setText(data.get(Constants.NAME).toString()));
+        options.setTitle(new Title().setText(name));
         List<String> categories = new ArrayList<>();
         for(int year = minYear; year <= maxYear; year ++ ) {
             categories.add(String.valueOf(year));
@@ -131,7 +135,7 @@ public abstract class Model implements Serializable {
             title = "Revenue Timeline by "+Constants.humanAttrFor(groupByField);
             options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>{series.name}</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
         }
-        options.setTitle(new Title().setText(title));
+        options.setSubtitle(new Title().setText(title));
         if(groupByField==null) {
             PointSeries series = new PointSeries();
             series.setDataLabels(new DataLabels(true)
@@ -147,9 +151,9 @@ public abstract class Model implements Serializable {
                 assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, option, revenue, true);
                 Double rev = assoc.revenue;
                 assoc.getSimpleLink();
-                Integer name = (Integer) assoc.getData().get(Constants.YEAR);
+                Integer year = (Integer) assoc.getData().get(Constants.YEAR);
                 if(rev!=null) {
-                    series.addPoint(new Point(name.toString(), rev));
+                    series.addPoint(new Point(year.toString(), rev));
                     missingYears.remove(assoc.getData().get(Constants.YEAR).toString());
                 }
             }
@@ -165,7 +169,7 @@ public abstract class Model implements Serializable {
 
                 } else {
                     if(option.equals(Constants.MissingRevenueOption.error)) {
-                        throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + data.get(Constants.NAME), missingYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                        throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + name, missingYear, type, id, association);
                     } else if(option.equals(Constants.MissingRevenueOption.replace)) {
                         series.addPoint(new Point(String.valueOf(missingYear), 0));
 
@@ -175,17 +179,17 @@ public abstract class Model implements Serializable {
             options.addSeries(series);
 
         } else {
-            models.stream().collect(Collectors.groupingBy(e->e.getData().get(groupByField))).forEach((name, list) -> {
+            models.stream().collect(Collectors.groupingBy(e->e.getData().get(groupByField))).forEach((year, list) -> {
                 PointSeries series = new PointSeries();
                 series.setShowInLegend(true);
                 // get name of group by field by id
                 Model dataReference;
                 if(groupByField.equals(Constants.MARKET_ID)) {
                     // find market
-                    dataReference = new Market((Integer)name, null);
+                    dataReference = new Market((Integer)year, null);
                 } else if(groupByField.equals(Constants.COMPANY_ID)){
                     // find company
-                    dataReference = new Company((Integer)name, null);
+                    dataReference = new Company((Integer)year, null);
 
                 } else {
                     throw new RuntimeException("Unknown group by field in time line chart.");
@@ -197,10 +201,10 @@ public abstract class Model implements Serializable {
                     assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, option, revenue, true);
                     Double rev = assoc.revenue;
                     assoc.getSimpleLink();
-                    Integer year = (Integer) assoc.getData().get(Constants.YEAR);
+                    Integer _year = (Integer) assoc.getData().get(Constants.YEAR);
                     if (rev != null) {
-                        series.addPoint(new Point(year.toString(), assoc.revenue));
-                        missingYears.remove(year.toString());
+                        series.addPoint(new Point(_year.toString(), assoc.revenue));
+                        missingYears.remove(_year.toString());
                     }
                 }
                 for(String missing : missingYears) {
@@ -215,7 +219,7 @@ public abstract class Model implements Serializable {
 
                     } else {
                         if(option.equals(Constants.MissingRevenueOption.error)) {
-                            throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + data.get(Constants.NAME), missingYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                            throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + name, missingYear, type, id, association);
                         } else if(option.equals(Constants.MissingRevenueOption.replace)) {
                             series.addPoint(new Point(String.valueOf(missingYear), 0));
 
@@ -240,8 +244,8 @@ public abstract class Model implements Serializable {
         }
         options.setPlotOptions(new PlotOptionsChoice().setPie(new PlotOptions().setAllowPointSelect(false).setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT))));
         options.setChartOptions(new ChartOptions().setWidth(900).setHeight(600).setType(SeriesType.PIE));
-        options.setTitle(new Title().setText(title));
-        options.setSubtitle(new Title().setText(data.get(Constants.NAME).toString()));
+        options.setSubtitle(new Title().setText(title));
+        options.setTitle(new Title().setText(data.get(Constants.NAME).toString()));
         options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>Percentage: {point.percentage:.1f}%</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
         PointSeries series = new PointSeries();
         series.setDataLabels(new DataLabels(true)
@@ -406,15 +410,19 @@ public abstract class Model implements Serializable {
                 .setCreditOptions(new CreditOptions().setEnabled(true).setText("GTT Group").setHref("http://www.gttgrp.com/"));
     }
 
-
     public List<Options> buildCharts(@NonNull String associationName, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option) {
-        Association association = associationsMeta.stream().filter(a->a.getAssociationName().equals(associationName)).findAny().orElse(null);
+        Association association = findAssociation(associationName);
         if(association==null) {
             return null;
         }
         loadAssociations();
-        List<Options> allOptions = new ArrayList<>();
         List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
+        return buildCharts(assocModels, association, revenueDomain, regionId, minYear, maxYear, useCAGR, option);
+    }
+
+
+    public List<Options> buildCharts(@NonNull List<Model> assocModels, @NonNull Association association, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option) {
+        List<Options> allOptions = new ArrayList<>();
         Options options = getDefaultChartOptions();
         allOptions.add(options);
         calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, option, null, false);
@@ -427,9 +435,9 @@ public abstract class Model implements Serializable {
                 case Market: {
                     if(association.getAssociationName().startsWith("Sub")) {
                         // sub market
-                        buildMarketShare(null,"Sub Markets", revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association, Collections.singletonMap("Market Share",Constants.COMPANY_ID), "Market Share");
+                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenues") ? "" : "Sub Markets", revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association, Collections.singletonMap("Market Share",Constants.COMPANY_ID), "Market Share");
                     } else {
-                        options.setTitle(new Title().setText("Parent Market"));
+                        options.setSubtitle(new Title().setText("Parent Market"));
                         // parent market
                         if(assocModels.size()>0) {
                             Model parent = assocModels.get(0);
@@ -472,10 +480,10 @@ public abstract class Model implements Serializable {
                     // check sub company or parent company
                     if(association.getAssociationName().startsWith("Sub")) {
                         // children
-                        buildMarketShare(null,"Subsidiaries", revenueDomain, regionId,minYear, maxYear, useCAGR, option, assocModels, options, association, null);
+                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenues") ? "" : "Subsidiaries", revenueDomain, regionId,minYear, maxYear, useCAGR, option, assocModels, options, association, null);
                     } else {
                         // parent
-                        options.setTitle(new Title().setText("Parent Company"));
+                        options.setSubtitle(new Title().setText("Parent Company"));
                         if(assocModels.size()>0) {
                             Model parent = assocModels.get(0);
                             if(parent.getAssociations()==null) parent.loadAssociations();
@@ -515,7 +523,7 @@ public abstract class Model implements Serializable {
                 }
                 case Company: {
                     // graph of all products of this product's company
-                    options.setTitle(new Title().setText("Company Products"));
+                    options.setSubtitle(new Title().setText("Company Products"));
                     if(assocModels.size()>0) {
                         Model parent = assocModels.get(0);
                         if(parent.getAssociations()==null) parent.loadAssociations();
@@ -532,7 +540,7 @@ public abstract class Model implements Serializable {
                 }
                 case Market: {
                     // graph of all products of this product's market
-                    options.setTitle(new Title().setText("Market Products"));
+                    options.setSubtitle(new Title().setText("Market Products"));
                     if(assocModels.size()>0) {
                         Model parent = assocModels.get(0);
                         if(parent.getAssociations()==null) parent.loadAssociations();
@@ -836,7 +844,7 @@ public abstract class Model implements Serializable {
         return span(revStr).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
-    private synchronized Double calculateFromCAGR(Model best, int year) {
+    private static Double calculateFromCAGR(Model best, int year) {
         if(best!=null) {
             System.out.println("Using CAGR...");
             int cagrYear = (Integer) best.getData().get(Constants.YEAR);
@@ -860,7 +868,7 @@ public abstract class Model implements Serializable {
         return null;
     }
 
-    private synchronized Double calculateFromCAGR(List<Model> list, int year) {
+    private static Double calculateFromCAGR(List<Model> list, int year) {
         // check cagr for other years
         Model best = list.stream().filter(m->m.getData().get(Constants.CAGR)!=null).min((e1,e2)->Integer.compare(Math.abs((Integer)e1.getData().get(Constants.YEAR)-year), Math.abs((Integer)e2.getData().get(Constants.YEAR)-year))).orElse(null);
         return calculateFromCAGR(best, year);
@@ -1612,7 +1620,7 @@ public abstract class Model implements Serializable {
         if(associations!=null) {
             return;
         }
-        if (data == null) {
+        if (data == null || isMissingAttributes()) {
             loadAttributesFromDatabase();
         }
         this.associations = new HashMap<>();
