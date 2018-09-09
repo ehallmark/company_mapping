@@ -113,6 +113,55 @@ public class Graph {
         }
     }
 
+
+    public Collection<Node> findMutualRelatives(@NonNull Model model1, @NonNull Model model2) {
+        Node node1 = findNode(model1.getType(), model1.getId());
+        Node node2 = findNode(model2.getType(), model2.getId());
+        Set<Node> mutualRelatives = new HashSet<>();
+        if(node1!=null && node2!=null) {
+            mutualRelatives.add(node1);
+            mutualRelatives.add(node2);
+
+            Collection<Node> relatives1 = new HashSet<>();
+            relatives1.add(node1);
+            Collection<Node> relatives2 = new HashSet<>();
+            relatives2.add(node2);
+
+            // find relatives
+            findRelativesHelper(node1, relatives1);
+            findRelativesHelper(node2, relatives2);
+            for(Node relative1 : relatives1) {
+                if(relatives2.contains(relative1)) {
+                    mutualRelatives.add(relative1);
+                }
+            }
+        }
+        return mutualRelatives;
+    }
+
+    private static void findRelativesHelper(@NonNull Node node, @NonNull Collection<Node> relatives) {
+        Map<String, List<Edge>> edgeMap = node.getEdgeMap();
+        Set<String> keys = new HashSet<>(edgeMap.keySet());
+        boolean seenAll = true;
+        for(String key : keys) {
+            List<Edge> edges = edgeMap.getOrDefault(key, Collections.emptyList());
+            for(Edge edge : edges) {
+                seenAll = seenAll && !relatives.add(edge.getTarget());
+            }
+        }
+        if(!seenAll) { // recurse on revenues
+            for (String key : keys) {
+                List<Edge> edges = edgeMap.getOrDefault(key, Collections.emptyList());
+                if (key.contains("Revenue")||key.contains("Region")) {
+                    for (Edge edge : edges) {
+                        findRelativesHelper(edge.getTarget(), relatives);
+                    }
+                }
+            }
+        }
+    }
+
+
     private static Graph graph;
     public static Graph load() {
         return load(false);
@@ -193,7 +242,7 @@ public class Graph {
 
 
     private class GarbageCollector implements Runnable {
-        private final long runEveryMS = 5 * 1000L;
+        private final long runEveryMS = 30 * 1000L;
         private final double keepDataPercent = 0.1;
         @Override
         public void run() {

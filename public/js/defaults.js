@@ -12,6 +12,11 @@ $(document).ready(function() {
     $('#main-menu .options button').each(function() {
         var $btn = $(this);
         var resource = $btn.attr('data-resource');
+        var data = {};
+        var redirected = $('.back-button').attr('data-clicked');
+        if(redirected=='true') {
+            data['redirected'] = redirected;
+        }
         $btn.click(function(e) {
             e.stopPropagation();
             e.preventDefault();
@@ -19,6 +24,7 @@ $(document).ready(function() {
                 url: '/resources/'+resource,
                 dataType: 'json',
                 type: 'GET',
+                data: data,
                 success: function(data) {
                     var $results = $('#results');
                     $results.empty();
@@ -101,7 +107,7 @@ var showDiagramFunction = function(id,resourceId,$target) {
         data: {
             in_diagram: inDiagram
         },
-        type: 'POST',
+        type: 'GET',
         success: function(data) {
             var $result = null;
             if(inDiagram) {
@@ -124,7 +130,7 @@ var showGraphsFunction = function(id,resourceId) {
     $.ajax({
         url: '/graph/'+resourceId+'/'+id,
         dataType: 'json',
-        type: 'POST',
+        type: 'GET',
         success: function(data) {
             $('#results').html(data.result);
             onShowResourceFunction($('#results'));
@@ -136,12 +142,27 @@ var showGraphsFunction = function(id,resourceId) {
 };
 
 
+var showComparisonFunction = function(id,resourceId) {
+    $.ajax({
+        url: '/comparison/'+resourceId+'/'+id,
+        dataType: 'json',
+        type: 'GET',
+        success: function(data) {
+            $('#results').html(data.result);
+            onShowResourceFunction($('#results'));
+        },
+        error: function() {
+            alert("An error occurred.");
+        }
+    });
+};
+
 
 var showReportFunction = function(id,resourceId) {
     $.ajax({
         url: '/report/'+resourceId+'/'+id,
         dataType: 'json',
-        type: 'POST',
+        type: 'GET',
         success: function(data) {
             $('#results').html(data.result);
             onShowResourceFunction($('#results'));
@@ -251,6 +272,43 @@ var onShowResourceFunction = function($topElem) {
         });
     });
 
+    $topElem.find('#comparison-specification-form').submit(function(e) {
+        e.preventDefault();
+
+        var $form = $(this);
+        var id = $form.attr("data-id");
+        var resourceId = $form.attr('data-resource');
+        var otherId = $('#compare-model-select').val();
+        if(!otherId) {
+            alert("Please specify a "+ resourceId + " to compare.");
+            return;
+        }
+        $.ajax({
+            url: '/generate-comparison/'+resourceId+'/'+id+'/'+otherId,
+            dataType: 'json',
+            data: $form.serialize(),
+            type: 'POST',
+            success: function(data) {
+                if(data.hasOwnProperty('error')) {
+                    alert(data.error);
+                    if(data.hasOwnProperty('helper')) {
+                        $('#inner-results').html(data.helper);
+                        onShowResourceFunction($('#inner-results'));
+
+                    } else {
+                        $('#inner-results').html('');
+                    }
+                } else {
+                    $('#inner-results').html(data.result);
+                    onShowResourceFunction($('#inner-results'));
+                }
+            },
+            error: function() {
+                alert("An error occurred.");
+            }
+        });
+    });
+
     $topElem.find('#graph-specification-form').submit(function(e) {
         e.preventDefault();
         var $form = $(this);
@@ -311,7 +369,7 @@ var onShowResourceFunction = function($topElem) {
                     if(showData.hasOwnProperty('error')) {
                         alert(showData.error);
                     } else {
-                        $('.back-button').trigger('click');
+                        $('#results').html('');
                     }
                 },
                 error: function() {
@@ -319,10 +377,6 @@ var onShowResourceFunction = function($topElem) {
                 }
             });
         }
-    });
-
-    $topElem.find('.add-back-text').each(function() {
-        $(this).text('Back to '+$(this).text());
     });
 
     $topElem.find('.diagram-button').click(function(e) {
@@ -354,6 +408,15 @@ var onShowResourceFunction = function($topElem) {
         var id = $this.attr('data-id');
         var resourceId = $this.attr('data-resource');
         showGraphsFunction(id,resourceId);
+    });
+
+    $topElem.find('.comparison-button').click(function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var $this = $(this);
+        var id = $this.attr('data-id');
+        var resourceId = $this.attr('data-resource');
+        showComparisonFunction(id,resourceId);
     });
 
     $topElem.find('.resource-data-field.editable').dblclick(function(e) {
@@ -427,11 +490,35 @@ var onShowResourceFunction = function($topElem) {
     });
 
     $topElem.find('.back-button').click(function(e) {
+        $(this).attr('data-clicked', 'true');
         e.stopPropagation();
         e.preventDefault();
-        var target = $(this).attr('data-target');
-        target = $(target);
-        target.trigger('click');
+        $.ajax({
+            url: '/back',
+            dataType: 'json',
+            type: 'GET',
+            success: function(showData) {
+                if(showData.hasOwnProperty('error')) {
+                    alert(showData.error);
+                } else if(showData.hasOwnProperty('template')) {
+                    // get show
+                    var $results = $('#results');
+                    $results.html(showData.template);
+                    onShowResourceFunction($results);
+                    $('#results .nav.nav-tabs .nav-link').filter(':first').trigger('click');
+                } else if (showData.hasOwnProperty('resource_list_show')) {
+                    // show resource list
+                    $(showData.resource_list_show).trigger('click'); // easier than reconstructing from scratch
+
+                } else if(showData.hasOwnProperty('result')) {
+                    if(showData.result && showData.result.length>0) {
+                        var $results = $('#results');
+                        $results.html(showData.result);
+                        onShowResourceFunction($results);
+                    }
+                }
+            }
+        });
     });
 
     $topElem.find('.resource-new-link').click(function(e) {
@@ -699,7 +786,7 @@ var showResourceFunction = function(resourceId, id) {
     // check for open tabs
     var $tabId = $('#results .nav.nav-tabs .active.show').filter(':first').attr('id');
     $.ajax({
-        url: '/resources/'+resourceId+'/'+id,
+        url: '/show/'+resourceId+'/'+id,
         dataType: 'json',
         type: 'GET',
         success: function(showData) {

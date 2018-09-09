@@ -1307,19 +1307,17 @@ public abstract class Model implements Serializable {
         return this.getClass().getSimpleName().equals(Association.Model.Region.toString());
     }
 
-    public void loadShowTemplate(boolean back) {
-        ContainerTag button;
-        if(back) {
-            String previousTarget = "#"+tableName+"_index_btn";
-            button = button("Back to "+Constants.pluralizeAssociationName(Constants.humanAttrFor(this.getClass().getSimpleName()))).attr("data-target", previousTarget)
-                    .withClass("btn btn-outline-secondary btn-sm back-button");
+    public void loadShowTemplate(ContainerTag back) {
+        ContainerTag backButton;
+        if(back!=null) {
+            backButton = back;
         } else {
-            button = span();
+            backButton = span();
         }
         boolean isRegion = isRegion();
         ContainerTag html = div().withClass("col-12").with(
                 div().withClass("col-12").with(
-                        button,
+                        backButton,
                         h4(Constants.humanAttrFor(this.getClass().getSimpleName())+" Information"),
                         (isRegion ? span() : button("Delete this "+Constants.humanAttrFor(this.getClass().getSimpleName())).withClass("btn btn-outline-danger btn-sm delete-button"))
                         .attr("data-id", id.toString())
@@ -1367,6 +1365,10 @@ public abstract class Model implements Serializable {
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
                                         .withClass("btn btn-outline-secondary btn-md diagram-button"),
+                                button("Compare")
+                                        .attr("data-id", id.toString())
+                                        .attr("data-resource", this.getClass().getSimpleName())
+                                        .withClass("btn btn-outline-secondary btn-md comparison-button"),
                                 button("Report")
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())

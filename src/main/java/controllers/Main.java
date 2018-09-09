@@ -23,6 +23,8 @@ import java.io.OutputStream;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -32,6 +34,64 @@ import static j2html.TagCreator.head;
 import static spark.Spark.*;
 
 public class Main {
+    private static final String NAVIGATION_HANDLER = "navigation_handler";
+    private static final String NAVIGATION_LOCK = "navigation_lock";
+    private static final int MAX_NAVIGATION_HISTORY = 20;
+
+    public static ContainerTag getBackButton(@NonNull Request req) {
+        return a("Back").withClass("btn btn-sm btn-outline-secondary back-button");
+    }
+
+    public static void registerNextPage(@NonNull Request req, @NonNull Response res) {
+        if(req.queryParams("redirected")!=null) {
+            return;
+        }
+        Lock lock = req.session().attribute(NAVIGATION_LOCK);
+        if(lock==null) {
+            lock = new ReentrantLock();
+            req.session().attribute(NAVIGATION_LOCK);
+        }
+        lock.lock();
+        try {
+            List<String> navigation = req.session().attribute(NAVIGATION_HANDLER);
+            if (navigation == null) {
+                navigation = Collections.synchronizedList(new ArrayList<>());
+                req.session().attribute(NAVIGATION_HANDLER, navigation);
+            }
+            while(navigation.size() >= MAX_NAVIGATION_HISTORY) {
+                navigation.remove(0);
+            }
+            String url = req.url();
+            navigation.add(url);
+
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public static String goBack(@NonNull Request req) {
+        Lock lock = req.session().attribute(NAVIGATION_LOCK);
+        if(lock==null) {
+            lock = new ReentrantLock();
+            req.session().attribute(NAVIGATION_LOCK);
+        }
+        lock.lock();
+        try {
+            List<String> navigation = req.session().attribute(NAVIGATION_HANDLER);
+            if (navigation == null || navigation.size()==0) {
+                return null; // nothing found
+            }
+            if(navigation.size()==1) {
+                return navigation.get(0); // return only page
+            }
+            navigation.remove(navigation.size()-1); // delete current page
+            return  navigation.get(navigation.size()-1); // get previous page
+        } finally {
+            lock.unlock();
+        }
+    }
+
+
     private static Model loadModel(Request req) {
         String resource = req.params("resource");
         int id;
@@ -315,6 +375,8 @@ public class Main {
             session.attribute("username",username);
             res.status(200);
             res.redirect("/");
+            req.session().attribute(NAVIGATION_LOCK, new ReentrantLock());
+            req.session().removeAttribute(NAVIGATION_HANDLER);
             return null;
         });
 
@@ -336,9 +398,23 @@ public class Main {
             req.session(true).attribute("authorized",false);
             req.session().removeAttribute("username");
             req.session().removeAttribute("password");
+            req.session().removeAttribute(NAVIGATION_LOCK);
+            req.session().removeAttribute(NAVIGATION_HANDLER);
             res.redirect("/");
             res.status(200);
             return null;
+        });
+
+        get("/back", (req, res) -> {
+            String redirect = goBack(req);
+            Map<String, Object> results = new HashMap<>();
+            if(redirect==null) {
+                results.put("error", "Unable to go back.");
+            } else {
+                res.redirect(redirect+"?redirected=true");
+                return null;
+            }
+            return new Gson().toJson(results);
         });
 
         get("/", (req, res)->{
@@ -629,7 +705,7 @@ public class Main {
         });
 
 
-        post("/diagram/:resource/:id", (req, res)-> {
+        get("/diagram/:resource/:id", (req, res)-> {
             authorize(req,res);
             Model model = loadModel(req);
             boolean inDiagram = extractString(req, "in_diagram", null) != null;
@@ -641,30 +717,84 @@ public class Main {
                 } else {
                     html = div().withClass("col-12").with(
                             div().attr("display: none;").withId("in_diagram_flag").attr("data-id", model.getId().toString()).attr("data-resource", model.getType().toString()),
-                            model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
+                            getBackButton(req),
                             h3("Diagram of " + model.getData().get(Constants.NAME)),
                             diagram
                     );
                 }
-                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+                String str = new Gson().toJson(Collections.singletonMap("result", html.render()));
+                registerNextPage(req, res);
+                return str;
+            }
+            return null;
+        });
+
+        get("/comparison/:resource/:id", (req, res)-> {
+            authorize(req,res);
+            Model model = loadModel(req);
+            if(model!=null) {
+                ContainerTag html = div().withClass("col-12").with(
+                        getBackButton(req),
+                        h3("Comparison of "+model.getData().get(Constants.NAME)),
+                        label(Constants.humanAttrFor(model.getType().toString())+" Name:").with(
+                                select().attr("id", "compare-model-select").attr("style","width: 100%").withClass("form-control multiselect-ajax")
+                                        .attr("data-url", "/ajax/resources/"+model.getType()+"/"+model.getType()+"/"+model.getId())
+                        ), br(),
+                        getReportOptionsForm(model,"comparison"),
+                        div().withId("inner-results")
+                );
+                String str = new Gson().toJson(Collections.singletonMap("result", html.render()));
+                registerNextPage(req, res);
+                return str;
             }
             return null;
         });
 
 
-        post("/graph/:resource/:id", (req, res)-> {
+        post("/generate-comparison/:resource/:id/:id2", (req, res)->{
+            Model model = loadModel(req);
+            Model compareModel = loadModel(Association.Model.valueOf(req.params("resource")), Integer.valueOf(req.params("id2")));
+            if(model!=null && compareModel!=null) {
+                boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
+                int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
+                int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
+                Map<String, Object> results = new HashMap<>();
+                try {
+                    model.loadAssociations();
+                    compareModel.loadAssociations();
+                    Graph graph = Graph.load();
+                    Collection<Node> commonRelatives = graph.findMutualRelatives(model, compareModel);
+                    for(Node node : commonRelatives) {
+                        System.out.println("Relative: "+new Gson().toJson(node.getModel()));
+                    }
+                    List<Model> models = commonRelatives.stream().map(n->n.getModel())
+                            .collect(Collectors.toList());
+                    results.put("result", models);
+                    return new Gson().toJson(results);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return new Gson().toJson(Collections.singletonMap("error", e.getMessage()));
+                }
+            }
+            return null;
+        });
+
+
+        get("/graph/:resource/:id", (req, res)-> {
             authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
-
                 ContainerTag html = div().withClass("col-12").with(
-                        model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
+                        getBackButton(req),
                         h3("Graphs of "+model.getData().get(Constants.NAME)),
                         getReportOptionsForm(model,"graph"),
                         div().withId("inner-results")
                 );
 
-                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+                String str = new Gson().toJson(Collections.singletonMap("result", html.render()));
+                registerNextPage(req, res);
+                return str;
             }
             return null;
         });
@@ -735,31 +865,35 @@ public class Main {
             return null;
         });
 
-        post("/report/:resource/:id", (req, res)-> {
+        get("/report/:resource/:id", (req, res)-> {
             authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
 
                 ContainerTag html = div().withClass("col-12").with(
-                        model.getSimpleLink("btn", "btn-sm", "btn-outline-secondary", "add-back-text"),
+                        getBackButton(req),
                         h3("Report of "+model.getData().get(Constants.NAME)),
                         getReportOptionsForm(model, "report"),
                         div().withId("inner-results")
                 );
 
-                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+                String str = new Gson().toJson(Collections.singletonMap("result", html.render()));
+                registerNextPage(req, res);
+                return str;
             }
             return null;
         });
 
-        get("/resources/:resource/:id", (req, res) -> {
+        get("/show/:resource/:id", (req, res) -> {
             authorize(req, res);
             Model model = loadModel(req);
             if(model != null) {
                 model.loadAttributesFromDatabase();
                 model.loadAssociations();
-                model.loadShowTemplate(true);
-                return new Gson().toJson(model);
+                model.loadShowTemplate(getBackButton(req));
+                String html = new Gson().toJson(model);
+                registerNextPage(req, res);
+                return html;
             }
             else return null;
         });
@@ -905,7 +1039,10 @@ public class Main {
             if(!type.toString().contains("Revenue")&&!type.equals(Association.Model.Region)) {
                 result.put("new_form", model.getCreateNewForm(type, null).attr("style", "display: none;").render());
             }
-            return new Gson().toJson(result);
+            result.put("resource_list_show", "#"+model.getTableName()+"_index_btn");
+            String html = new Gson().toJson(result);
+            registerNextPage(req, res);
+            return html;
         });
 
         post("/new_association/:resource/:association/:resource_id/:association_id", (req,res)->{
