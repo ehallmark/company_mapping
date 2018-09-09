@@ -289,6 +289,13 @@ public class Main {
                         br(),
                         label("End Year").with(br(),
                                 input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("end_year")
+                        ),br(),
+                        label("Revenue Domain").with(br(),
+                                select().withClass("multiselect").withName("revenue_domain").with(
+                                        option("Global").withValue("global"),
+                                        option("Regional").withValue("regional"),
+                                        option("National").withValue("national")
+                                )
                         ),
                         br(),
                         label("Use CAGR when applicable?").with(br(),
