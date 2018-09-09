@@ -241,6 +241,24 @@ var updateResourceFormHelper = function($this) {
 var onShowResourceFunction = function($topElem) {
     updateAssociationTotals();
 
+    $topElem.find(".revenue_domain").on('change', function(e) {
+        var val = $(this).val();
+        var $regional = $('.revenue-regional');
+        var $national = $('.revenue-national');
+        if(val==='global') {
+            $national.prop('disabled', true).parent().hide();
+            $regional.prop('disabled', true).parent().hide();
+        } else if(val === 'regional') {
+            $national.prop('disabled', true).parent().hide();
+            $regional.prop('disabled', false).parent().css('display', 'block');
+        } else if(val === 'national') {
+            $national.prop('disabled', false).parent().css('display', 'block');
+            $regional.prop('disabled', true).parent().hide();
+        } else {
+            alert('Unknown revenue domain.');
+        }
+    });
+
     $topElem.find('#report-specification-form').submit(function(e) {
         e.preventDefault();
         var $form = $(this);

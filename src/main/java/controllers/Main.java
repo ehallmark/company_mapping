@@ -291,13 +291,22 @@ public class Main {
                                 input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("end_year")
                         ),br(),
                         label("Revenue Domain").with(br(),
-                                select().withClass("multiselect").withName("revenue_domain").with(
+                                select().withClass("multiselect revenue_domain").withName("revenue_domain").with(
                                         option("Global").withValue("global"),
                                         option("Regional").withValue("regional"),
                                         option("National").withValue("national")
                                 )
                         ),
-                        br(),
+                        label("Country").attr("style", "display: none; width: 250px; margin-left: auto; margin-right: auto;").with(
+                                select().attr("disabled", "disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
+                                        .withName("revenue_country")
+                                        .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+model.getType()+"/-1?nationalities_only=true")
+                        ),
+                        label("Region").attr("style", "display: none; width: 250px; margin-left: auto; margin-right: auto;").with(
+                                select().attr("disabled", "disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
+                                        .withName("revenue_region")
+                                        .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+model.getType()+"/-1?regions_only=true")
+                        ), br(),
                         label("Use CAGR when applicable?").with(br(),
                                 input().withType("checkbox").withValue("true").withName(Constants.CAGR)
                         ),
@@ -503,6 +512,11 @@ public class Main {
             Integer _fromId;
             Association.Model fromType;
             Association.Model type;
+            boolean nationalitiesOnly = req.queryParams("nationalities_only")!=null && req.queryParams("nationalities_only").trim().length()>0;
+            boolean regionsOnly = req.queryParams("regions_only")!=null && req.queryParams("regions_only").trim().length()>0;
+            if(nationalitiesOnly&&regionsOnly) {
+                throw new RuntimeException("Nationalities and regions only settings at the same time.");
+            }
             try {
                 type = Association.Model.valueOf(resource);
                 fromType = Association.Model.valueOf(fromResource);
@@ -520,7 +534,7 @@ public class Main {
             Set<Integer> idsToAvoid = new HashSet<>();
             boolean showTopLevelOnly = false;
             if(type.equals(Association.Model.Region)) {
-                if(fromId==null) {
+                if(fromId==null && !nationalitiesOnly) {
                     showTopLevelOnly = true;
                 }
             }
@@ -565,11 +579,13 @@ public class Main {
                     fieldsToUse.add(fieldToUse);
                     if(_showTopLevelOnly || type.equals(Association.Model.Region)) fieldsToUse.add(Constants.PARENT_REGION_ID);
                     models = Database.selectAll(model.isRevenueModel(), type, model.getTableName(), fieldsToUse, null, search).stream().filter(m -> !idsToAvoid.contains(m.getId())).filter(m -> fromId == null || !(fromType.equals(type) && m.getId().equals(fromId))).collect(Collectors.toList());
-                    if(_showTopLevelOnly) {
+                    if(_showTopLevelOnly||regionsOnly) {
                         models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)==null).collect(Collectors.toList());
                     } else if(type.equals(Association.Model.Region) && _parentRegionId!=null) {
                         models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)!=null&&m.getData().get(Constants.PARENT_REGION_ID).equals(_parentRegionId))
                                 .collect(Collectors.toList());
+                    } else if(nationalitiesOnly) {
+                        models = models.stream().filter(m->m.getData().get(Constants.PARENT_REGION_ID)!=null).collect(Collectors.toList());
                     }
                     models.forEach(m -> idToNameMap.put(m.getId().toString(), (String) m.getData().get(fieldToUse)));
                     List<String> r = models.stream().map(m->m.getId().toString()).collect(Collectors.toCollection(ArrayList::new));
