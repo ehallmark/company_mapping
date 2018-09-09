@@ -435,7 +435,7 @@ public abstract class Model implements Serializable {
                 case Market: {
                     if(association.getAssociationName().startsWith("Sub")) {
                         // sub market
-                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenues") ? "" : "Sub Markets", revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association, Collections.singletonMap("Market Share",Constants.COMPANY_ID), "Market Share");
+                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Sub Markets", revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association, Collections.singletonMap("Market Share",Constants.COMPANY_ID), "Market Share");
                     } else {
                         options.setSubtitle(new Title().setText("Parent Market"));
                         // parent market
@@ -480,7 +480,7 @@ public abstract class Model implements Serializable {
                     // check sub company or parent company
                     if(association.getAssociationName().startsWith("Sub")) {
                         // children
-                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenues") ? "" : "Subsidiaries", revenueDomain, regionId,minYear, maxYear, useCAGR, option, assocModels, options, association, null);
+                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Subsidiaries", revenueDomain, regionId,minYear, maxYear, useCAGR, option, assocModels, options, association, null);
                     } else {
                         // parent
                         options.setSubtitle(new Title().setText("Parent Company"));

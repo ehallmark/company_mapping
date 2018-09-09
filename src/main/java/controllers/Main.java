@@ -821,10 +821,10 @@ public class Main {
                             // add Overall revenue pie chart and revenue by year
                             // TODO
                             Model fakeParents = getModelByType(type);
-                            fakeParents.setData(Collections.singletonMap(Constants.NAME, "All Revenues"));
+                            fakeParents.setData(Collections.singletonMap(Constants.NAME, "Total Revenue"));
                             Association fakeAssoc = new Association("Sub "+type.toString(), type, "", "", null, Association.Type.OneToMany, "", "", false, "All Revenue");
                             fakeParents.setAssociations(Collections.singletonMap(fakeAssoc, allComparables));
-                            List<Options> parentOptions = fakeParents.buildCharts(models, fakeAssoc,
+                            List<Options> parentOptions = fakeParents.buildCharts(allComparables, fakeAssoc,
                                     revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
                             for(Options options : parentOptions) {
                                 String json = new JsonRenderer().toJson(options);
