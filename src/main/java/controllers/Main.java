@@ -678,24 +678,11 @@ public class Main {
                                 List<Model> assocModel = m.getAssociations().get(assoc);
                                 String fieldName = assoc.getAssociationName().toLowerCase().replace(" ", "-");
                                 String fieldNameTextOnly = fieldName+Constants.TEXT_ONLY;
-                                String[] additionalClasses;
-                                if(assoc.getModel().equals(Association.Model.MarketShareRevenue)) {
-                                    if(type.equals(Association.Model.Company)) {
-                                        additionalClasses = new String[]{"market-share-company"};
-                                    } else if(type.equals(Association.Model.Market)) {
-                                        additionalClasses = new String[]{"market-share-market"};
-                                    } else {
-                                        additionalClasses = new String[]{};
-                                    }
-                                } else {
-                                    additionalClasses = new String[]{};
-                                }
-
                                 if(assocModel==null) {
                                     map.put(fieldName, "");
                                     map.put(fieldNameTextOnly, "");
                                 } else {
-                                    map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink(additionalClasses).render()).collect(Collectors.toList())));
+                                    map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink().render()).collect(Collectors.toList())));
                                     map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> a.getName()).collect(Collectors.toList())));
                                 }
                             });

@@ -78,7 +78,14 @@ public abstract class Model implements Serializable {
     public String getName() {
         if(isRevenueModel) {
             if(data==null||!data.containsKey(Constants.YEAR)) loadAttributesFromDatabase();
-            return "Revenue ("+data.get(Constants.YEAR)+")";
+            // need to load region
+            String regionName = "Global";
+            if(data.get(Constants.REGION_ID)!=null) {
+                Model region = Graph.load().findNode(Association.Model.Region, (Integer)data.get(Constants.REGION_ID)).getModel();
+                region.loadAttributesFromDatabase();
+                regionName = region.getName();
+            }
+            return "Revenue - "+regionName+" ("+data.get(Constants.YEAR)+")";
 
         } else {
             if(data==null||!data.containsKey(Constants.NAME)) loadAttributesFromDatabase();
@@ -94,17 +101,8 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
-        String[] additionalClasses = new String[]{};
-        if(this.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
-            // check association
-            if(associationModel.equals(Market.class.getSimpleName())) {
-                additionalClasses = new String[]{"market-share-market"};
-            } else if(associationModel.equals(Company.class.getSimpleName())) {
-                additionalClasses = new String[]{"market-share-company"};
-            }
-        }
         return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
-                getSimpleLink(additionalClasses),
+                getSimpleLink(),
                 (isRegion() || associationName.equals("Sub Revenue") ? span() :
                     span("X").attr("data-association", associationModel)
                         .attr("data-association-name", associationName)
@@ -600,62 +598,6 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag getSimpleLink(@NonNull String... additionalClasses) {
-        if(isRevenueModel) {
-            boolean isMarketShare = this.getClass().getSimpleName().equals(Association.Model.MarketShareRevenue.toString());
-            boolean removePrefix = additionalClasses.length>0 && additionalClasses[0].equals("resource-data-field");
-            // TODO speed up this query
-            if(!data.containsKey(Constants.NAME)) {
-                loadAssociations();
-                Association regional = associationsMeta.stream().filter(a->a.getModel().equals(Association.Model.Region)).findAny().orElse(null);
-                if(regional!=null) {
-                    List<Model> regions = associations.get(regional);
-                    if(regions!=null && regions.size()>0) {
-                        Model region = regions.get(0);
-                        data.put(Constants.NAME, region.getName());
-                    }
-                }
-                if(isMarketShare) {
-                    String companyName = "";
-                    String marketName = "";
-                    String regionName = "";
-                    for(Association association : associationsMeta) {
-                        if (associations.getOrDefault(association, Collections.emptyList()).size() > 0) {
-                            if(association.getModel().equals(Association.Model.Company)) {
-                                companyName = associations.get(association).get(0).getName();
-                            } else if (association.getModel().equals(Association.Model.Market)) {
-                                marketName = associations.get(association).get(0).getName();
-                            } else if(association.getModel().equals(Association.Model.Region)) {
-                                regionName = associations.get(association).get(0).getName();
-                            }
-                        }
-                    }
-                    if(regionName.trim().isEmpty()) {
-                        regionName = "Global";
-                    }
-                    String name;
-                    if(removePrefix) {
-                        name = marketName + " - "+regionName+" (" + data.get(Constants.YEAR) + ")";
-                    } else {
-                        if (additionalClasses.length > 0 && additionalClasses[0].equals("market-share-market")) {
-                            name = companyName +" - "+regionName+ " (" + data.get(Constants.YEAR) + ")";
-                        } else if (additionalClasses.length > 0 && additionalClasses[0].equals("market-share-company")) {
-                            name = marketName +" - "+regionName+ " (" + data.get(Constants.YEAR) + ")";
-                        } else {
-                            name = companyName+" - "+regionName+" (" + data.get(Constants.YEAR) + ")";
-                        }
-                    }
-                    if(name.startsWith(" - ")) {
-                        name = name.substring(3);
-                    }
-                    data.put(Constants.NAME, name);
-                } else {
-                    List<Model> parent = associations.get(associationsMeta.get(0));
-                    if (parent != null && parent.size() > 0) {
-                        data.put(Constants.NAME, (removePrefix ? "" : (((String) parent.get(0).getName()) + " ")) + " (" + data.get(Constants.YEAR) + ")");
-                    }
-                }
-            }
-        }
         String name = getName();
         return a(name).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+String.join(" ", additionalClasses));
     }
@@ -1276,15 +1218,6 @@ public abstract class Model implements Serializable {
                             }
                         }
                         String _id = model.getClass().getSimpleName() + model.getId();
-                        String[] additionalClasses = new String[]{};
-                        if (model.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
-                            // check association
-                            if (this.getClass().getSimpleName().equals(Market.class.getSimpleName())) {
-                                additionalClasses = new String[]{"market-share-market"};
-                            } else if (this.getClass().getSimpleName().equals(Company.class.getSimpleName())) {
-                                additionalClasses = new String[]{"market-share-company"};
-                            }
-                        }
                         boolean sameModel = _id.equals(originalId);
                         ContainerTag inner = ul();
                         Double revToUse = null;
@@ -1306,7 +1239,7 @@ public abstract class Model implements Serializable {
 
                         groupUl.with(li().attr("style", "display: inline;").with(
                                 allowEdit ? model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;")
-                                        : model.getSimpleLink(additionalClasses).attr("style", "display: inline;")
+                                        : model.getSimpleLink().attr("style", "display: inline;")
                                 , model.getRevenueAsSpan(original), inner));
                         if (!sameModel && !alreadySeen.contains(_id)) {
                             alreadySeen.add(_id);

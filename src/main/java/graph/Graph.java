@@ -77,7 +77,6 @@ public class Graph {
         node2.getModel().setAssociations(null);
         node2.getModel().loadAssociations();
 
-        throw new RuntimeException("Not implemented!");
     }
 
     public void unlinkNodeFromAssociation(@NonNull Association.Model model, int id, @NonNull Association association) {
