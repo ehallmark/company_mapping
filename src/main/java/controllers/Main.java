@@ -283,7 +283,7 @@ public class Main {
         return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), availableAttributes, associations, null);
     }
 
-    public static ContainerTag getReportOptionsForm(Model model, String clazz) {
+    public static ContainerTag getReportOptionsForm(Model model, String clazz, ContainerTag... additionalTags) {
         return form().attr("data-id",model.getId().toString())
                 .attr("data-resource",model.getClass().getSimpleName()).withId(clazz+"-specification-form").with(
                         label("Start Year").with(br(),
@@ -320,8 +320,8 @@ public class Main {
                                         option("Replace with zeros").withValue(Constants.MissingRevenueOption.replace.toString()),
                                         option("Raise error").withValue(Constants.MissingRevenueOption.error.toString())
                                 )
-                        ),
-                        br(),
+                        ),br()
+                ).with(additionalTags).with(br(),
                         button("Generate").withType("submit").withClass("btn btn-sm btn-outline-secondary")
                 );
     }
@@ -791,7 +791,7 @@ public class Main {
                                 select().attr("multiple", "multiple").attr("id", "compare-model-select").attr("style","width: 100%").withClass("form-control multiselect-ajax")
                                         .attr("data-url", "/ajax/resources/"+model.getType()+"/"+model.getType()+"/"+model.getId())
                         ), br(),
-                        getReportOptionsForm(model,"comparison"),
+                        getReportOptionsForm(model,"comparison", ChartHelper.getChartOptionsForm()),
                         div().withId("inner-results")
                 );
                 String str = new Gson().toJson(Collections.singletonMap("result", html.render()));
@@ -816,6 +816,8 @@ public class Main {
             if(model!=null && compareModels.size()>0) {
                 boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
+                boolean column = extractString(req, ChartHelper.TIME_SERIES_CHART_TYPE, ChartHelper.LineChartType.column.toString()).equals(ChartHelper.LineChartType.column.toString());
+                int maxGroups = DataTable.extractInt(req, ChartHelper.MAX_NUM_GROUPS, 15);
                 int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
                 Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
                 Map<String, Object> results = new HashMap<>();
@@ -850,7 +852,7 @@ public class Main {
                     fakeParents.setData(Collections.singletonMap(Constants.NAME, "Total Revenue"));
                     Association fakeAssoc = new Association("Sub "+Model.capitalize(model.getType().toString()), model.getType(), model.getTableName(),  model.getTableName(), null, Association.Type.OneToMany,  "parent_"+model.getType().toString()+"_id", model.getType().toString()+"_id", false, "All Revenue");
                     fakeParents.setAssociations(Collections.singletonMap(fakeAssoc, allComparables));
-                    List<Options> parentOptions = fakeParents.buildCharts(allComparables, fakeAssoc,
+                    List<Options> parentOptions = fakeParents.buildCharts(column, maxGroups, allComparables, fakeAssoc,
                             revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
                     for(Options options : parentOptions) {
                         String json = new JsonRenderer().toJson(options);
@@ -898,7 +900,7 @@ public class Main {
                                                 // convert to regions
                                                 marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
                                                 if (marketShares.size() > 0) {
-                                                    List<Options> allOptions = assoc.buildCharts(marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                                                    List<Options> allOptions = assoc.buildCharts(column, maxGroups, marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
                                                     return allOptions;
                                                 }
                                             }
@@ -933,7 +935,7 @@ public class Main {
                 ContainerTag html = div().withClass("col-12").with(
                         getBackButton(req),
                         h3("Graphs of "+model.getData().get(Constants.NAME)),
-                        getReportOptionsForm(model,"graph"),
+                        getReportOptionsForm(model,"graph", ChartHelper.getChartOptionsForm()),
                         div().withId("inner-results")
                 );
 
@@ -953,6 +955,9 @@ public class Main {
                     boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                     int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                     int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                    boolean column = extractString(req, ChartHelper.TIME_SERIES_CHART_TYPE, ChartHelper.LineChartType.column.toString()).equals(ChartHelper.LineChartType.column.toString());
+                    int maxGroups = DataTable.extractInt(req, ChartHelper.MAX_NUM_GROUPS, 15);
+
                     Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
                     Integer regionId = DataTable.extractInt(req, Constants.REGION_ID, null);
                     Model.RevenueDomain revenueDomain;
@@ -964,7 +969,7 @@ public class Main {
                     Map<String, Object> results = new HashMap<>();
                     AtomicInteger idx = new AtomicInteger(0);
                     for(Association association : model.getAssociationsMeta()) {
-                        List<Options> allOptions = model.buildCharts(association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                        List<Options> allOptions = model.buildCharts(column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
                         if(allOptions!=null) {
                             for(Options options : allOptions) {
                                 String json = new JsonRenderer().toJson(options);

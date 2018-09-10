@@ -3,9 +3,12 @@ package models;
 import com.googlecode.wickedcharts.highcharts.options.color.ColorReference;
 import com.googlecode.wickedcharts.highcharts.options.color.RadialGradient;
 import com.googlecode.wickedcharts.highcharts.options.color.RgbaColor;
+import j2html.tags.ContainerTag;
 
 import java.util.Arrays;
 import java.util.List;
+
+import static j2html.TagCreator.*;
 
 public class ChartHelper {
     public static final List<int[]> RGB_COLORS = Arrays.asList(
@@ -47,4 +50,24 @@ public class ChartHelper {
         return brighten(rgb[0], rgb[1], rgb[2], brightenPercent);
     }
 
+    public static final String TIME_SERIES_CHART_TYPE = "time_series_chart_type";
+    public static final String MAX_NUM_GROUPS = "max_num_groups";
+    public enum LineChartType {
+        column,
+        line
+    }
+
+    public static ContainerTag getChartOptionsForm() {
+        return div().with(
+                label("Time Series Chart Type").with(br(),
+                        select().withClass("multiselect form-control").attr("style", "width: 200px").withName(TIME_SERIES_CHART_TYPE).with(
+                                option("Column").withValue(LineChartType.column.toString()),
+                                option("Line").withValue(LineChartType.line.toString())
+                        )
+                ),br(),
+                label("Max Chart Groups").with(br(),
+                        input().withClass("form-control").withType("number").withValue("15").withName(MAX_NUM_GROUPS)
+                )
+        );
+    }
 }

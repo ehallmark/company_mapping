@@ -109,8 +109,8 @@ public abstract class Model implements Serializable {
                 .findAny().orElse(null);
     }
 
-    public void buildTimelineSeries(String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
-        buildTimelineSeries(false, 15, data.get(Constants.NAME).toString(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, option, models, options, association);
+    public void buildTimelineSeries(boolean column, int maxGroups, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
+        buildTimelineSeries(column, maxGroups, data.get(Constants.NAME).toString(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, option, models, options, association);
     }
 
 
@@ -438,18 +438,18 @@ public abstract class Model implements Serializable {
                 .setCreditOptions(new CreditOptions().setEnabled(true).setText("GTT Group").setHref("http://www.gttgrp.com/"));
     }
 
-    public List<Options> buildCharts(@NonNull String associationName, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option) {
+    public List<Options> buildCharts(boolean column, int maxGroups, @NonNull String associationName, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option) {
         Association association = findAssociation(associationName);
         if(association==null) {
             return null;
         }
         loadAssociations();
         List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
-        return buildCharts(assocModels, association, revenueDomain, regionId, minYear, maxYear, useCAGR, option);
+        return buildCharts(column, maxGroups, assocModels, association, revenueDomain, regionId, minYear, maxYear, useCAGR, option);
     }
 
 
-    public List<Options> buildCharts(@NonNull List<Model> assocModels, @NonNull Association association, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option) {
+    public List<Options> buildCharts(boolean column, int maxGroups, @NonNull List<Model> assocModels, @NonNull Association association, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option) {
         List<Options> allOptions = new ArrayList<>();
         Options options = getDefaultChartOptions();
         allOptions.add(options);
@@ -457,7 +457,7 @@ public abstract class Model implements Serializable {
         if(this instanceof Market) {
             switch(association.getModel()) {
                 case MarketRevenue: {
-                    buildTimelineSeries(null,revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association);
+                    buildTimelineSeries(column, maxGroups, null,revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association);
                     break;
                 }
                 case Market: {
@@ -487,7 +487,7 @@ public abstract class Model implements Serializable {
                     buildMarketShare(Constants.COMPANY_ID,"Companies",revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association, null);
                     if(maxYear - minYear > 0) {
                         Options timelineOptions = getDefaultChartOptions();
-                        buildTimelineSeries(Constants.COMPANY_ID,revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, timelineOptions, association);
+                        buildTimelineSeries(column, maxGroups, Constants.COMPANY_ID,revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, timelineOptions, association);
                         allOptions.add(timelineOptions);
                     }
                     break;
@@ -501,7 +501,7 @@ public abstract class Model implements Serializable {
             switch (association.getModel()) {
                 case CompanyRevenue: {
                     // yearly timeline
-                    buildTimelineSeries(null, revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association);
+                    buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association);
                     break;
                 }
                 case Company: {
@@ -532,7 +532,7 @@ public abstract class Model implements Serializable {
                     buildMarketShare(Constants.MARKET_ID,"Markets", revenueDomain, regionId,minYear, maxYear, useCAGR, option, assocModels, options, association, null);
                     if(maxYear - minYear > 0) {
                         Options timelineOptions = getDefaultChartOptions();
-                        buildTimelineSeries(Constants.MARKET_ID,revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, timelineOptions, association);
+                        buildTimelineSeries(column, maxGroups, Constants.MARKET_ID,revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, timelineOptions, association);
                         allOptions.add(timelineOptions);
                     }
                     break;
@@ -546,7 +546,7 @@ public abstract class Model implements Serializable {
             switch (association.getModel()) {
                 case ProductRevenue: {
                     // yearly timeline
-                    buildTimelineSeries(null,revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association);
+                    buildTimelineSeries(column, maxGroups, null,revenueDomain, regionId, minYear, maxYear, useCAGR, option, assocModels, options, association);
                     break;
                 }
                 case Company: {
