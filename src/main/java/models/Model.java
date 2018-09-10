@@ -110,7 +110,7 @@ public abstract class Model implements Serializable {
     }
 
     public void buildTimelineSeries(String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
-        buildTimelineSeries(true, 15, data.get(Constants.NAME).toString(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, option, models, options, association);
+        buildTimelineSeries(false, 15, data.get(Constants.NAME).toString(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, option, models, options, association);
     }
 
 
@@ -264,6 +264,16 @@ public abstract class Model implements Serializable {
                 options.setSeries(((List<PointSeries>) options.getSeries()).stream().map(s -> new Pair<>(s, s.getData() == null ? 0d : s.getData().stream().mapToDouble(d -> ((Point) d).getY().doubleValue()).sum())).
                         filter(s -> s.getValue() > 0d).sorted((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()))
                         .limit(maxGroups).map(p -> p.getKey()).collect(Collectors.toList()));
+            }
+        }
+        if(options.getSeries()!=null) {
+            // sort series data
+            if(!column) {
+                for (PointSeries series : (List<PointSeries>) options.getSeries()) {
+                    if (series.getData() != null) {
+                        series.setData(series.getData().stream().sorted(Comparator.comparingInt(p -> p.getX().intValue())).collect(Collectors.toList()));
+                    }
+                }
             }
         }
 
