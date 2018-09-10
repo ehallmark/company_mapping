@@ -13,6 +13,7 @@ import graph.Graph;
 import graph.Node;
 import j2html.tags.ContainerTag;
 import j2html.tags.Tag;
+import javafx.util.Pair;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -109,11 +110,11 @@ public abstract class Model implements Serializable {
     }
 
     public void buildTimelineSeries(String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
-        buildTimelineSeries(data.get(Constants.NAME).toString(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, option, models, options, association);
+        buildTimelineSeries(true, 15, data.get(Constants.NAME).toString(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, option, models, options, association);
     }
 
 
-    public static void buildTimelineSeries(@NonNull String name, @NonNull Association.Model type, Integer id, Double revenue, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
+    public static void buildTimelineSeries(boolean column, int maxGroups, @NonNull String name, @NonNull Association.Model type, Integer id, Double revenue, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
         // yearly timeline
         if(minYear==null || maxYear==null) return;
         if(maxYear - minYear <= 0) {
@@ -124,8 +125,13 @@ public abstract class Model implements Serializable {
         for(int year = minYear; year <= maxYear; year ++ ) {
             categories.add(String.valueOf(year));
         }
-        options.setPlotOptions(new PlotOptionsChoice().setLine(new PlotOptions().setShowInLegend(groupByField!=null)));
-        options.setChartOptions(new ChartOptions().setType(SeriesType.COLUMN).setWidth(800));
+        if(column) {
+            options.setPlotOptions(new PlotOptionsChoice().setColumn(new PlotOptions().setGroupPadding(0.02f).setShowInLegend(groupByField != null)));
+        } else {
+            options.setPlotOptions(new PlotOptionsChoice().setLine(new PlotOptions().setShowInLegend(groupByField != null)));
+        }
+
+        options.setChartOptions(new ChartOptions().setType(column? SeriesType.COLUMN : SeriesType.LINE).setWidth(1000));
         options.setxAxis(new Axis().setCategories(categories).setType(AxisType.CATEGORY));
         options.setyAxis(new Axis().setTitle(new Title().setText("Revenue ($)")));
         String title;
@@ -179,23 +185,23 @@ public abstract class Model implements Serializable {
             options.addSeries(series);
 
         } else {
-            models.stream().collect(Collectors.groupingBy(e->e.getData().get(groupByField))).forEach((year, list) -> {
+            models.stream().collect(Collectors.groupingBy(e -> e.getData().get(groupByField))).forEach((year, list) -> {
                 PointSeries series = new PointSeries();
                 series.setShowInLegend(true);
                 // get name of group by field by id
                 Model dataReference;
-                if(groupByField.equals(Constants.MARKET_ID)) {
+                if (groupByField.equals(Constants.MARKET_ID)) {
                     // find market
-                    dataReference = new Market((Integer)year, null);
-                } else if(groupByField.equals(Constants.COMPANY_ID)){
+                    dataReference = new Market((Integer) year, null);
+                } else if (groupByField.equals(Constants.COMPANY_ID)) {
                     // find company
-                    dataReference = new Company((Integer)year, null);
+                    dataReference = new Company((Integer) year, null);
 
                 } else {
                     throw new RuntimeException("Unknown group by field in time line chart.");
                 }
                 dataReference.loadAttributesFromDatabase();
-                series.setName((String)dataReference.getData().get(Constants.NAME));
+                series.setName((String) dataReference.getData().get(Constants.NAME));
                 Set<String> missingYears = new HashSet<>(categories);
                 for (Model assoc : list) {
                     assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, option, revenue, true);
@@ -207,20 +213,20 @@ public abstract class Model implements Serializable {
                         missingYears.remove(_year.toString());
                     }
                 }
-                for(String missing : missingYears) {
+                for (String missing : missingYears) {
                     int missingYear = Integer.valueOf(missing);
                     Double missingRev = null;
-                    if(useCAGR) {
+                    if (useCAGR) {
                         missingRev = calculateFromCAGR(list, missingYear);
                     }
 
-                    if(missingRev!=null) {
+                    if (missingRev != null) {
                         series.addPoint(new Point(String.valueOf(missingYear), missingRev));
 
                     } else {
-                        if(option.equals(Constants.MissingRevenueOption.error)) {
-                            throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + name, missingYear, type, id, association);
-                        } else if(option.equals(Constants.MissingRevenueOption.replace)) {
+                        if (option.equals(Constants.MissingRevenueOption.error)) {
+                            throw new MissingRevenueException("Missing revenues in " + missingYear + " for " + name, missingYear, type, id, association);
+                        } else if (option.equals(Constants.MissingRevenueOption.replace)) {
                             series.addPoint(new Point(String.valueOf(missingYear), 0));
 
                         }
@@ -228,6 +234,12 @@ public abstract class Model implements Serializable {
                 }
                 options.addSeries(series);
             });
+            // trim smallest series
+            if (options.getSeries() != null) {
+                options.setSeries(((List<PointSeries>) options.getSeries()).stream().map(s -> new Pair<>(s, s.getData() == null ? 0d : s.getData().stream().mapToDouble(d -> ((Point) d).getY().doubleValue()).sum())).
+                        filter(s -> s.getValue() > 0d).sorted((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()))
+                        .limit(maxGroups).map(p -> p.getKey()).collect(Collectors.toList()));
+            }
         }
 
     }
@@ -243,7 +255,7 @@ public abstract class Model implements Serializable {
             categories.add(String.valueOf(year));
         }
         options.setPlotOptions(new PlotOptionsChoice().setPie(new PlotOptions().setAllowPointSelect(false).setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT))));
-        options.setChartOptions(new ChartOptions().setWidth(800).setType(SeriesType.PIE));
+        options.setChartOptions(new ChartOptions().setWidth(1000).setType(SeriesType.PIE));
         options.setSubtitle(new Title().setText(title));
         options.setTitle(new Title().setText(data.get(Constants.NAME).toString()));
         options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>Percentage: {point.percentage:.1f}%</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
