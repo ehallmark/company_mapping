@@ -132,11 +132,7 @@ public abstract class Model implements Serializable {
         }
 
         options.setChartOptions(new ChartOptions().setType(column? SeriesType.COLUMN : SeriesType.LINE).setWidth(1000));
-        if(column) {
-            options.setxAxis(new Axis().setCategories(categories).setType(AxisType.CATEGORY));
-        } else {
-            options.setxAxis(new Axis().setCategories(categories).setType(AxisType.LINEAR).setMin(minYear).setMax(maxYear).setShowFirstLabel(true).setShowLastLabel(true));
-        }
+        options.setxAxis(new Axis().setCategories(categories).setType(AxisType.CATEGORY));
         options.setyAxis(new Axis().setTitle(new Title().setText("Revenue ($)")));
         String title;
         if(groupByField==null) {
@@ -163,11 +159,7 @@ public abstract class Model implements Serializable {
                 assoc.getSimpleLink();
                 Integer year = (Integer) assoc.getData().get(Constants.YEAR);
                 if(rev!=null) {
-                    if(column) {
-                        series.addPoint(new Point(year.toString(), rev));
-                    } else {
-                        series.addPoint(new Point(year, rev));
-                    }
+                    series.addPoint(new Point(year.toString(), rev));
                     missingYears.remove(assoc.getData().get(Constants.YEAR).toString());
                 }
             }
@@ -179,20 +171,12 @@ public abstract class Model implements Serializable {
                 }
 
                 if(missingRev!=null) {
-                    if(column) {
-                        series.addPoint(new Point(String.valueOf(missingYear), missingRev));
-                    } else {
-                        series.addPoint(new Point(missingYear, missingRev));
-                    }
+                    series.addPoint(new Point(String.valueOf(missingYear), missingRev));
                 } else {
                     if(option.equals(Constants.MissingRevenueOption.error)) {
                         throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + name, missingYear, type, id, association);
                     } else if(option.equals(Constants.MissingRevenueOption.replace)) {
-                        if(column) {
-                            series.addPoint(new Point(String.valueOf(missingYear), 0));
-                        } else {
-                            series.addPoint(new Point(missingYear, 0));
-                        }
+                        series.addPoint(new Point(String.valueOf(missingYear), 0));
                     }
                 }
             }
@@ -223,11 +207,7 @@ public abstract class Model implements Serializable {
                     assoc.getSimpleLink();
                     Integer _year = (Integer) assoc.getData().get(Constants.YEAR);
                     if (rev != null) {
-                        if(column) {
-                            series.addPoint(new Point(_year.toString(), rev));
-                        } else {
-                            series.addPoint(new Point(_year, rev));
-                        }
+                        series.addPoint(new Point(_year.toString(), rev));
                         missingYears.remove(_year.toString());
                     }
                 }
@@ -239,21 +219,12 @@ public abstract class Model implements Serializable {
                     }
 
                     if (missingRev != null) {
-                        if(column) {
-                            series.addPoint(new Point(String.valueOf(missingYear), missingRev));
-                        } else {
-                            series.addPoint(new Point(missingYear, missingRev));
-                        }
-
+                        series.addPoint(new Point(String.valueOf(missingYear), missingRev));
                     } else {
                         if (option.equals(Constants.MissingRevenueOption.error)) {
                             throw new MissingRevenueException("Missing revenues in " + missingYear + " for " + name, missingYear, type, id, association);
                         } else if (option.equals(Constants.MissingRevenueOption.replace)) {
-                            if(column) {
-                                series.addPoint(new Point(String.valueOf(missingYear), 0));
-                            } else {
-                                series.addPoint(new Point(missingYear, 0));
-                            }
+                            series.addPoint(new Point(String.valueOf(missingYear), 0));
                         }
                     }
                 }
@@ -271,7 +242,7 @@ public abstract class Model implements Serializable {
             if(!column) {
                 for (PointSeries series : (List<PointSeries>) options.getSeries()) {
                     if (series.getData() != null) {
-                        series.setData(series.getData().stream().sorted(Comparator.comparingInt(p -> p.getX().intValue())).collect(Collectors.toList()));
+                        series.setData(series.getData().stream().sorted((p1,p2) -> p1.getName().compareTo(p2.getName())).collect(Collectors.toList()));
                     }
                 }
             }
