@@ -1812,7 +1812,7 @@ public abstract class Model implements Serializable {
                     typeToUse = association.getModel();
                 }
                 if((isRevenueModel && association.getModel().toString().contains("Revenue"))
-                        || association.getModel().equals(Association.Model.MarketShareRevenue)) {
+                        || typeToUse.equals(Association.Model.MarketShareRevenue)) {
                     // revenue to revenue model or market share association - need to delete dependent stuff
                     Database.delete(association.getChildTableName(), idToUse);
                     nodeCache.deleteNode(typeToUse, idToUse);
