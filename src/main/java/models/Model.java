@@ -97,12 +97,14 @@ public abstract class Model implements Serializable {
         if(data==null) {
             loadAttributesFromDatabase();
         }
-        return div().withId("node-"+this.getClass().getSimpleName()+"-"+id).with(
+        String nodeClazz = "node-"+getType()+"-"+id;
+        return div().withClass(nodeClazz).with(
                 getSimpleLink(),
                 (isRegion() || associationName.equals("Sub Revenue") ? span() :
                     span("X").attr("data-association", associationModel)
-                        .attr("data-association-name", associationName)
-                        .attr("data-association-id", associationId.toString())
+                            .attr("data-association-name", associationName)
+                            .attr("data-association-id", associationId.toString())
+                            .attr("data-delete-ref", "."+nodeClazz)
                             .attr("style","cursor: pointer;").withClass("delete-node")
                             .attr("data-resource", this.getClass().getSimpleName()).attr("data-id", id)
                 )

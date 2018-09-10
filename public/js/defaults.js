@@ -673,6 +673,7 @@ var onShowResourceFunction = function($topElem) {
         var id = $this.attr('data-id');
         var name = $this.prev().text();
         var resourceId = $this.attr('data-resource');
+        var delete_class = $this.attr('data-delete-ref');
         var associationName = $this.attr('data-association');
         var associationId = $this.attr('data-association-id');
         var associationRef = $this.attr('data-association-name');
@@ -693,7 +694,11 @@ var onShowResourceFunction = function($topElem) {
                     if(showData.hasOwnProperty('error')) {
                         alert(showData.error);
                     } else {
-                        showResourceFunction(associationName, associationId);
+                        $(delete_class).each(function() {
+                            $(this).closest('li').remove();
+                        });
+                        // recalculate sums
+                        updateAssociationTotals();
                     }
                 },
                 error: function() {
