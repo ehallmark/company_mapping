@@ -724,7 +724,7 @@ public class Main {
             boolean inDiagram = extractString(req, "in_diagram", null) != null;
             if(model!=null) {
                 ContainerTag html;
-                ContainerTag diagram = model.loadNestedAssociations(inDiagram, 0);
+                ContainerTag diagram = model.loadNestedAssociations(inDiagram, 0, false);
                 if(inDiagram) {
                     html = diagram;
                 } else {

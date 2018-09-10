@@ -745,7 +745,7 @@ public abstract class Model implements Serializable {
         }
     }
 
-    public ContainerTag loadNestedAssociations(boolean nested, int maxDepth) {
+    public ContainerTag loadNestedAssociations(boolean nested, int maxDepth, boolean expandAll) {
         RevenueDomain revenueDomain = RevenueDomain.global;
         if(data==null) {
             loadAttributesFromDatabase();
@@ -766,7 +766,7 @@ public abstract class Model implements Serializable {
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, null), Constants.YEAR,true, revenueDomain, null, null, null, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth);
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, null), Constants.YEAR,true, revenueDomain, null, null, null, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, expandAll);
         if(nested) return inner;
         return tag;
     };
@@ -811,7 +811,7 @@ public abstract class Model implements Serializable {
                 )
         );
         this.allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, regionId), Constants.YEAR,false, revenueDomain, regionId, startYear, endYear, useCAGR, option, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth);
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, regionId), Constants.YEAR,false, revenueDomain, regionId, startYear, endYear, useCAGR, option, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, false);
         return tag;
     };
 
@@ -1081,17 +1081,17 @@ public abstract class Model implements Serializable {
          If no revenue is present for a company, do nothing. If no revenue is present for a product, do nothing.
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
-    private void loadNestedAssociationHelper(@NonNull String regionDomainName, String groupRevenuesBy, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth) {
+    private void loadNestedAssociationHelper(@NonNull String regionDomainName, String groupRevenuesBy, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth, boolean expandAll) {
         if(depth > maxDepth) return;
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
         Set<Association> linkToAssociations = new HashSet<>();
         for(Association association : associationsMeta) {
-            if(association.shouldNotExpand(isRevenueModel())) {
+            if(!expandAll && association.shouldNotExpand(isRevenueModel())) {
                 continue;
             }
-            if(depth == maxDepth) {
+            if(!expandAll && depth == maxDepth) {
                 linkToAssociations.add(association);
             }
 
@@ -1187,17 +1187,20 @@ public abstract class Model implements Serializable {
                         if (totalRevAllYears == 0) totalRevAllYears = null;
                     }
                 }
-
+                String listRef_ = "association-"+getType().toString().toLowerCase() + "-" + id + "-" + association.getAssociationName().toLowerCase().replace(" ", "-");
                 for (Integer key : groupKeys) {
                     ContainerTag groupUl;
+                    String listRef;
                     Double yearlyRevenue = key == null ? null : yearToRevenueMap.get(key);
                     if(yearlyRevenue!=null) {
+                        listRef = listRef_ + "-"+key;
                         String percentStr = totalRevAllYears == null ? "" : (String.format("%.1f", (yearlyRevenue * 100d) / totalRevAllYears) + "%");
-                        groupUl = ul().attr("data-val", yearlyRevenue.toString()).withClass("resource-data-field");
+                        groupUl = ul().attr("data-val", yearlyRevenue.toString()).withClass("resource-data-field "+listRef);
                         ul.with(li().with(div( String.valueOf(key) + " - "+regionDomainName  + " (Revenue: " + formatRevenueString(yearlyRevenue) + ") - "+percentStr)
                                 .attr("style", "cursor: pointer;").attr("onclick", "$(this).next().slideToggle();")
                         ).attr("style", "display: inline; list-style: none;").with(groupUl));
                     } else {
+                        listRef = listRef_;
                         groupUl = ul;
                     }
                     List<Model> groupedModelList = groupedModels.get(key);
@@ -1230,7 +1233,7 @@ public abstract class Model implements Serializable {
                         boolean isParentRevenue;
                         // need to decide whether to show percentage of parent or child
                         String thisClass = this.getClass().getSimpleName();
-                        if (!model.isRevenueModel && thisClass.equals(Product.class.getSimpleName())) {
+                        if ((!model.isRevenueModel && thisClass.equals(Product.class.getSimpleName())) || association.getAssociationName().startsWith("Parent")) {
                             isParentRevenue = false;
                         } else {
                             isParentRevenue = true;
@@ -1256,18 +1259,16 @@ public abstract class Model implements Serializable {
                                         .attr("data-resource", model.getType().toString())
                                 );
                             } else {
-                                model.loadNestedAssociationHelper(regionDomainName, group, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth);
+                                model.loadNestedAssociationHelper(regionDomainName, group, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth, expandAll);
                             }
                         }
                         references.add(_id);
                         alreadySeen.add(_id);
                     }
+                    ul.with(li().attr("style", "display: inline;").with(
+                            allowEdit?getAddAssociationPanel(association, listRef, original):span())
+                    );
                 }
-                String listRef = "association-" + association.getAssociationName().toLowerCase().replace(" ", "-") + cnt.getAndIncrement();
-
-                ul.with(li().attr("style", "display: inline;").with(
-                        allowEdit?getAddAssociationPanel(association, listRef, original):span())
-                );
                 container.with(tag);
             }
         }
@@ -1317,7 +1318,7 @@ public abstract class Model implements Serializable {
                 // make sure we haven't introduced in cycles
                 if(association.getModel().toString().equals(this.getClass().getSimpleName())) {
                     System.out.println("Checking for cycles...");
-                    loadNestedAssociations(false, 10); // hack to access allReferences
+                    loadNestedAssociations(false, 10, true); // hack to access allReferences
                     String otherRef = otherModel.getClass().getSimpleName() + otherModel.getId();
                     if (this.allReferences.contains(otherRef)) {
                         throw new RuntimeException("Unable to assign association. Cycle detected.");
@@ -1397,9 +1398,6 @@ public abstract class Model implements Serializable {
         return getAddAssociationPanel(association, listRef, diagramModel, null, false);
     }
 
-    public ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel, boolean report) {
-        return getAddAssociationPanel(association, listRef, diagramModel, null, report);
-    }
     public ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel, String overrideCreateText, boolean report) {
         if(association.getAssociationName().equals("Parent Revenue") || (association.getAssociationName().equals("Sub Revenue") && referencesCountry()) || association.getModel().equals(Association.Model.Region)) {
             return span();
@@ -1442,7 +1440,7 @@ public abstract class Model implements Serializable {
                 ), br()));
         ContainerTag panel = div().with(isGlobalRegion? p("Global") : a(createText).withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
                 (isRegion ? span() :
-                        getCreateNewForm(association.getModel(),id).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("#"+listRef)).attr("data-association", association.getModel().toString())
+                        getCreateNewForm(association.getModel(),id).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("."+listRef)).attr("data-association", association.getModel().toString())
                                 .attr("data-resource", this.getClass().getSimpleName())
                                 .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
                                 .attr("data-report", report ? "true" : null)
@@ -1451,7 +1449,7 @@ public abstract class Model implements Serializable {
                                 .attr("data-id", id.toString()).withClass("association").with(
                                 input().withType("hidden").withName("_association_name").withValue(association.getAssociationName())
                         )
-                ),(isGlobalRegion || revenueAssociation ? span() : form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("#"+listRef)).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
+                ),(isGlobalRegion || revenueAssociation ? span() : form().attr("data-association-name-reverse", association.getReverseAssociationName()).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("."+listRef)).attr("data-id", id.toString()).withClass("update-association").attr("data-association", association.getModel().toString())
                         .attr("data-resource", this.getClass().getSimpleName())
                         .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
                         .attr("data-original-id",diagramModel!=null ? diagramModel.id.toString() : "f")
@@ -1547,35 +1545,7 @@ public abstract class Model implements Serializable {
                 ),
                 div().withClass("col-12").with(
                         h5("Associations"),
-                        div().with(
-                                ul().withClass("nav nav-tabs").attr("role", "tablist").with(
-                                        associationsMeta.stream().map(association-> {
-                                            boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
-                                            String assocId = "tab-link-"+association.getAssociationName().toLowerCase().replace(" ","-");
-                                            return li().withClass("nav-item").with(
-                                                    a(pluralize?Constants.pluralizeAssociationName(association.getAssociationName()):association.getAssociationName())
-                                                            .attr("id", "association-show-"+association.getAssociationName().toLowerCase().replace(" ","-")).withClass("nav-link").attr("data-toggle", "tab").withHref("#" + assocId).attr("role", "tab")
-                                            );
-                                        }).collect(Collectors.toList())
-                                )
-                        ),
-                        div().withClass("row tab-content").withId("main-container").with(
-                                associationsMeta.stream().map(association->{
-                                    String assocId = "tab-link-"+association.getAssociationName().toLowerCase().replace(" ","-");
-                                    List<Model> models = associations.get(association);
-                                    if(models==null) {
-                                        models = Collections.emptyList();
-                                    }
-                                    String listRef = "association-"+association.getAssociationName().toLowerCase().replace(" ","-");
-                                    ContainerTag panel = getAddAssociationPanel(association, listRef, null);
-                                    return div().attr("role", "tabpanel").withId(assocId).withClass("col-12 tab-pane fade").with(
-                                            panel, br(),
-                                            div().withId(listRef).with(models.stream().map(model->{
-                                                return model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id);
-                                            }).collect(Collectors.toList()))
-                                    );
-                                }).collect(Collectors.toList())
-                        )
+                       loadNestedAssociations(false, 0, true)
                 )
         );
         template = html.render();

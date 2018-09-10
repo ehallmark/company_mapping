@@ -634,9 +634,7 @@ var onShowResourceFunction = function($topElem) {
                             } else {
                                 if(!listRef || refresh==='refresh') {
                                     if(report) {
-                                        //showResourceFunction(originalResourceId,originalId);
                                         $('#inner-results').html('');
-
                                     } else {
                                         showDiagramFunction(originalId,originalResourceId);
                                     }
@@ -693,9 +691,6 @@ var onShowResourceFunction = function($topElem) {
             success: function(showData) {
                 var $oldRef = $(oldRef);
                 if(!listRef || refresh==='refresh') {
-                    if($(showData.template).hasClass('server-error')) {
-                        alert('A cycle has been detected. Unable to assign '+associationId+' to '+resourceId);
-                    };
                     // check if we are in a report
                     if(report) {
                         //showResourceFunction(originalResourceId, originalId);
@@ -708,17 +703,10 @@ var onShowResourceFunction = function($topElem) {
 
                     if($oldRef.length && $oldRef.find('span[data-association-name]').filter(':first').attr('data-association-name')===associationName) {
                         var template = $(showData.template);
-                        if(template.hasClass('server-error')) {
-                            var $listRef = $(listRef);
-                            $listRef.append(showData.template);
-                            onShowResourceFunction($listRef);
-                        } else {
-                            $oldRef.html($(showData.template).unwrap());
-                            onShowResourceFunction($oldRef);
-                        }
+                        $oldRef.html($(showData.template).unwrap());
+                        onShowResourceFunction($oldRef);
                     } else {
                         var $listRef = $(listRef);
-                        $listRef.find('.server-error').remove();
                         if(prepend==='prepend') {
                             $listRef.prepend(showData.template);
                         } else {
