@@ -1749,10 +1749,14 @@ public abstract class Model implements Serializable {
                 }
             }
             for(Model association : entry.getValue()) {
-                if(cascade && entry.getKey().isDependent()) {
+                if (cascade && entry.getKey().isDependent()) {
                     association.deleteFromDatabase(true);
                 }
-                cleanUpParentIds(entry.getKey(), association.getId());
+                try {
+                    cleanUpParentIds(entry.getKey(), association.getId());
+                } catch(Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
         try {
@@ -1807,8 +1811,9 @@ public abstract class Model implements Serializable {
                     idToUse = assocId;
                     typeToUse = association.getModel();
                 }
-                if(isRevenueModel && association.getModel().toString().contains("Revenue")) {
-                    // revenue to revenue model - need to delete dependent stuff
+                if((isRevenueModel && association.getModel().toString().contains("Revenue"))
+                        || association.getModel().equals(Association.Model.MarketShareRevenue)) {
+                    // revenue to revenue model or market share association - need to delete dependent stuff
                     Database.delete(association.getChildTableName(), idToUse);
                     nodeCache.deleteNode(typeToUse, idToUse);
                 } else {
