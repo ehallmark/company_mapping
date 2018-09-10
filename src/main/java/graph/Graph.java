@@ -63,6 +63,23 @@ public class Graph {
         }
     }
 
+    // Call this function after updating the underling models and the SQL database
+    public void linkNodeWithAssociation(@NonNull Model model, @NonNull Model otherModel, @NonNull Association association) {
+        Node node1 = findNode(model.getType(), model.getId());
+        Node node2 = findNode(otherModel.getType(), otherModel.getId());
+
+        connectNodes(node1, node2, association);
+
+        // reset associations
+
+        node1.getModel().setAssociations(null);
+        node1.getModel().loadAssociations();
+        node2.getModel().setAssociations(null);
+        node2.getModel().loadAssociations();
+
+        throw new RuntimeException("Not implemented!");
+    }
+
     public void unlinkNodeFromAssociation(@NonNull Association.Model model, int id, @NonNull Association association) {
         Node node = nodeCache.getOrDefault(model, new HashMap<>(1)).get(id);
         unlinkNodeFromAssociation(node, association);

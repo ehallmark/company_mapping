@@ -75,6 +75,17 @@ public abstract class Model implements Serializable {
         }
     }
 
+    public String getName() {
+        if(isRevenueModel) {
+            if(data==null||!data.containsKey(Constants.YEAR)) loadAttributesFromDatabase();
+            return "Revenue ("+data.get(Constants.YEAR)+")";
+
+        } else {
+            if(data==null||!data.containsKey(Constants.NAME)) loadAttributesFromDatabase();
+            return (String) data.get(Constants.NAME);
+        }
+    }
+
     public boolean existsInDatabase() {
         return id != null;
     }
@@ -110,7 +121,7 @@ public abstract class Model implements Serializable {
     }
 
     public void buildTimelineSeries(boolean column, int maxGroups, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
-        buildTimelineSeries(column, maxGroups, data.get(Constants.NAME).toString(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, option, models, options, association);
+        buildTimelineSeries(column, maxGroups, getName(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, option, models, options, association);
     }
 
 
@@ -199,7 +210,7 @@ public abstract class Model implements Serializable {
                     throw new RuntimeException("Unknown group by field in time line chart.");
                 }
                 dataReference.loadAttributesFromDatabase();
-                series.setName((String) dataReference.getData().get(Constants.NAME));
+                series.setName(dataReference.getName());
                 Set<String> missingYears = new HashSet<>(categories);
                 for (Model assoc : list) {
                     assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, option, revenue, true);
@@ -263,7 +274,7 @@ public abstract class Model implements Serializable {
         options.setPlotOptions(new PlotOptionsChoice().setPie(new PlotOptions().setAllowPointSelect(false).setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT))));
         options.setChartOptions(new ChartOptions().setWidth(1000).setType(SeriesType.PIE));
         options.setSubtitle(new Title().setText(title));
-        options.setTitle(new Title().setText(data.get(Constants.NAME).toString()));
+        options.setTitle(new Title().setText(getName()));
         options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>Percentage: {point.percentage:.1f}%</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
         PointSeries series = new PointSeries();
         series.setDataLabels(new DataLabels(true)
@@ -278,7 +289,7 @@ public abstract class Model implements Serializable {
                 assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, option, revenue, true);
                 Double rev = assoc.revenue;
                 assoc.getSimpleLink();
-                String name = (String) assoc.getData().get(Constants.NAME);
+                String name = assoc.getName();
                 if (rev == null) {
                     rev = 0d;
                 }
@@ -299,7 +310,7 @@ public abstract class Model implements Serializable {
                     throw new RuntimeException("Unknown group by field in time line chart.");
                 }
                 dataReference.loadAttributesFromDatabase();
-                String label = (String)dataReference.getData().get(Constants.NAME);
+                String label = dataReference.getName();
                 Set<String> missingYears = new HashSet<>(categories);
                 Double y = null;
                 for (Model assoc : list) {
@@ -323,7 +334,7 @@ public abstract class Model implements Serializable {
 
                     } else {
                         if(option.equals(Constants.MissingRevenueOption.error)) {
-                            throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + data.get(Constants.NAME), missingYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                            throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + getName(), missingYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
                         }
                     }
                 }
@@ -600,7 +611,7 @@ public abstract class Model implements Serializable {
                     List<Model> regions = associations.get(regional);
                     if(regions!=null && regions.size()>0) {
                         Model region = regions.get(0);
-                        data.put(Constants.NAME, region.data.get(Constants.NAME));
+                        data.put(Constants.NAME, region.getName());
                     }
                 }
                 if(isMarketShare) {
@@ -610,11 +621,11 @@ public abstract class Model implements Serializable {
                     for(Association association : associationsMeta) {
                         if (associations.getOrDefault(association, Collections.emptyList()).size() > 0) {
                             if(association.getModel().equals(Association.Model.Company)) {
-                                companyName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
+                                companyName = associations.get(association).get(0).getName();
                             } else if (association.getModel().equals(Association.Model.Market)) {
-                                marketName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
+                                marketName = associations.get(association).get(0).getName();
                             } else if(association.getModel().equals(Association.Model.Region)) {
-                                regionName = associations.get(association).get(0).getData().get(Constants.NAME).toString();
+                                regionName = associations.get(association).get(0).getName();
                             }
                         }
                     }
@@ -640,12 +651,12 @@ public abstract class Model implements Serializable {
                 } else {
                     List<Model> parent = associations.get(associationsMeta.get(0));
                     if (parent != null && parent.size() > 0) {
-                        data.put(Constants.NAME, (removePrefix ? "" : (((String) parent.get(0).getData().get(Constants.NAME)) + " ")) + " (" + data.get(Constants.YEAR) + ")");
+                        data.put(Constants.NAME, (removePrefix ? "" : (((String) parent.get(0).getName()) + " ")) + " (" + data.get(Constants.YEAR) + ")");
                     }
                 }
             }
         }
-        String name = (String)data.get(Constants.NAME);
+        String name = getName();
         return a(name).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+String.join(" ", additionalClasses));
     }
 
@@ -830,7 +841,7 @@ public abstract class Model implements Serializable {
                 if(regionId==null) throw new RuntimeException("Please specify a region.");
                 Model region = Graph.load().findNode(Association.Model.Region, regionId).getModel();
                 region.loadAttributesFromDatabase();
-                name = (String)region.getData().get(Constants.NAME);
+                name = region.getName();
                 break;
             }
         }
@@ -1026,13 +1037,13 @@ public abstract class Model implements Serializable {
                                                     byCagr.add(cagr);
                                                 } else {
                                                     if (option.equals(Constants.MissingRevenueOption.error)) {
-                                                        throw new MissingRevenueException("Missing market share in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                                        throw new MissingRevenueException("Missing market share in " + year + " for " + getName(), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
                                                     }
                                                 }
 
                                             } else {
                                                 if (option.equals(Constants.MissingRevenueOption.error)) {
-                                                    throw new MissingRevenueException("Missing market share in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                                    throw new MissingRevenueException("Missing market share in " + year + " for " + getName(), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
                                                 }
                                             }
                                         }
@@ -1072,12 +1083,12 @@ public abstract class Model implements Serializable {
                                                     calculationInformation.add(new CalculationInformation(_year,(Double)best.getData().get(Constants.CAGR),false,false,cagr,best));
 
                                                 } else if (option.equals(Constants.MissingRevenueOption.error) && !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
-                                                    throw new MissingRevenueException("Missing revenues in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                                    throw new MissingRevenueException("Missing revenues in " + year + " for " + getName(), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
                                                 }
 
                                             } else{
                                                 if (option.equals(Constants.MissingRevenueOption.error) && !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
-                                                    throw new MissingRevenueException("Missing revenues in " + year + " for " + data.get(Constants.NAME), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                                    throw new MissingRevenueException("Missing revenues in " + year + " for " + getName(), year, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
                                                 }
                                             }
                                         }
@@ -1089,12 +1100,12 @@ public abstract class Model implements Serializable {
 
                                 } else {
                                     if(option.equals(Constants.MissingRevenueOption.error) &&  !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
-                                        throw new MissingRevenueException("Missing revenues in " + startYear+" for " + data.get(Constants.NAME), startYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                        throw new MissingRevenueException("Missing revenues in " + startYear+" for " + getName(), startYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
                                     }
                                 }
                             } else {
                                 if(option.equals(Constants.MissingRevenueOption.error) && !foundRevenueInSubMarket && !foundRevenueInMarketShares) {
-                                    throw new MissingRevenueException("Missing revenues in " + startYear+" for " + data.get(Constants.NAME), startYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                                    throw new MissingRevenueException("Missing revenues in " + startYear+" for " + getName(), startYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
                                 }
                             }
                         }
@@ -1365,6 +1376,7 @@ public abstract class Model implements Serializable {
         return region.getData().get(Constants.PARENT_REGION_ID)!=null;
     }
 
+    // UPDATE NODE CACHE
     public void associateWith(@NonNull Model otherModel,@NonNull String associationName, @NonNull Map<String,Object> joinData) {
         // find association
         for(Association association : associationsMeta) {
@@ -1406,6 +1418,8 @@ public abstract class Model implements Serializable {
                         break;
                     }
                     case ManyToMany: {
+                        throw new RuntimeException("Many to many not yet implemented.");
+                        /*
                         try {
                             // need to add to join table
                             Connection conn = Database.getConn();
@@ -1429,13 +1443,14 @@ public abstract class Model implements Serializable {
                         } catch(Exception e) {
                             e.printStackTrace();
                         }
-                        break;
+                        break; */
                     }
                     case OneToOne: {
                         // NOT IMPLEMENTED
                         break;
                     }
                 }
+                nodeCache.linkNodeWithAssociation(this, otherModel, association);
                 break;
             }
         }
@@ -1775,7 +1790,7 @@ public abstract class Model implements Serializable {
             }
 
         } else {
-            if(data.get(Constants.NAME)==null) {
+            if(getName()==null) {
                 throw new RuntimeException("Name must be present");
             }
         }

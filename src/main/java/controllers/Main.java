@@ -664,7 +664,7 @@ public class Main {
                             m.getData().forEach((k,v)->{
                                 map.put(k,Constants.getFieldFormatter(k).apply(v));
                             });
-                            String name = (String) m.getData().get(Constants.NAME);
+                            String name = m.getName();
                             if(name==null) {
                                 name = "";
                             }
@@ -696,7 +696,7 @@ public class Main {
                                     map.put(fieldNameTextOnly, "");
                                 } else {
                                     map.put(fieldName, String.join("<br/>", assocModel.stream().map(a -> a.getSimpleLink(additionalClasses).render()).collect(Collectors.toList())));
-                                    map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> (String) a.getData().get(Constants.NAME)).collect(Collectors.toList())));
+                                    map.put(fieldNameTextOnly, String.join(" ", assocModel.stream().map(a -> a.getName()).collect(Collectors.toList())));
                                 }
                             });
 
@@ -744,7 +744,7 @@ public class Main {
                     html = div().withClass("col-12").with(
                             div().attr("display: none;").withId("in_diagram_flag").attr("data-id", model.getId().toString()).attr("data-resource", model.getType().toString()),
                             getBackButton(req),
-                            h3("Diagram of " + model.getData().get(Constants.NAME)),
+                            h3("Diagram of " + model.getName()),
                             diagram
                     );
                     registerNextPage(req, res);
@@ -786,7 +786,7 @@ public class Main {
             if(model!=null) {
                 ContainerTag html = div().withClass("col-12").with(
                         getBackButton(req),
-                        h3("Comparison of "+model.getData().get(Constants.NAME)),
+                        h3("Comparison of "+model.getName()),
                         label(Constants.humanAttrFor(model.getType().toString())+" Name:").with(
                                 select().attr("multiple", "multiple").attr("id", "compare-model-select").attr("style","width: 100%").withClass("form-control multiselect-ajax")
                                         .attr("data-url", "/ajax/resources/"+model.getType()+"/"+model.getType()+"/"+model.getId())
@@ -934,7 +934,7 @@ public class Main {
             if(model!=null) {
                 ContainerTag html = div().withClass("col-12").with(
                         getBackButton(req),
-                        h3("Graphs of "+model.getData().get(Constants.NAME)),
+                        h3("Graphs of "+model.getName()),
                         getReportOptionsForm(model,"graph", ChartHelper.getChartOptionsForm()),
                         div().withId("inner-results")
                 );
@@ -1037,7 +1037,7 @@ public class Main {
 
                 ContainerTag html = div().withClass("col-12").with(
                         getBackButton(req),
-                        h3("Report of "+model.getData().get(Constants.NAME)),
+                        h3("Report of "+model.getName()),
                         getReportOptionsForm(model, "report"),
                         div().withId("inner-results")
                 );
