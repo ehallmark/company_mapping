@@ -100,25 +100,14 @@ var createResourceDynatable = function(resource) {
 
 
 var showDiagramFunction = function(id,resourceId,$target) {
-    var inDiagram = $target && $target.length > 0;
     $.ajax({
         url: '/diagram/'+resourceId+'/'+id,
         dataType: 'json',
-        data: {
-            in_diagram: inDiagram
-        },
-        type: 'GET',
-        success: function(data) {
-            var $result = null;
-            if(inDiagram) {
-                $result = $target;
-                $result.html($(data.result).children());
-            } else {
-                $result = $('#results');
-                $result.html(data.result);
-            }
-            onShowResourceFunction($result);
-        },
+        type: 'POST',
+        success: function($target) { return function(data) {
+            $target.html($(data.result).children()).css('display', 'block');
+            onShowResourceFunction($target);
+        }}($target),
         error: function() {
             alert("An error occurred.");
         }
@@ -285,6 +274,19 @@ var onShowResourceFunction = function($topElem) {
         }
     });
 
+    $topElem.find('.diagram-button').click(function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var $this = $(this);
+        var id = $this.attr('data-id');
+        var resourceId = $this.attr('data-resource');
+        var $target = null;
+        if ($this.hasClass('nested')) {
+            $target = $this.closest('ul');
+        }
+        showDiagramFunction(id,resourceId,$target);
+    });
+
     $topElem.find('#report-specification-form').submit(function(e) {
         e.preventDefault();
         var $form = $(this);
@@ -436,19 +438,6 @@ var onShowResourceFunction = function($topElem) {
                 }
             });
         }
-    });
-
-    $topElem.find('.diagram-button').click(function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        var $this = $(this);
-        var id = $this.attr('data-id');
-        var resourceId = $this.attr('data-resource');
-        var $target = null;
-        if ($this.hasClass('nested')) {
-            $target = $this.closest('ul');
-        }
-        showDiagramFunction(id,resourceId,$target);
     });
 
     $topElem.find('.report-button').click(function(e) {
@@ -632,24 +621,7 @@ var onShowResourceFunction = function($topElem) {
                                 });
                                 alert(showData.error);
                             } else {
-                                if(!listRef || refresh==='refresh') {
-                                    if(report) {
-                                        $('#inner-results').html('');
-                                    } else {
-                                        showDiagramFunction(originalId,originalResourceId);
-                                    }
-                                } else {
-                                    if(prepend==='prepend') {
-                                        $(listRef).prepend(showData.template);
-                                    } else {
-                                        $(listRef).html(showData.template);
-                                    }
-                                    $form.find('input.form-control,textarea,select').val(null).trigger('change');
-                                    onShowResourceFunction($(listRef));
-                                    $('.resource-new-link').filter(':visible').each(function() {
-                                        $(this).next().hide();
-                                    });
-                                }
+                                showResourceFunction(originalResourceId, originalId);
                             }
                         },
                         error: function() {
@@ -659,7 +631,6 @@ var onShowResourceFunction = function($topElem) {
                 }
             }
         });
-
         return false;
     });
 
@@ -689,36 +660,7 @@ var onShowResourceFunction = function($topElem) {
             data: formData,
             type: 'POST',
             success: function(showData) {
-                var $oldRef = $(oldRef);
-                if(!listRef || refresh==='refresh') {
-                    // check if we are in a report
-                    if(report) {
-                        //showResourceFunction(originalResourceId, originalId);
-                        $('#inner-results').html('');
-                    } else {
-                        showDiagramFunction(originalId,originalResourceId);
-                    }
-
-                } else {
-
-                    if($oldRef.length && $oldRef.find('span[data-association-name]').filter(':first').attr('data-association-name')===associationName) {
-                        var template = $(showData.template);
-                        $oldRef.html($(showData.template).unwrap());
-                        onShowResourceFunction($oldRef);
-                    } else {
-                        var $listRef = $(listRef);
-                        if(prepend==='prepend') {
-                            $listRef.prepend(showData.template);
-                        } else {
-                            $listRef.html(showData.template);
-                        }
-                        onShowResourceFunction($listRef);
-                    }
-                    $form.find('select').val(null).trigger('change');
-                    $('.resource-new-link').filter(':visible').each(function() {
-                        $(this).next().hide();
-                    });
-                }
+                showResourceFunction(originalResourceId, originalId);
             }
         });
         return false;
@@ -734,7 +676,6 @@ var onShowResourceFunction = function($topElem) {
         var associationName = $this.attr('data-association');
         var associationId = $this.attr('data-association-id');
         var associationRef = $this.attr('data-association-name');
-        var inDiagram = $('#in_diagram_flag');
         var url = '/resources_delete';
         if(confirm('Are you sure you want to unlink '+name+' from it\'s '+associationRef+'?')) {
             $.ajax({
@@ -752,11 +693,7 @@ var onShowResourceFunction = function($topElem) {
                     if(showData.hasOwnProperty('error')) {
                         alert(showData.error);
                     } else {
-                        if(inDiagram && inDiagram.length>0) {
-                            showDiagramFunction(inDiagram.attr("data-id"),inDiagram.attr('data-resource'));
-                        } else {
-                            showResourceFunction(associationName, associationId);
-                        }
+                        showResourceFunction(associationName, associationId);
                     }
                 },
                 error: function() {
@@ -831,7 +768,6 @@ var createNewResourceForm = function(resourceId, resourceName, data) {
 
 var showResourceFunction = function(resourceId, id) {
     // check for open tabs
-    var $tabId = $('#results .nav.nav-tabs .active.show').filter(':first').attr('id');
     $.ajax({
         url: '/show/'+resourceId+'/'+id,
         dataType: 'json',
@@ -839,19 +775,8 @@ var showResourceFunction = function(resourceId, id) {
         success: function(showData) {
             var $results = $('#results');
             $results.empty();
-            $results.hide();
             $results.html(showData.template);
-            onShowResourceFunction(($(document.body)));
-            var $tab = false;
-            if($tabId && $tabId.length>0) {
-                $tab = $('#' + $tabId);
-            }
-            if($tab && $tab.length>0) {
-                $tab.trigger('click');
-            } else {
-                $('#results .nav.nav-tabs .nav-link').filter(':first').trigger('click');
-            }
-            $results.show();
+            onShowResourceFunction($('#results'));
         }
     });
 };

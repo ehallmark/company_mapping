@@ -717,26 +717,13 @@ public class Main {
             return DataTable.handleDataTable(req, res);
         });
 
-
-        get("/diagram/:resource/:id", (req, res)-> {
+        // gets inner json only
+        post("/diagram/:resource/:id", (req, res)-> {
             authorize(req,res);
             Model model = loadModel(req);
-            boolean inDiagram = extractString(req, "in_diagram", null) != null;
             if(model!=null) {
-                ContainerTag html;
-                ContainerTag diagram = model.loadNestedAssociations(inDiagram, 0, false);
-                if(inDiagram) {
-                    html = diagram;
-                } else {
-                    html = div().withClass("col-12").with(
-                            div().attr("display: none;").withId("in_diagram_flag").attr("data-id", model.getId().toString()).attr("data-resource", model.getType().toString()),
-                            getBackButton(req),
-                            h3("Diagram of " + model.getName()),
-                            diagram
-                    );
-                    registerNextPage(req, res);
-                }
-                return new Gson().toJson(Collections.singletonMap("result", html.render()));
+                ContainerTag diagram = model.loadNestedAssociations(true, 0, false);
+                return new Gson().toJson(Collections.singletonMap("result", diagram.render()));
             }
             return null;
         });

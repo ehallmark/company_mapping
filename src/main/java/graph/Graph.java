@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class Graph {
@@ -63,22 +64,40 @@ public class Graph {
         }
     }
 
+    public boolean areAlreadyConnected(@NonNull Association.Model model, int id, @NonNull Association.Model otherModel, int otherId) {
+        lock.lock();
+        try {
+            Node node1 = findNode(model, id);
+            Node node2 = findNode(otherModel, otherId);
+            Set<Node> node1Relatives = new HashSet<>();
+            Function<String,Boolean> recursiveIf =  key -> key.contains(model.toString()) || key.contains(otherModel.toString());
+            findRelativesHelper(node1, node1Relatives, recursiveIf);
+            return node1Relatives.contains(node2);
+        } finally {
+            lock.unlock();
+        }
+    }
+
     // Call this function after updating the underling models and the SQL database
     public void linkNodeWithAssociation(@NonNull Model model, @NonNull Model otherModel, @NonNull Association association) {
-        Node node1 = findNode(model.getType(), model.getId());
-        Node node2 = findNode(otherModel.getType(), otherModel.getId());
-
-        connectNodes(node1, node2, association);
-        Association reverseAssociation = node2.getModel().findAssociation(association.getReverseAssociationName());
-        connectNodes(node2, node1, reverseAssociation);
-
+        lock.lock();
+        Node node1;
+        Node node2;
+        try {
+            node1 = findNode(model.getType(), model.getId());
+            node2 = findNode(otherModel.getType(), otherModel.getId());
+            connectNodes(node1, node2, association);
+            Association reverseAssociation = node2.getModel().findAssociation(association.getReverseAssociationName());
+            connectNodes(node2, node1, reverseAssociation);
+        } finally {
+            lock.unlock();
+        }
         // reset associations
 
         node1.getModel().setAssociations(null);
         node1.getModel().loadAssociations();
         node2.getModel().setAssociations(null);
         node2.getModel().loadAssociations();
-
     }
 
     public void unlinkNodeFromAssociation(@NonNull Association.Model model, int id, @NonNull Association association) {
@@ -87,15 +106,20 @@ public class Graph {
     }
 
     public void unlinkNodeFromAssociation(@NonNull Node node, @NonNull Association association) {
-        node.getEdgeMap().getOrDefault(association.getAssociationName(), Collections.emptyList()).forEach(edge->{
-            edge.getTarget().getEdgeMap().getOrDefault(association.getReverseAssociationName(), new ArrayList<>(1))
-                    .removeIf(e->e.getTarget().equals(node));
-            edge.getTarget().getModel().loadAssociations();
-            Association targetAssoc = edge.getTarget().getModel().findAssociation(association.getReverseAssociationName());
-            edge.getTarget().getModel().getAssociations().getOrDefault(targetAssoc, new ArrayList<>(1))
-                    .removeIf(e->new Node(e).equals(node));
-        });
-        node.getEdgeMap().remove(association.getAssociationName());
+        lock.lock();
+        try {
+            node.getEdgeMap().getOrDefault(association.getAssociationName(), Collections.emptyList()).forEach(edge -> {
+                edge.getTarget().getEdgeMap().getOrDefault(association.getReverseAssociationName(), new ArrayList<>(1))
+                        .removeIf(e -> e.getTarget().equals(node));
+                edge.getTarget().getModel().loadAssociations();
+                Association targetAssoc = edge.getTarget().getModel().findAssociation(association.getReverseAssociationName());
+                edge.getTarget().getModel().getAssociations().getOrDefault(targetAssoc, new ArrayList<>(1))
+                        .removeIf(e -> new Node(e).equals(node));
+            });
+            node.getEdgeMap().remove(association.getAssociationName());
+        } finally {
+            lock.unlock();
+        }
     }
 
     public Node deleteNode(@NonNull Association.Model model, int id) {
@@ -138,6 +162,7 @@ public class Graph {
         Node node1 = findNode(model1.getType(), model1.getId());
         Node node2 = findNode(model2.getType(), model2.getId());
         Set<Node> mutualRelatives = new HashSet<>();
+        Function<String,Boolean> recursiveIf =  key -> (key.contains("Revenue")||key.contains("Market Share"));
         if(node1!=null && node2!=null) {
             mutualRelatives.add(node1);
             mutualRelatives.add(node2);
@@ -148,8 +173,8 @@ public class Graph {
             relatives2.add(node2);
 
             // find relatives
-            findRelativesHelper(node1, relatives1);
-            findRelativesHelper(node2, relatives2);
+            findRelativesHelper(node1, relatives1, recursiveIf);
+            findRelativesHelper(node2, relatives2, recursiveIf);
             for(Node relative1 : relatives1) {
                 if(relatives2.contains(relative1)) {
                     mutualRelatives.add(relative1);
@@ -159,7 +184,7 @@ public class Graph {
         return mutualRelatives;
     }
 
-    private static void findRelativesHelper(@NonNull Node node, @NonNull Collection<Node> relatives) {
+    private static void findRelativesHelper(@NonNull Node node, @NonNull Collection<Node> relatives, Function<String,Boolean> recurseIfFunction) {
         Map<String, List<Edge>> edgeMap = node.getEdgeMap();
         Set<String> keys = new HashSet<>(edgeMap.keySet());
         boolean seenAll = true;
@@ -172,9 +197,9 @@ public class Graph {
         if(!seenAll) { // recurse on revenues
             for (String key : keys) {
                 List<Edge> edges = edgeMap.getOrDefault(key, Collections.emptyList());
-                if (key.contains("Revenue")||key.contains("Market Share")) {
+                if (recurseIfFunction.apply(key)) {
                     for (Edge edge : edges) {
-                        findRelativesHelper(edge.getTarget(), relatives);
+                        findRelativesHelper(edge.getTarget(), relatives, recurseIfFunction);
                     }
                 }
             }

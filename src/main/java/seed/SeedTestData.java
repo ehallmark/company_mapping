@@ -30,7 +30,7 @@ public class SeedTestData {
         for(Model market : markets) {
             if(market.getData().get(Constants.PARENT_MARKET_ID) != null) {
                 for(Model company : companies) {
-                    if(rand.nextDouble()>0.25) {
+                    if(rand.nextDouble()>0.75) {
                         addMarketShares(company, market, rand.nextInt(10)+1, new ExponentialDistribution(50d + rand.nextInt(100)));
                     }
                 }
