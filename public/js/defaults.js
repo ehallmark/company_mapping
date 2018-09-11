@@ -670,6 +670,8 @@ var onShowResourceFunction = function($topElem) {
         e.stopPropagation();
         e.preventDefault();
         var $this = $(this);
+        var $parentNode = $('#node-information-container');
+
         var id = $this.attr('data-id');
         var name = $this.prev().text();
         var resourceId = $this.attr('data-resource');

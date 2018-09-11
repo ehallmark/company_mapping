@@ -98,7 +98,7 @@ public abstract class Model implements Serializable {
             loadAttributesFromDatabase();
         }
         String nodeClazz = "node-"+getType()+"-"+id;
-        return div().withClass(nodeClazz).with(
+        return div().with(
                 getSimpleLink(),
                 (isRegion() || associationName.equals("Sub Revenue") ? span() :
                     span("X").attr("data-association", associationModel)
@@ -596,8 +596,9 @@ public abstract class Model implements Serializable {
     }
 
     public ContainerTag getSimpleLink(@NonNull String... additionalClasses) {
+        String nodeClazz = "node-"+getType()+"-"+id;
         String name = getName();
-        return a(name).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+String.join(" ", additionalClasses));
+        return a(name).attr("data-id", getId().toString()).attr("data-resource", this.getClass().getSimpleName()).attr("href", "#").withClass("resource-show-link "+nodeClazz+" "+String.join(" ", additionalClasses));
     }
 
     private static final Map<String,String> fieldToSelectToResourceName = new HashMap<>();
