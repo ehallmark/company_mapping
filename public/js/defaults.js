@@ -114,6 +114,14 @@ var showDiagramFunction = function(id,resourceId,$target) {
     });
 };
 
+var refreshDiagramFunction = function() {
+    var ul = $('#results ul').filter(':first');
+    var a = ul.find('a.resource-show-link').filter(':first');
+    // get expanded nodes
+    var expandedNodes = $('#results .diagram-expanded');
+    showDiagramFunction(a.attr('data-id'), a.attr('data-resource'), ul);
+};
+
 
 var showGraphsFunction = function(id,resourceId) {
     $.ajax({
@@ -281,9 +289,8 @@ var onShowResourceFunction = function($topElem) {
         var id = $this.attr('data-id');
         var resourceId = $this.attr('data-resource');
         var $target = null;
-        if ($this.hasClass('nested')) {
-            $target = $this.closest('ul');
-        }
+        $target = $this.closest('ul');
+        $target.addClass('diagram-expanded');
         showDiagramFunction(id,resourceId,$target);
     });
 
@@ -621,7 +628,12 @@ var onShowResourceFunction = function($topElem) {
                                 });
                                 alert(showData.error);
                             } else {
-                                showResourceFunction(originalResourceId, originalId);
+                                if(listRef) {
+                                    var $listRef = $(listRef);
+
+                                } else {
+                                    showResourceFunction(originalResourceId, originalId);
+                                }
                             }
                         },
                         error: function() {
@@ -675,7 +687,6 @@ var onShowResourceFunction = function($topElem) {
         var id = $this.attr('data-id');
         var name = $this.prev().text();
         var resourceId = $this.attr('data-resource');
-        var delete_class = $this.attr('data-delete-ref');
         var associationName = $this.attr('data-association');
         var associationId = $this.attr('data-association-id');
         var associationRef = $this.attr('data-association-name');
@@ -696,11 +707,7 @@ var onShowResourceFunction = function($topElem) {
                     if(showData.hasOwnProperty('error')) {
                         alert(showData.error);
                     } else {
-                        $(delete_class).each(function() {
-                            $(this).closest('li').remove();
-                        });
-                        // recalculate sums
-                        updateAssociationTotals();
+                        refreshDiagramFunction();
                     }
                 },
                 error: function() {

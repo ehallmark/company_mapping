@@ -1,10 +1,8 @@
 package scrape;
 
 import com.opencsv.CSVReader;
-import models.Company;
-import models.CompanyRevenue;
-import models.Constants;
-import models.Model;
+import database.Database;
+import models.*;
 import org.apache.commons.io.IOUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -12,6 +10,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +54,11 @@ public class Ingester {
                         String content = oos.toString();
                         if(content.length()>0) {
                            // System.out.println("Content: "+content);
-                            parseContent(content, prefix, code, row[1].trim());
+                            String sector = row[5].trim();
+                            String industry = row[6].trim();
+                            if(sector.equals("n/a")) sector = null;
+                            if(industry.equals("n/a")) industry = null;
+                            parseContent(content, prefix, code, row[1].trim(), sector, industry);
                         }
                     }
                 } catch(Exception e) {
@@ -73,7 +76,31 @@ public class Ingester {
     }
 
     private static AtomicLong counter = new AtomicLong(0);
-    private static void parseContent(String content, Scraper.Prefix prefix, String code, String name) {
+    private static void parseContent(String content, Scraper.Prefix prefix, String code, String name, String sector, String industry) throws Exception {
+        Integer industryId = null;
+        if(sector!=null) {
+            Integer sectorId = null;
+            sectorId = Database.findIdByName(Constants.MARKET_TABLE, sector);
+            if(sectorId == null) {
+                Map<String,Object> data = new HashMap<>();
+                data.put(Constants.NAME, sector);
+                Model industryModel = new Market(null, data);
+                industryModel.createInDatabase();
+                sectorId = industryModel.getId();
+            }
+            if(industry!=null) {
+                industryId = Database.findIdByName(Constants.MARKET_TABLE, industry);
+                if(industryId == null) {
+                    Map<String,Object> data = new HashMap<>();
+                    data.put(Constants.NAME, industry);
+                    data.put(Constants.PARENT_MARKET_ID, sectorId);
+                    Model industryModel = new Market(null, data);
+                    industryModel.createInDatabase();
+                    industryId = industryModel.getId();
+                }
+            }
+        }
+
         Document doc = Jsoup.parse(content);
         Elements fixedTable = doc.select("table.fixed-table tbody tr");
         Elements reportTable = doc.select("table.report-table tbody tr");
@@ -97,6 +124,7 @@ public class Ingester {
             // look through report
             Elements headers = reportTable.get(0).children();
             Elements revenues = reportTable.get(1).children();
+            List<Double> previousRevenues = new ArrayList<>();
             for(int i = 0; i < headers.size(); i++) {
                 int year;
                 try {
@@ -129,14 +157,27 @@ public class Ingester {
                         break;
                     }
                 }
+                previousRevenues.add(rev);
+                Double cagr = null;
+                if(previousRevenues.size()>1) {
+                    cagr = MathHelper.calculateCagr(previousRevenues);
+                }
+
                 System.out.println("Revenue for "+year+": "+rev);
                 Map<String, Object> revenueData = new HashMap<>();
                 revenueData.put(Constants.YEAR, year);
                 revenueData.put(Constants.VALUE, rev);
                 revenueData.put(Constants.SOURCE, "https://morningstar.com/stocks/"+prefix+"/"+code+"/quote.html");
                 revenueData.put(Constants.COMPANY_ID, company.getId());
+                revenueData.put(Constants.CAGR, cagr);
 
-                Model revenueModel = new CompanyRevenue(null, revenueData);
+                Model revenueModel;
+                if(industryId!=null) {
+                    revenueData.put(Constants.MARKET_ID, industryId);
+                    revenueModel = new MarketShareRevenue(null, revenueData);
+                } else {
+                    revenueModel = new CompanyRevenue(null, revenueData);
+                }
                 revenueModel.createInDatabase();
             }
         }

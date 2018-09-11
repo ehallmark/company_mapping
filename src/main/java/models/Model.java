@@ -869,6 +869,7 @@ public abstract class Model implements Serializable {
     private double calculateRevenueForRevenueModel(Integer startYear, Integer endYear) {
         if(!isRevenueModel) throw new RuntimeException("Unable to get subrevenues for non revenue model: "+getType());
         revenue = null;
+        if(data==null) loadAttributesFromDatabase();
         if(startYear==null || endYear == null) {
             revenue = ((Number)data.get(Constants.VALUE)).doubleValue();
         } else {
@@ -1135,7 +1136,7 @@ public abstract class Model implements Serializable {
                         li().attr("style", "list-style: none; display: " + display).with(
                                 h6(name).attr("style", "cursor: pointer; display: inline;")
                                         .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
-                                span("(Revenue: " + formatRevenueString(revenue) +")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
+                                (allowEdit? span():  span("(Revenue: " + formatRevenueString(revenue) +")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;"))
                         ).with(
                                 ul.attr("style", "display: " + display)
                         )

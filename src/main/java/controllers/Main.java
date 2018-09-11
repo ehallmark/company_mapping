@@ -728,7 +728,6 @@ public class Main {
             return null;
         });
 
-
         post("/chart_cache/:chart_id", (req, res)-> {
             authorize(req, res);
             int chartId = Integer.valueOf(req.params("chart_id"));
