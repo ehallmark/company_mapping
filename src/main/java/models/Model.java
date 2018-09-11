@@ -1559,7 +1559,7 @@ public abstract class Model implements Serializable {
                 ),
                 div().withClass("col-12").with(
                         h5("Associations"),
-                       loadNestedAssociations(false, 0, true)
+                       loadNestedAssociations(false, 0, false)
                 )
         );
         template = html.render();
@@ -1733,6 +1733,20 @@ public abstract class Model implements Serializable {
         }
     }
 
+    private void validateDelete() {
+        // this method throws an exception if the node cannot be deleted.
+        // cannot delete a market that has submarkets or a revenue that has sub revenues
+        for(Map.Entry<Association,List<Model>> entry : associations.entrySet()) {
+            if (entry.getKey().getAssociationName().startsWith("Sub ")) {
+                if (entry.getValue() != null && entry.getValue().size() > 0) {
+                    String resourceName = Constants.humanAttrFor(getType().toString());
+                    String pluralName = Constants.pluralizeAssociationName(resourceName);
+                    throw new RuntimeException("Cannot delete a " + resourceName + " that has sub " + pluralName + ". Please delete the " + pluralName + " first.");
+                }
+            }
+        }
+    }
+
     // delete record from the database
     public synchronized void deleteFromDatabase(boolean cascade) {
         if(nodeCache==null) {
@@ -1742,13 +1756,8 @@ public abstract class Model implements Serializable {
             throw new RuntimeException("Trying to delete a record that does not exist in the database...");
         }
         loadAssociations();
-        // cannot delete a market that has submarkets
+        validateDelete();
         for(Map.Entry<Association,List<Model>> entry : associations.entrySet()) {
-            if(entry.getKey().getAssociationName().equals("Sub Market")) {
-                if(entry.getValue()!=null&&entry.getValue().size()>0) {
-                    throw new RuntimeException("Cannot delete a market that has sub markets. Please delete the sub markets first.");
-                }
-            }
             for(Model association : entry.getValue()) {
                 if (cascade && entry.getKey().isDependent()) {
                     association.deleteFromDatabase(true);
@@ -1815,8 +1824,9 @@ public abstract class Model implements Serializable {
                 if((!isRegion() && !association.getModel().equals(Association.Model.Region))
                         && typeToUse.toString().contains("Revenue")) {
                     // revenue to revenue model or market share association - need to delete dependent stuff
-                    Database.delete(association.getChildTableName(), idToUse);
-                    nodeCache.deleteNode(typeToUse, idToUse);
+                    // get the revenue model and try to delete it
+                    Model revenue = nodeCache.findNode(typeToUse, idToUse).getModel();
+                    revenue.deleteFromDatabase(false);
                 } else {
                     Database.nullifyFieldName(association.getChildTableName(), association.getParentIdField(), idToUse);
                     Node node = nodeCache.findNode(typeToUse, idToUse);

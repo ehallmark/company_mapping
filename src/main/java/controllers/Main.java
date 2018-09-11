@@ -1119,7 +1119,7 @@ public class Main {
                     return new Gson().toJson(Collections.singletonMap("result", "success"));
                 } catch(Exception e) {
                     e.printStackTrace();
-                    return new Gson().toJson(Collections.singletonMap("error", "Error: "+e.getMessage()));
+                    return new Gson().toJson(Collections.singletonMap("error", e.getMessage()));
                 }
             }
             else return null;
@@ -1155,8 +1155,12 @@ public class Main {
                 // remove association
                 Association assoc = toDelete.getAssociationsMeta().stream().filter(m->m.getAssociationName().equals(associationName)).findAny().orElse(null);
                 if(assoc!=null) {
-                    toDelete.cleanUpParentIds(assoc, baseId);
-                    return new Gson().toJson(Collections.singletonMap("result", "success"));
+                    try {
+                        toDelete.cleanUpParentIds(assoc, baseId);
+                        return new Gson().toJson(Collections.singletonMap("result", "success"));
+                    } catch (Exception e) {
+                        return new Gson().toJson(Collections.singletonMap("error", e.getMessage()));
+                    }
                 }
             }
             return null;
