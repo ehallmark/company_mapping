@@ -1739,9 +1739,9 @@ public abstract class Model implements Serializable {
         for(Map.Entry<Association,List<Model>> entry : associations.entrySet()) {
             if (entry.getKey().getAssociationName().startsWith("Sub ")) {
                 if (entry.getValue() != null && entry.getValue().size() > 0) {
-                    String resourceName = Constants.humanAttrFor(getType().toString());
+                    String resourceName = Constants.humanAttrFor(getType().toString()).toLowerCase();
                     String pluralName = Constants.pluralizeAssociationName(resourceName);
-                    throw new RuntimeException("Cannot delete a " + resourceName + " that has sub " + pluralName + ". Please delete the " + pluralName + " first.");
+                    throw new RuntimeException("Cannot delete a " + resourceName + " that has sub " + pluralName + ". Please delete the sub " + pluralName + " first.");
                 }
             }
         }
