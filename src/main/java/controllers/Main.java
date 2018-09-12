@@ -792,6 +792,7 @@ public class Main {
                 boolean column = extractString(req, ChartHelper.TIME_SERIES_CHART_TYPE, ChartHelper.LineChartType.column.toString()).equals(ChartHelper.LineChartType.column.toString());
                 int maxGroups = DataTable.extractInt(req, ChartHelper.MAX_NUM_GROUPS, 15);
                 int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                 Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
                 Map<String, Object> results = new HashMap<>();
                 Association.Model resource;
@@ -826,7 +827,7 @@ public class Main {
                     Association fakeAssoc = new Association("Sub "+Model.capitalize(model.getType().toString()), model.getType(), model.getTableName(),  model.getTableName(), null, Association.Type.OneToMany,  "parent_"+model.getType().toString()+"_id", model.getType().toString()+"_id", false, "All Revenue");
                     fakeParents.setAssociations(Collections.singletonMap(fakeAssoc, allComparables));
                     List<Options> parentOptions = fakeParents.buildCharts(column, maxGroups, allComparables, fakeAssoc,
-                            revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                            revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption);
                     for(Options options : parentOptions) {
                         String json = new JsonRenderer().toJson(options);
                         results.put("chart_" + idx.getAndIncrement(), json);
@@ -873,7 +874,7 @@ public class Main {
                                                 // convert to regions
                                                 marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
                                                 if (marketShares.size() > 0) {
-                                                    List<Options> allOptions = assoc.buildCharts(column, maxGroups, marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                                                    List<Options> allOptions = assoc.buildCharts(column, maxGroups, marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption);
                                                     return allOptions;
                                                 }
                                             }
@@ -928,6 +929,7 @@ public class Main {
                     boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                     int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                     int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                    boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                     boolean column = extractString(req, ChartHelper.TIME_SERIES_CHART_TYPE, ChartHelper.LineChartType.column.toString()).equals(ChartHelper.LineChartType.column.toString());
                     int maxGroups = DataTable.extractInt(req, ChartHelper.MAX_NUM_GROUPS, 15);
 
@@ -942,7 +944,7 @@ public class Main {
                     Map<String, Object> results = new HashMap<>();
                     AtomicInteger idx = new AtomicInteger(0);
                     for(Association association : model.getAssociationsMeta()) {
-                        List<Options> allOptions = model.buildCharts(column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                        List<Options> allOptions = model.buildCharts(column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption);
                         if(allOptions!=null) {
                             for(Options options : allOptions) {
                                 String json = new JsonRenderer().toJson(options);
@@ -965,6 +967,7 @@ public class Main {
             Model model = loadModel(req);
             if(model!=null) {
                 boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
+                boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                 int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
                 Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
@@ -977,7 +980,7 @@ public class Main {
                         throw new RuntimeException("Please select a valid Revenue Domain.");
                     }
 
-                    ContainerTag diagram = model.loadReport(revenueDomain, regionId, startYear, endYear, useCAGR, missingRevenueOption);
+                    ContainerTag diagram = model.loadReport(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption);
 
                     ContainerTag html = div().withClass("col-12").with(h4("Date Range: "+startYear+" - "+endYear), br(), diagram);
                     return new Gson().toJson(Collections.singletonMap("result", html.render()));

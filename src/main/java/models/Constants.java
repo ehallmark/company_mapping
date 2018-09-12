@@ -16,6 +16,7 @@ public class Constants {
     public static final String MARKET_TABLE = "markets";
     public static final String PRODUCT_TABLE = "products";
     public static final String NAME = "name";
+    public static final String ESTIMATE_CAGR = "estimate_cagr";
     public static final String PARENT_REVENUE_ID = "parent_revenue_id";
     public static final String REGION_ID = "region_id";
     public static final String PARENT_REGION_ID = "parent_country_id";
