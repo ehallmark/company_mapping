@@ -1114,7 +1114,7 @@ public class Main {
                     return new Gson().toJson(Collections.singletonMap("error", "Cannot edit regions."));
                 }
                 try {
-                    model.deleteFromDatabase(false);
+                    model.deleteFromDatabase(false, true);
                     return new Gson().toJson(Collections.singletonMap("result", "success"));
                 } catch(Exception e) {
                     e.printStackTrace();

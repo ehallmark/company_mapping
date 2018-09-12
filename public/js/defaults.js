@@ -98,8 +98,7 @@ var createResourceDynatable = function(resource) {
     });
 };
 
-
-var showDiagramFunction = function(id,resourceId,$target) {
+var showDiagramFunction = function(id,resourceId,$target,onCompleteFunc) {
     $.ajax({
         url: '/diagram/'+resourceId+'/'+id,
         dataType: 'json',
@@ -107,6 +106,9 @@ var showDiagramFunction = function(id,resourceId,$target) {
         success: function($target) { return function(data) {
             $target.html($(data.result).children()).css('display', 'block');
             onShowResourceFunction($target);
+            if(onCompleteFunc) {
+                onCompleteFunc();
+            }
         }}($target),
         error: function() {
             alert("An error occurred.");
@@ -117,11 +119,8 @@ var showDiagramFunction = function(id,resourceId,$target) {
 var refreshDiagramFunction = function() {
     var ul = $('#results ul').filter(':first');
     var a = ul.find('a.resource-show-link').filter(':first');
-    // get expanded nodes
-    var expandedNodes = $('#results .diagram-expanded');
-    showDiagramFunction(a.attr('data-id'), a.attr('data-resource'), ul);
+    showResourceFunction(a.attr('data-resource'), a.attr('data-id'));
 };
-
 
 var showGraphsFunction = function(id,resourceId) {
     $.ajax({
@@ -291,6 +290,8 @@ var onShowResourceFunction = function($topElem) {
         var $target = null;
         $target = $this.closest('ul');
         $target.addClass('diagram-expanded');
+        $target.attr('data-id', id);
+        $target.attr('data-resource', resourceId);
         showDiagramFunction(id,resourceId,$target);
     });
 
@@ -628,12 +629,7 @@ var onShowResourceFunction = function($topElem) {
                                 });
                                 alert(showData.error);
                             } else {
-                                if(listRef) {
-                                    var $listRef = $(listRef);
-
-                                } else {
-                                    showResourceFunction(originalResourceId, originalId);
-                                }
+                                refreshDiagramFunction();
                             }
                         },
                         error: function() {
@@ -672,7 +668,11 @@ var onShowResourceFunction = function($topElem) {
             data: formData,
             type: 'POST',
             success: function(showData) {
-                showResourceFunction(originalResourceId, originalId);
+                if(showData.hasOwnProperty('error')) {
+                    alert(showData.error);
+                } else {
+                    refreshDiagramFunction();
+                }
             }
         });
         return false;
@@ -682,8 +682,6 @@ var onShowResourceFunction = function($topElem) {
         e.stopPropagation();
         e.preventDefault();
         var $this = $(this);
-        var $parentNode = $('#node-information-container');
-
         var id = $this.attr('data-id');
         var name = $this.prev().text();
         var resourceId = $this.attr('data-resource');

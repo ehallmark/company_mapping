@@ -1190,7 +1190,7 @@ public abstract class Model implements Serializable {
                 Map<Integer, Double> groupToRevenueMap = new HashMap<>();
                 if(groupKeys.size()>0 && groupKeys.get(0)!=null) {
                     groupedModels.forEach((group, list) -> {
-                        double rev = groupedModels.get(group).stream().mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, option, null, false)).sum();
+                        double rev = groupedModels.get(group).stream().peek(m->m.loadAttributesFromDatabase()).mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, option, null, false)).sum();
                         groupToRevenueMap.put(group, rev);
                     });
                     totalRevAllGroups = groupToRevenueMap.values().stream().mapToDouble(d -> d).sum();
@@ -1276,7 +1276,7 @@ public abstract class Model implements Serializable {
                             if (linkToAssociations.contains(association)) {
                                 // just show link
                                 inner.attr("style", "display: inline;").with(
-                                        a("(Expand)").attr("href", "#").withClass("diagram-button nested").attr("data-id", model.getId())
+                                        a("(Expand)").attr("href", "#").withClass("diagram-button nested diagram-"+getType()+"-"+id).attr("data-id", model.getId())
                                         .attr("data-resource", model.getType().toString())
                                 );
                             } else {
@@ -1749,7 +1749,7 @@ public abstract class Model implements Serializable {
     }
 
     // delete record from the database
-    public synchronized void deleteFromDatabase(boolean cascade) {
+    public synchronized void deleteFromDatabase(boolean cascade, boolean checkParentIds) {
         if(nodeCache==null) {
             nodeCache = Graph.load();
         }
@@ -1761,12 +1761,14 @@ public abstract class Model implements Serializable {
         for(Map.Entry<Association,List<Model>> entry : associations.entrySet()) {
             for(Model association : entry.getValue()) {
                 if (cascade && entry.getKey().isDependent()) {
-                    association.deleteFromDatabase(true);
+                    association.deleteFromDatabase(true, checkParentIds);
                 }
-                try {
-                    cleanUpParentIds(entry.getKey(), association.getId());
-                } catch(Exception e) {
-                    e.printStackTrace();
+                if(checkParentIds) {
+                    try {
+                        cleanUpParentIds(entry.getKey(), association.getId());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }
@@ -1827,7 +1829,7 @@ public abstract class Model implements Serializable {
                     // revenue to revenue model or market share association - need to delete dependent stuff
                     // get the revenue model and try to delete it
                     Model revenue = nodeCache.findNode(typeToUse, idToUse).getModel();
-                    revenue.deleteFromDatabase(false);
+                    revenue.deleteFromDatabase(false, false);
                 } else {
                     Database.nullifyFieldName(association.getChildTableName(), association.getParentIdField(), idToUse);
                     Node node = nodeCache.findNode(typeToUse, idToUse);
