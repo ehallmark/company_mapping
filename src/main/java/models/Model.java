@@ -869,7 +869,7 @@ public abstract class Model implements Serializable {
     private double calculateRevenueForRevenueModel(Integer startYear, Integer endYear) {
         if(!isRevenueModel) throw new RuntimeException("Unable to get subrevenues for non revenue model: "+getType());
         revenue = null;
-        if(data==null) loadAttributesFromDatabase();
+        loadAttributesFromDatabase();
         if(startYear==null || endYear == null) {
             revenue = ((Number)data.get(Constants.VALUE)).doubleValue();
         } else {
