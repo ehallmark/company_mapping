@@ -160,7 +160,7 @@ public class Ingester {
                 previousRevenues.add(rev);
                 Double cagr = null;
                 if(previousRevenues.size()>1) {
-                    cagr = MathHelper.calculateCagr(previousRevenues);
+                    cagr = null;//MathHelper.calculateCagr(previousRevenues);
                 }
 
                 System.out.println("Revenue for "+year+": "+rev);

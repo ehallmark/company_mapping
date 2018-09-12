@@ -57,7 +57,7 @@ public abstract class Model implements Serializable {
     private Double percentage;
     @Getter @Setter
     private transient Graph nodeCache;
-    private transient List<CalculationInformation> calculationInformation;
+    protected transient List<CalculationInformation> calculationInformation;
     protected Model(@NonNull List<Association> associationsMeta, @NonNull List<String> availableAttributes, @NonNull String tableName, Integer id, Map<String,Object> data, boolean isRevenueModel) {
         this.tableName = tableName;
         this.data = data;
@@ -760,7 +760,7 @@ public abstract class Model implements Serializable {
         ContainerTag inner = ul();
         calculateRevenue(revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, null, false);
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
-                li().with(getSimpleLink().attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
+                li().with(getSimpleLink().attr("style", "display: inline;"),getRevenueAsSpan()).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
@@ -805,7 +805,7 @@ public abstract class Model implements Serializable {
         calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false);
         ContainerTag inner = ul();
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
-                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan(this)).attr("style", "list-style: none;").with(
+                li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan()).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
@@ -814,14 +814,25 @@ public abstract class Model implements Serializable {
         return tag;
     };
 
-    private ContainerTag getRevenueAsSpan(Model originalModel) {
-        ContainerTag updateRev = span();
+    private ContainerTag getRevenueAsSpan() {
         String revStr = "(Revenue: "+formatRevenueString(revenue)+")";
         if(percentage!=null) {
             double percentageFull = percentage * 100;
             revStr += " - " + String.format("%.1f", percentageFull)+"%";
         }
-        return span(revStr).with(updateRev).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
+        ContainerTag calculationInfoSpan = span();
+        if(calculationInformation!=null) {
+            for(CalculationInformation info : calculationInformation) {
+                if (info.isCalculatedFromMarketShares()) {
+                    // check for market share projects
+                    calculationInfoSpan.withText("(Propagated from market shares)");
+                } else if (info.isCalculatedFromSubmarkets()) {
+                    // check for sub market revenue propagation
+                    calculationInfoSpan.withText("Propagated from sub markets");
+                }
+            }
+        }
+        return span(revStr).with(calculationInfoSpan).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
     private static Double calculateFromCAGR(Model best, int year, List<CalculationInformation> calculationInformation) {
@@ -859,16 +870,16 @@ public abstract class Model implements Serializable {
         // check cagr for other years
         Model best = list.stream().filter(m->m.getData().get(Constants.CAGR)!=null).min((e1,e2)->Integer.compare(Math.abs((Integer)e1.getData().get(Constants.YEAR)-year), Math.abs((Integer)e2.getData().get(Constants.YEAR)-year))).orElse(null);
         if(best==null && estimateCagr && list.size() > 1) {
-            Double cagr = MathHelper.calculateCagrFromModels(list);
-            if(cagr==null) return null;
+            Double cagrPercent = MathHelper.calculateCagrFromModels(list);
+            if(cagrPercent==null) return null;
             // get closest year to current year to estimate
             Model closest = list.stream().min(Comparator.comparingInt(m->Math.abs(year-(Integer)m.getData().get(Constants.YEAR)))).orElse(null);
             if(closest==null)return null;
             int cagrYear = (Integer) closest.getData().get(Constants.YEAR);
-            double cagrPercent = (Double) closest.getData().get(Constants.CAGR);
-            cagr = calculateFromCAGR(cagrYear, cagrPercent, cagr, year);
+            double value = (Double) closest.getData().get(Constants.VALUE);
+            double cagr = calculateFromCAGR(cagrYear, cagrPercent, value, year);
             if(calculationInformation!=null) {
-                calculationInformation.add(new CalculationInformation(year, (Double) closest.getData().get(Constants.CAGR), false, false, cagr, closest));
+                calculationInformation.add(new CalculationInformation(year, cagrPercent, false, false, cagr, closest));
             }
             return cagr;
         } else {
@@ -980,13 +991,13 @@ public abstract class Model implements Serializable {
                     if (Arrays.asList(Association.Model.Company, Association.Model.Market).contains(getType()) && association.getModel().equals(Association.Model.MarketShareRevenue)) {
                         // backup company revenue = (sum of market shares)
                         List<Model> revenues = associations.get(association);
-                        String associationIdField = association.getParentIdField();
+                        String associationIdField = getType().equals(Association.Model.Market)? Constants.COMPANY_ID : Constants.MARKET_ID;
                         if (revenues != null && revenues.size() > 0) {
                             // group
                             Map<Integer, List<Model>> revenueGroups = revenues.stream().collect(Collectors.groupingBy(e -> (Integer) e.getData().get(associationIdField), Collectors.toList()));
                             totalRevenueFromMarketShares = revenueGroups.values().stream().mapToDouble(list -> {
                                 list = getSubRevenuesByRegionId(list, revenueDomain, regionId); // sub revenues if necessary
-
+                                list.forEach(Model::loadAttributesFromDatabase);
                                 List<Double> byCagr = new ArrayList<>();
                                 if (startYear != null && endYear != null) {
                                     List<Model> byYear = new ArrayList<>();
@@ -1102,6 +1113,8 @@ public abstract class Model implements Serializable {
         return revenue==null ? 0. : revenue;
     }
 
+
+
     /*
         To calculate revenue, use the latest attached revenue, unless one is not present, in which case
             if it is a market, then calculate revenue from the total of all the sub children of that type (sub markets).
@@ -1163,41 +1176,12 @@ public abstract class Model implements Serializable {
                         li().attr("style", "list-style: none; display: " + display).with(
                                 h6(name).attr("style", "cursor: pointer; display: inline;")
                                         .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
-                                (allowEdit? span():  span("(Revenue: " + formatRevenueString(revenue) +")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;"))
+                                span("(Revenue: " + formatRevenueString(revenue) +")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
                         ).with(
                                 ul.attr("style", "display: " + display)
                         )
                 );
-                // check for CAGR's used
-                if(calculationInformation!=null) {
-                    for(CalculationInformation info : calculationInformation.stream().filter(c->c.getYear()!=null).sorted((c1,c2)->Integer.compare(c2.getYear(),c1.getYear())).collect(Collectors.toList())) {
-                        if(Arrays.asList(Association.Model.MarketRevenue, Association.Model.CompanyRevenue, Association.Model.ProductRevenue).contains(association.getModel())) {
-                            if (info.getCagrUsed() != null && info.getRevenue() != null) {
-                                // found cagr
-                                boolean estimated = info.getReference().getData().get(Constants.CAGR)==null;
-                                ul.with(li().attr("style", "display: inline;").with(
-                                        div("Projection for " + info.getYear() + " (Revenue: " + formatRevenueString(info.getRevenue()) + ")").attr("style", "font-weight: bold; cursor: pointer;").withClass("resource-data-field").attr("onclick", "$(this).children().slideToggle();").attr("data-val", info.getRevenue().toString()).with(
-                                                div().attr("style", "display: none;").with(
-                                                        div("CAGR used: " + Constants.getFieldFormatter(Constants.CAGR).apply(info.getCagrUsed()) + (estimated ? " (Estimated)" : "")).attr("style", "font-weight: normal;"),
-                                                        div("From revenue: ").with(info.getReference().getSimpleLink().attr("style", "display: inline;")).attr("style", "font-weight: normal;")
-                                                )
-                                        ))
-                                );
-                            }
-                        }
-                        if(info.isCalculatedFromMarketShares()) {
-                            // check for market share projects
-                            ul.with(li().attr("style", "display: inline;").with(
-                                    div("Propagated from market shares"))
-                            );
-                        } else if(info.isCalculatedFromSubmarkets()) {
-                            // check for sub market revenue propagation
-                            ul.with(li().attr("style", "display: inline;").with(
-                                    div("Propagated from sub markets"))
-                            );
-                        }
-                    }
-                }
+
                 boolean revenueAssociation = association.getModel().equals(Association.Model.MarketShareRevenue);
                 Map<Integer,List<Model>> groupedModels;
                 String groupRevenuesBy;
@@ -1226,6 +1210,7 @@ public abstract class Model implements Serializable {
                 if(groupKeys.size()>0 && groupKeys.get(0)!=null) {
                     groupedModels.forEach((group, list) -> {
                         double rev = groupedModels.get(group).stream().peek(m->m.loadAttributesFromDatabase()).mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false)).sum();
+
                         groupToRevenueMap.put(group, rev);
                     });
                     totalRevAllGroups = groupToRevenueMap.values().stream().mapToDouble(d -> d).sum();
@@ -1236,7 +1221,7 @@ public abstract class Model implements Serializable {
                     }
                     if (totalRevAllGroups == 0) totalRevAllGroups = null;
                 }
-                String listRef = "association-"+getType().toString().toLowerCase() + "-" + id + "-" + association.getAssociationName().toLowerCase().replace(" ", "-");
+                String listRef = "association-"+getType() + "-" + id + "-" + association.getAssociationName().toLowerCase().replace(" ", "-");
                 ul = ul.withClass(listRef);
                 for (Integer key : groupKeys) {
                     ContainerTag groupUl;
@@ -1258,7 +1243,7 @@ public abstract class Model implements Serializable {
                         }
                         String percentStr = totalRevAllGroups == null ? "" : (String.format("%.1f", (groupRevenue * 100d) / totalRevAllGroups) + "%");
                         groupUl = ul().attr("data-val", groupRevenue.toString()).withClass("resource-data-field");
-                        ul.with(li().with(div( String.valueOf(groupName) + " - "+regionDomainName  + " (Revenue: " + formatRevenueString(groupRevenue) + ") - "+percentStr)
+                        ul.with(li().with(div().with(b(String.valueOf(groupName) + " - "+regionDomainName)).withText(" (Revenue: " + formatRevenueString(groupRevenue) + ") - "+percentStr)
                                 .attr("style", "cursor: pointer;").attr("onclick", "$(this).next().slideToggle();")
                         ).attr("style", "display: inline; list-style: none;").with(groupUl));
                     } else {
@@ -1269,7 +1254,31 @@ public abstract class Model implements Serializable {
                     if(association.getModel().toString().contains("Revenue")) {
                         groupedModelList = new ArrayList<>(groupedModelList);
                         groupedModelList.forEach(Model::loadAttributesFromDatabase);
-                        groupedModelList.sort((d1,d2)->Integer.compare((Integer)d2.getData().get(Constants.YEAR), (Integer)d1.getData().get(Constants.YEAR)));
+                        // check for projections
+                        if(startYear!=null && endYear!=null && useCAGR) {
+                            List<Model> tmp = new ArrayList<>();
+                            Map<Integer, Model> yearsFound = groupedModelList.stream().collect(Collectors.toMap(m->(Integer)m.getData().get(Constants.YEAR), m->m));
+                            for(int year = endYear; year >= startYear; year--) {
+                                Model yearlyModel = yearsFound.get(year);
+                                if(yearlyModel==null) {
+                                    Map<String,Object> data = new HashMap<>();
+                                    data.put(Constants.YEAR, year);
+                                    Model model = new ProjectedRevenue(data);
+                                    model.calculationInformation = new ArrayList<>();
+                                    Double yearlyRevenue = calculateFromCAGR(groupedModelList, year, estimateCagr, model.calculationInformation);
+                                    if(yearlyRevenue!=null) {
+                                        model.revenue=yearlyRevenue;
+                                        model.updateAttribute(Constants.VALUE, yearlyRevenue);
+                                        tmp.add(model);
+                                    }
+                                } else {
+                                    tmp.add(yearlyModel);
+                                }
+                            }
+                            groupedModelList = tmp;
+                        } else {
+                            groupedModelList.sort((d1,d2)->Integer.compare((Integer)d2.getData().get(Constants.YEAR), (Integer)d1.getData().get(Constants.YEAR)));
+                        }
                     }
                     for(Model model : groupedModelList) {
                         if(model.isRevenueModel() && model.getData().get(Constants.REGION_ID)==null) { // global revenue model
@@ -1300,13 +1309,15 @@ public abstract class Model implements Serializable {
                         } else {
                             isParentRevenue = true;
                         }
-                        model.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, revToUse, isParentRevenue);
+                        if(!(model instanceof ProjectedRevenue)) {
+                            model.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, revToUse, isParentRevenue);
+                        }
 
                         groupUl.with(li().attr("style", "list-style: none;").with(
                                 allowEdit ? model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;")
                                         : model.getSimpleLink().attr("style", "display: inline;")
-                                , model.getRevenueAsSpan(original), inner));
-                        if (!sameModel && !alreadySeen.contains(_id) && !model.getType().equals(Association.Model.Region)) {
+                                , model.getRevenueAsSpan(), inner));
+                        if (!(model instanceof ProjectedRevenue) && !sameModel && !alreadySeen.contains(_id) && !model.getType().equals(Association.Model.Region)) {
                             alreadySeen.add(_id);
                             if (linkToAssociations.contains(association)) {
                                 // just show link

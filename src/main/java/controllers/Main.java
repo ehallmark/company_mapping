@@ -314,6 +314,10 @@ public class Main {
                                 input().withType("checkbox").withValue("true").withName(Constants.CAGR)
                         ),
                         br(),
+                        label("Estimate CAGR when applicable?").with(br(),
+                                input().withType("checkbox").withValue("true").withName(Constants.ESTIMATE_CAGR)
+                        ),
+                        br(),
                         label("Missing Revenue Options").with(br(),
                                 select().withClass("multiselect").withName("missing_revenue").with(
                                         option("Exclude missing").withValue(Constants.MissingRevenueOption.exclude.toString()),
