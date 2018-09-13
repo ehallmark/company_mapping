@@ -1606,7 +1606,7 @@ public abstract class Model implements Serializable {
                                                 .withText(attr+": "+val.toString())
                                 );
                             }).collect(Collectors.toList())
-                        ).with(
+                        ).with(h5("Parent Associations")).with(
                                 associationsMeta.stream().filter(a->a.getType().equals(Association.Type.ManyToOne)).map(association->{
                                     List<Model> parents = associations.get(association);
                                     ContainerTag label;
@@ -1639,15 +1639,19 @@ public abstract class Model implements Serializable {
         ).with(
                 div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Product.toString(),Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
                         div().withClass("btn-group").attr("style", "display: inline;").with(
-                                button("Report")
+                                button("Show").attr("style", "width: 100px;")
+                                        .attr("data-id", id.toString())
+                                        .attr("data-resource", this.getClass().getSimpleName())
+                                        .withClass("btn btn-outline-secondary btn-md resource-show-link"),
+                                button("Report").attr("style", "width: 100px;")
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
                                         .withClass("btn btn-outline-secondary btn-md report-button"),
-                                button("Graph")
+                                button("Graph").attr("style", "width: 100px;")
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
                                         .withClass("btn btn-outline-secondary btn-md graph-button"),
-                                button("Compare")
+                                button("Compare").attr("style", "width: 100px;")
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
                                         .withClass("btn btn-outline-secondary btn-md comparison-button")
