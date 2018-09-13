@@ -868,6 +868,7 @@ public abstract class Model implements Serializable {
 
     private static Double calculateFromCAGR(List<Model> list, int year, boolean estimateCagr, List<CalculationInformation> calculationInformation) {
         // check cagr for other years
+        Double toReturn = null;
         Model best = list.stream().filter(m->m.getData().get(Constants.CAGR)!=null).min((e1,e2)->Integer.compare(Math.abs((Integer)e1.getData().get(Constants.YEAR)-year), Math.abs((Integer)e2.getData().get(Constants.YEAR)-year))).orElse(null);
         if(best==null && estimateCagr && list.size() > 1) {
             Double cagrPercent = MathHelper.calculateCagrFromModels(list);
@@ -881,10 +882,11 @@ public abstract class Model implements Serializable {
             if(calculationInformation!=null) {
                 calculationInformation.add(new CalculationInformation(year, cagrPercent, false, false, cagr, closest));
             }
-            return cagr;
+            toReturn =  cagr;
         } else {
-            return calculateFromCAGR(best, year, calculationInformation);
+            toReturn =  calculateFromCAGR(best, year, calculationInformation);
         }
+        return toReturn;
     }
 
 
@@ -899,7 +901,7 @@ public abstract class Model implements Serializable {
         return subRevenues;
     }
 
-    private double calculateRevenueForRevenueModel(Integer startYear, Integer endYear) {
+    protected double calculateRevenueForRevenueModel(Integer startYear, Integer endYear) {
         if(!isRevenueModel) throw new RuntimeException("Unable to get subrevenues for non revenue model: "+getType());
         revenue = null;
         loadAttributesFromDatabase();
@@ -1009,7 +1011,7 @@ public abstract class Model implements Serializable {
                                         } else {
                                             if(useCAGR) {
                                                 Double cagr = calculateFromCAGR(list, _year, estimateCagr, calculationInformation);
-                                                if(cagr!=null) {
+                                                if(cagr!=null && !cagr.isNaN() && !cagr.isInfinite()) {
                                                     byCagr.add(cagr);
                                                 } else {
                                                     if (option.equals(Constants.MissingRevenueOption.error)) {
@@ -1026,7 +1028,8 @@ public abstract class Model implements Serializable {
                                     }
                                     list = byYear;
                                 }
-                                return list.stream().mapToDouble(d -> (Double)d.getData().get(Constants.VALUE)).sum() + byCagr.stream().mapToDouble(d->d).sum();
+                                Double v = list.stream().mapToDouble(d -> (Double)d.getData().get(Constants.VALUE)).sum() + byCagr.stream().mapToDouble(d->d).sum();
+                                return v;
                             }).sum();
                             foundRevenueInMarketShares = true;
                         }
@@ -1100,6 +1103,9 @@ public abstract class Model implements Serializable {
                 calculationInformation.add(new CalculationInformation(null,null,false,true, totalRevenueFromMarketShares, null));
                 revenue = totalRevenueFromMarketShares;
             }
+            if(revenue!=null && (revenue.isInfinite() || revenue.isNaN())) {
+                throw new RuntimeException("Error with revenue: "+revenue);
+            }
         }
 
         if(revenue==null && option.equals(Constants.MissingRevenueOption.replace)) {
@@ -1110,6 +1116,7 @@ public abstract class Model implements Serializable {
         if(this.percentage!=null && Double.isNaN(this.percentage)) {
             this.percentage = null;
         }
+
         return revenue==null ? 0. : revenue;
     }
 
@@ -1131,7 +1138,7 @@ public abstract class Model implements Serializable {
             if(!expandAll && association.shouldNotExpand(isRevenueModel())) {
                 continue;
             }
-            if(depth == maxDepth && !alwaysExpandNodes.contains(new Node(this))) {
+            if(depth >= maxDepth && !alwaysExpandNodes.contains(new Node(this))) {
                 linkToAssociations.add(association);
             }
 

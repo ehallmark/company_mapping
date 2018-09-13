@@ -46,7 +46,7 @@ public class ProjectedRevenue extends Model {
     }
 
     public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue) {
-        return (Double)data.get(Constants.VALUE);
+        return calculateRevenueForRevenueModel(startYear, endYear);
     }
 
     @Override

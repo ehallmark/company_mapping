@@ -724,6 +724,9 @@ public class Main {
                         .stream().map(m->{
                             Map<String,String> map = new HashMap<>(m.getData().size()+m.getAssociationsMeta().size());
                             m.getData().forEach((k,v)->{
+                                if(v instanceof Number || numericAttrs.contains(k)) {
+                                    map.put(k+Constants.TEXT_ONLY, v.toString());
+                                }
                                 map.put(k,Constants.getFieldFormatter(k).apply(v));
                             });
                             String name = m.getName();
@@ -732,6 +735,7 @@ public class Main {
                             }
                             map.put(Constants.NAME + Constants.TEXT_ONLY, name);
                             map.put(Constants.NAME, m.getSimpleLink().render());
+                       
                             //m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
                                 if(!assoc.getType().equals(Association.Type.ManyToOne)) {
