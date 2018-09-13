@@ -1213,6 +1213,13 @@ public abstract class Model implements Serializable {
                         if(association.getModel().toString().contains("Revenue")) {
                             groupedModelList = new ArrayList<>(groupedModelList);
                             groupedModelList.forEach(Model::loadAttributesFromDatabase);
+                            groupedModelList = groupedModelList.stream().map(model->{
+                                if(model.isRevenueModel() && model.getData().get(Constants.REGION_ID)==null) { // global revenue model
+                                    model = model.getSubRevenueByRegionId(revenueDomain, regionId);
+                                }
+                                return model;
+                            }).filter(m->m!=null).collect(Collectors.toList());
+                            groupedModelList.forEach(Model::loadAttributesFromDatabase);
                             // check for projections
                             if(startYear!=null && endYear!=null && useCAGR) {
                                 List<Model> tmp = new ArrayList<>();
@@ -1284,10 +1291,6 @@ public abstract class Model implements Serializable {
                     if(groupedModelList==null) groupedModelList = Collections.emptyList();
 
                     for(Model model : groupedModelList) {
-                        if(model.isRevenueModel() && model.getData().get(Constants.REGION_ID)==null) { // global revenue model
-                            model = model.getSubRevenueByRegionId(revenueDomain, regionId);
-                        }
-                        if(model==null) continue;
                         if (model.isRevenueModel && startYear != null && endYear != null) {
                             int year = (Integer) model.getData().get(Constants.YEAR);
                             if (year < startYear || year > endYear) {
