@@ -388,6 +388,23 @@ public class Main {
                 );
     }
 
+    private static void handleNewAssociation(Model baseModel, Model relatedModel, String associationName) {
+        if(!(baseModel.isRevenueModel() && relatedModel.isRevenueModel())) {
+            try {
+                baseModel.removeManyToOneAssociations(associationName);
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+            baseModel.associateWith(relatedModel, associationName, Collections.emptyMap());
+        } else {
+            try {
+                baseModel.associateWith(relatedModel, associationName, Collections.emptyMap());
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     public static void main(String[] args)  {
         staticFiles.externalLocation(new File("public").getAbsolutePath());
         final PasswordHandler passwordHandler = new PasswordHandler();
@@ -725,7 +742,7 @@ public class Main {
                             Map<String,String> map = new HashMap<>(m.getData().size()+m.getAssociationsMeta().size());
                             m.getData().forEach((k,v)->{
                                 if(v instanceof Number || numericAttrs.contains(k)) {
-                                    map.put(k+Constants.TEXT_ONLY, v.toString());
+                                    map.put(k + Constants.TEXT_ONLY, v == null ? null : v.toString());
                                 }
                                 map.put(k,Constants.getFieldFormatter(k).apply(v));
                             });
@@ -735,7 +752,7 @@ public class Main {
                             }
                             map.put(Constants.NAME + Constants.TEXT_ONLY, name);
                             map.put(Constants.NAME, m.getSimpleLink().render());
-                       
+
                             //m.loadAssociations();
                             m.getAssociationsMeta().forEach(assoc->{
                                 if(!assoc.getType().equals(Association.Type.ManyToOne)) {
@@ -1015,8 +1032,11 @@ public class Main {
                         List<Options> allOptions = model.buildCharts(column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption);
                         if(allOptions!=null) {
                             for(Options options : allOptions) {
-                                String json = new JsonRenderer().toJson(options);
-                                results.put("chart_" + idx.getAndIncrement(), json);
+                                if(options.getSeries()!=null && options.getSeries().size()>0 && options.getSeries().get(0).getData()!=null &&
+                                        options.getSeries().get(0).getData().size()>0) {
+                                    String json = new JsonRenderer().toJson(options);
+                                    results.put("chart_" + idx.getAndIncrement(), json);
+                                }
                             }
                         }
                     }
@@ -1130,7 +1150,23 @@ public class Main {
                         if(val!=null) {
                             val = val.toString().trim();
                         }
-                        if(val!=null && fieldType.equals(Constants.NUMBER_FIELD_TYPE)) {
+                        if(attr.endsWith("_id")) {
+                            // update association
+                            Association association = model.getAssociationsMeta().stream().filter(a->a.getParentIdField().equals(attr)&&a.getType().equals(Association.Type.ManyToOne)).findAny().orElse(null);
+                            if(association!=null) {
+                                try {
+                                    val = val == null || val.toString().trim().isEmpty() ? null : Integer.valueOf(val.toString().trim());
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    val = null;
+                                }
+                                if(val!=null) {
+                                    Model related = loadModel(association.getModel(), (Integer)val);
+                                    handleNewAssociation(model, related, association.getAssociationName());
+                                    return;
+                                }
+                            }
+                        } else if(val!=null && fieldType.equals(Constants.NUMBER_FIELD_TYPE)) {
                             try {
                                 val = Double.valueOf(val.toString().trim());
                             } catch(Exception e) {
@@ -1308,16 +1344,7 @@ public class Main {
                         throw new RuntimeException("Cannot assign a company to a market that has sub markets. Please assign the company to a market without sub markets.");
                     }
                 }*/
-                if(!(baseModel.isRevenueModel() && relatedModel.isRevenueModel())) {
-                    baseModel.removeManyToOneAssociations(associationName);
-                    baseModel.associateWith(relatedModel, associationName, Collections.emptyMap());
-                } else {
-                    try {
-                        baseModel.associateWith(relatedModel, associationName, Collections.emptyMap());
-                    } catch(Exception e) {
-                        e.printStackTrace();
-                    }
-                }
+                handleNewAssociation(baseModel, relatedModel, associationName);
             } catch(Exception e) {
                 e.printStackTrace();
                 return new Gson().toJson(Collections.singletonMap("error", "Error: "+e.getMessage()));

@@ -487,13 +487,18 @@ var onShowResourceFunction = function($topElem) {
         var resourceId = $this.attr('data-resource');
         var val = $this.attr('data-val');
         var origText = $this.attr('data-val-text');
+        var dataUrl = $this.attr('data-url');
         var attr = $this.attr('data-attr');
         var attrName = $this.attr('data-attrname');
         var id = $this.attr('data-id');
         var updateOtherFieldsByClassName = $this.attr('data-update-class');
         var input = null;
         var inputTag = null;
-        if (fieldType==='textarea') {
+        if (fieldType==='association') {
+            // need to get ajax multiselect
+            input = "<select class='form-control multiselect-ajax' data-url='"+dataUrl+"'/>";
+            inputTag = "select";
+        } else if (fieldType==='textarea') {
             input = "<textarea class='form-control'/>";
             inputTag = "textarea";
         } else if (fieldType==='text') {
@@ -524,6 +529,22 @@ var onShowResourceFunction = function($topElem) {
                     minimumResultsForSearch: 5,
                     closeOnSelect: true
                 });
+        } else if(fieldType==='association') {
+            $input.select2({
+                closeOnSelect: true,
+                ajax: {
+                    url: function() { return $(this).attr("data-url"); },
+                    dataType: "json",
+                    delay: 100,
+                    data: function(params) {
+                        var query = {
+                            search: params.term,
+                            page: params.page || 1
+                        };
+                        return query;
+                    }
+                }
+            });
         }
         $input.attr('name', attr);
         $input.val(val).filter('select').trigger('change');

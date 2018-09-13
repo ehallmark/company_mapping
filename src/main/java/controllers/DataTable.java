@@ -99,7 +99,7 @@ public class DataTable {
                                 } catch (Exception nfe) {
                                 }
                                 try {
-                                    v2 = Double.valueOf(d1.getOrDefault(k+Constants.TEXT_ONLY, d2.get(k)));
+                                    v2 = Double.valueOf(d2.getOrDefault(k+Constants.TEXT_ONLY, d2.get(k)));
                                 } catch (Exception e) {
                                 }
                                 if (v1 == null && v2 == null) return 0;

@@ -82,6 +82,7 @@ create table market_revenues (
     unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references market_revenues (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
+    check (value >= 0),
     check ((parent_revenue_id is null and region_id is null) or (parent_revenue_id is not null and region_id is not null))
 );
 
@@ -109,6 +110,7 @@ create table company_revenues (
     unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references company_revenues (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
+    check (value >= 0),
     check ((parent_revenue_id is null and region_id is null) or (parent_revenue_id is not null and region_id is not null))
 );
 
@@ -137,6 +139,7 @@ create table product_revenues (
     unique (region_id, parent_revenue_id),
     foreign key (parent_revenue_id) references product_revenues (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
+    check (value >= 0),
     check ((parent_revenue_id is null and region_id is null) or (parent_revenue_id is not null and region_id is not null))
 );
 
@@ -167,6 +170,7 @@ create table companies_markets (
     foreign key (parent_revenue_id) references companies_markets (id) on delete restrict,
     foreign key (region_id) references countries (id) on delete restrict,
     check ((market_id is not null and company_id is not null) OR parent_revenue_id is not null),
+    check (value >= 0),
     check ((parent_revenue_id is null and region_id is null) or (parent_revenue_id is not null and region_id is not null))
 );
 

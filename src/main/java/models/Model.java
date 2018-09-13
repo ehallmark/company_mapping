@@ -1563,6 +1563,7 @@ public abstract class Model implements Serializable {
         } else {
             backButton = span();
         }
+        if(associations==null) loadAssociations();
         boolean isRegion = isRegion();
         ContainerTag html = div().withClass("col-12").with(
                 div().withClass("col-12").with(
@@ -1605,6 +1606,34 @@ public abstract class Model implements Serializable {
                                                 .withText(attr+": "+val.toString())
                                 );
                             }).collect(Collectors.toList())
+                        ).with(
+                                associationsMeta.stream().filter(a->a.getType().equals(Association.Type.ManyToOne)).map(association->{
+                                    List<Model> parents = associations.get(association);
+                                    ContainerTag label;
+                                    String originalAttr = association.getParentIdField();
+                                    String text = association.getAssociationName()+": ";
+                                    String parentName;
+                                    if(parents != null && parents.size()>0) {
+                                        parentName = parents.get(0).getName();
+                                        label = span().withText(text).with(parents.get(0).getSimpleLink().attr("style", "margin-left: 10px;"));
+                                    } else {
+                                        parentName = " (empty)";
+                                        label = span().withText(text+parentName);
+                                    }
+                                    Integer val = (Integer)data.get(association.getParentIdField());
+                                    boolean editable = false; //!association.getAssociationName().equals("Parent Revenue") && !isRegion() && !association.getModel().equals(Association.Model.Region);
+                                    ContainerTag div = div().with(label)
+                                            .attr("data-attr", originalAttr)
+                                            .attr("data-url", "/ajax/resources/" + association.getModel() + "/" + this.getClass().getSimpleName() + "/" +id)
+                                            .attr("data-attrname", association.getAssociationName())
+                                            .attr("data-val-text", parentName)
+                                            .attr("data-val", val)
+                                            .attr("data-id", id.toString())
+                                            .attr("data-resource", this.getClass().getSimpleName())
+                                            .attr("data-field-type", "association")
+                                            .withClass("resource-data-field" + (editable ? " editable" : ""));
+                                    return div;
+                                }).collect(Collectors.toList())
                         )
                 )
         ).with(
