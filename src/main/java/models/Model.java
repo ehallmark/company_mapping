@@ -744,7 +744,7 @@ public abstract class Model implements Serializable {
         }
     }
 
-    public ContainerTag loadNestedAssociations(boolean nested, int maxDepth, boolean expandAll) {
+    public ContainerTag loadNestedAssociations(boolean nested, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes) {
         RevenueDomain revenueDomain = RevenueDomain.global;
         if(data==null) {
             loadAttributesFromDatabase();
@@ -765,7 +765,7 @@ public abstract class Model implements Serializable {
                 )
         );
         Set<String> allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, null),true, revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, expandAll);
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, null),true, revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, expandAll, alwaysExpandNodes);
         if(nested) return inner;
         return tag;
     };
@@ -810,7 +810,7 @@ public abstract class Model implements Serializable {
                 )
         );
         Set<String> allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, regionId),false, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, false);
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, regionId),false, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, false, Collections.emptySet());
         return tag;
     };
 
@@ -1121,8 +1121,8 @@ public abstract class Model implements Serializable {
          If no revenue is present for a company, do nothing. If no revenue is present for a product, do nothing.
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
-    private void loadNestedAssociationHelper(@NonNull String regionDomainName, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth, boolean expandAll) {
-        if(depth > maxDepth) return;
+    private void loadNestedAssociationHelper(@NonNull String regionDomainName, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes) {
+        if(depth > maxDepth && !alwaysExpandNodes.contains(new Node(this))) return;
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
@@ -1131,7 +1131,7 @@ public abstract class Model implements Serializable {
             if(!expandAll && association.shouldNotExpand(isRevenueModel())) {
                 continue;
             }
-            if(depth == maxDepth) {
+            if(depth == maxDepth && !alwaysExpandNodes.contains(new Node(this))) {
                 linkToAssociations.add(association);
             }
 
@@ -1330,14 +1330,14 @@ public abstract class Model implements Serializable {
                         }
                         if (!(model instanceof ProjectedRevenue) && !sameModel && !alreadySeen.contains(_id) && !model.getType().equals(Association.Model.Region)) {
                             alreadySeen.add(_id);
-                            if (linkToAssociations.contains(association)) {
+                            if (linkToAssociations.contains(association) || (maxDepth==depth && !alwaysExpandNodes.contains(new Node(model)))) {
                                 // just show link
                                 inner.attr("style", "display: inline;").with(
                                         a("(Expand)").attr("href", "#").withClass("diagram-button nested diagram-"+getType()+"-"+id).attr("data-id", model.getId())
                                         .attr("data-resource", model.getType().toString())
                                 );
                             } else {
-                                model.loadNestedAssociationHelper(regionDomainName, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth, false);
+                                model.loadNestedAssociationHelper(regionDomainName, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth, false, alwaysExpandNodes);
                             }
                         }
                         references.add(_id);
@@ -1549,7 +1549,7 @@ public abstract class Model implements Serializable {
         return this.getClass().getSimpleName().equals(Association.Model.Region.toString());
     }
 
-    public void loadShowTemplate(ContainerTag back) {
+    public void loadShowTemplate(ContainerTag back, Set<Node> expanded) {
         ContainerTag backButton;
         if(back!=null) {
             backButton = back;
@@ -1620,7 +1620,7 @@ public abstract class Model implements Serializable {
                 ),
                 div().withClass("col-12").with(
                         h5("Associations"),
-                       loadNestedAssociations(false, 0, false)
+                       loadNestedAssociations(false, 0, false, expanded)
                 )
         );
         template = html.render();

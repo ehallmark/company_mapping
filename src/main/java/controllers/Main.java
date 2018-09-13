@@ -39,6 +39,8 @@ public class Main {
     private static final String NAVIGATION_HANDLER = "navigation_handler";
     private static final String NAVIGATION_LOCK = "navigation_lock";
     private static final String CHART_CACHE = "chart_cache";
+    private static final String EXPANDED_NODES_SET = "expanded_nodes_set";
+    private static final String SHOW_PAGE_ID = "show_page_resource_id";
     private static final int MAX_NAVIGATION_HISTORY = 20;
 
     public static ContainerTag getBackButton(@NonNull Request req) {
@@ -69,6 +71,62 @@ public class Main {
 
         } finally {
             lock.unlock();
+        }
+    }
+
+    private synchronized static void registerShowPage(Request req, Response res) {
+        Model model = loadModel(req);
+        req.session().attribute(EXPANDED_NODES_SET, Collections.synchronizedSet(new HashSet<Node>()));
+        req.session().attribute(SHOW_PAGE_ID, model.getType().toString()+model.getId());
+    }
+
+    private synchronized static boolean stayedOnSameShowPage(Request req, Response res) {
+        Model model = loadModel(req);
+        String prevId = req.session().attribute(SHOW_PAGE_ID);
+        return (prevId!=null && prevId.equals(model.getType().toString()+model.getId()));
+    }
+
+    private synchronized static void clearShowPage(Request req, Response res) {
+        req.session().removeAttribute(EXPANDED_NODES_SET);
+        req.session().removeAttribute(SHOW_PAGE_ID);
+    }
+
+    private synchronized static Set<Node> getRegisteredExpandedResourcesForShowPage(Request req, Response res) {
+        Set<Node> expandedNodes = req.session().attribute(EXPANDED_NODES_SET);
+        return expandedNodes;
+    }
+
+    private synchronized static void registerExpandedResourceForShowPage(Request req, Response res) {
+        Model model = loadModel(req);
+        Graph graph = Graph.load();
+        Node node = graph.findNode(model.getType(), model.getId());
+        Set<Node> nodes = getRegisteredExpandedResourcesForShowPage(req, res);
+        nodes.add(node);
+        // add parent associations
+        if(model.isRevenueModel()) {
+            model.loadAssociations();
+            for(Association association : model.getAssociationsMeta()) {
+                if(!association.getAssociationName().startsWith("Sub") && !association.getModel().equals(Association.Model.Region)) {
+                    List<Model> parents = model.getAssociations().get(association);
+                    if(parents!=null && parents.size()==1) {
+                        Model parent = parents.get(0);
+                        nodes.add(graph.findNode(parent.getType(), parent.getId()));
+                    }
+                }
+            }
+        } else {
+            if(model instanceof Market) {
+                // check parent markets
+                for(Association association : model.getAssociationsMeta()) {
+                    if(association.getAssociationName().startsWith("Parent ")) {
+                        List<Model> parents = model.getAssociations().get(association);
+                        if(parents!=null && parents.size()==1) {
+                            Model parent = parents.get(0);
+                            nodes.add(graph.findNode(parent.getType(), parent.getId()));
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -726,7 +784,9 @@ public class Main {
             authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
-                ContainerTag diagram = model.loadNestedAssociations(true, 0, false);
+                Set<Node> expandedNodes = getRegisteredExpandedResourcesForShowPage(req, res);
+                ContainerTag diagram = model.loadNestedAssociations(true, 0, false, expandedNodes);
+                registerExpandedResourceForShowPage(req, res);
                 return new Gson().toJson(Collections.singletonMap("result", diagram.render()));
             }
             return null;
@@ -1031,13 +1091,22 @@ public class Main {
 
         get("/show/:resource/:id", (req, res) -> {
             authorize(req, res);
+            boolean stayedOnSameShowPage = stayedOnSameShowPage(req, res);
+            if(!stayedOnSameShowPage) {
+                clearShowPage(req, res);
+            }
             Model model = loadModel(req);
             if(model != null) {
                 model.loadAttributesFromDatabase();
                 model.loadAssociations();
-                model.loadShowTemplate(getBackButton(req));
+                Set<Node> expanded = getRegisteredExpandedResourcesForShowPage(req, res);
+                if(expanded==null) expanded = Collections.emptySet();
+                model.loadShowTemplate(getBackButton(req), expanded);
                 String html = new Gson().toJson(model);
                 registerNextPage(req, res);
+                if(!stayedOnSameShowPage) {
+                    registerShowPage(req, res);
+                }
                 return html;
             }
             else return null;
