@@ -39,7 +39,10 @@ public class ProjectedRevenue extends Model {
 
     @Override
     public ContainerTag getSimpleLink(String... additionalClasses) {
-        return li(getCalculationInformationInfoDiv(calculationInformation)).attr("style", "list-style: none;");
+        return div().with(
+                div(getName()), getRevenueAsSpan())
+        )
+        return div(getCalculationInformationInfoDiv(calculationInformation)).attr("style", "list-style: none;");
     }
 
 
@@ -67,7 +70,7 @@ public class ProjectedRevenue extends Model {
                     // found cagr
                     boolean estimated = info.getReference().getData().get(Constants.CAGR)==null;
                     ul.with(
-                            div(getName()).attr("style", "font-weight: bold; cursor: pointer;").withClass("resource-data-field").attr("onclick", "$(this).children().slideToggle();").attr("data-val", info.getRevenue().toString()).with(
+                           .attr("style", "font-weight: bold; cursor: pointer;").withClass("resource-data-field").attr("onclick", "$(this).children().slideToggle();").attr("data-val", info.getRevenue().toString()).with(
                                     div().attr("style", "display: none;").with(
                                             div("CAGR used: " + Constants.getFieldFormatter(Constants.CAGR).apply(info.getCagrUsed()) + (estimated ? " (Estimated)" : "")).attr("style", "font-weight: normal;"),
                                             div("From revenue: ").with(info.getReference().getSimpleLink().attr("style", "display: inline;")).attr("style", "font-weight: normal;")

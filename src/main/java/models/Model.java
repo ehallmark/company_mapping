@@ -814,7 +814,7 @@ public abstract class Model implements Serializable {
         return tag;
     };
 
-    private ContainerTag getRevenueAsSpan() {
+    protected ContainerTag getRevenueAsSpan() {
         String revStr = "(Revenue: "+formatRevenueString(revenue)+")";
         if(percentage!=null) {
             double percentageFull = percentage * 100;
@@ -1313,10 +1313,15 @@ public abstract class Model implements Serializable {
                             model.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, revToUse, isParentRevenue);
                         }
 
-                        groupUl.with(li().attr("style", "list-style: none;").with(
-                                allowEdit ? model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;")
-                                        : model.getSimpleLink().attr("style", "display: inline;")
-                                , model.getRevenueAsSpan(), inner));
+                        if(model instanceof ProjectedRevenue) {
+                            groupUl.with(li().attr("style", "list-style: none;").with(
+                                    model.getSimpleLink(), inner));
+                        } else {
+                            groupUl.with(li().attr("style", "list-style: none;").with(
+                                    allowEdit ? model.getLink(association.getReverseAssociationName(), this.getClass().getSimpleName(), id).attr("style", "display: inline;")
+                                            : model.getSimpleLink().attr("style", "display: inline;")
+                                    , model.getRevenueAsSpan(), inner));
+                        }
                         if (!(model instanceof ProjectedRevenue) && !sameModel && !alreadySeen.contains(_id) && !model.getType().equals(Association.Model.Region)) {
                             alreadySeen.add(_id);
                             if (linkToAssociations.contains(association)) {
