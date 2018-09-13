@@ -53,7 +53,7 @@ public abstract class Model implements Serializable {
     protected String template;
     @Getter
     private final boolean isRevenueModel;
-    private Double revenue;
+    protected Double revenue;
     private Double percentage;
     @Getter @Setter
     private transient Graph nodeCache;
@@ -1208,11 +1208,42 @@ public abstract class Model implements Serializable {
                 Double totalRevAllGroups = null;
                 Map<Integer, Double> groupToRevenueMap = new HashMap<>();
                 if(groupKeys.size()>0 && groupKeys.get(0)!=null) {
-                    groupedModels.forEach((group, list) -> {
-                        double rev = groupedModels.get(group).stream().peek(m->m.loadAttributesFromDatabase()).mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false)).sum();
-
-                        groupToRevenueMap.put(group, rev);
-                    });
+                    groupedModels = groupedModels.entrySet().stream().collect(Collectors.toMap(e->e.getKey(), e-> {
+                        List<Model> groupedModelList = e.getValue();
+                        if(association.getModel().toString().contains("Revenue")) {
+                            groupedModelList = new ArrayList<>(groupedModelList);
+                            groupedModelList.forEach(Model::loadAttributesFromDatabase);
+                            // check for projections
+                            if(startYear!=null && endYear!=null && useCAGR) {
+                                List<Model> tmp = new ArrayList<>();
+                                Map<Integer, Model> yearsFound = groupedModelList.stream().collect(Collectors.toMap(m->(Integer)m.getData().get(Constants.YEAR), m->m));
+                                for(int year = endYear; year >= startYear; year--) {
+                                    Model yearlyModel = yearsFound.get(year);
+                                    if(yearlyModel==null) {
+                                        Map<String,Object> data = new HashMap<>();
+                                        data.put(Constants.YEAR, year);
+                                        Model model = new ProjectedRevenue(data);
+                                        model.calculationInformation = new ArrayList<>();
+                                        Double yearlyRevenue = calculateFromCAGR(groupedModelList, year, estimateCagr, model.calculationInformation);
+                                        if(yearlyRevenue!=null) {
+                                            model.revenue=yearlyRevenue;
+                                            model.updateAttribute(Constants.VALUE, yearlyRevenue);
+                                            tmp.add(model);
+                                        }
+                                    } else {
+                                        tmp.add(yearlyModel);
+                                    }
+                                }
+                                groupedModelList = tmp;
+                            } else {
+                                groupedModelList.sort((d1,d2)->Integer.compare((Integer)d2.getData().get(Constants.YEAR), (Integer)d1.getData().get(Constants.YEAR)));
+                            }
+                        }
+                        groupedModelList.stream().filter(m->!(m instanceof ProjectedRevenue)).forEach(Model::loadAttributesFromDatabase);
+                        double rev = groupedModelList.stream().mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false)).sum();
+                        groupToRevenueMap.put(e.getKey(), rev);
+                        return groupedModelList;
+                    }));
                     totalRevAllGroups = groupToRevenueMap.values().stream().mapToDouble(d -> d).sum();
                     if (groupRevenuesBy.equals(Constants.YEAR)) {
                         groupKeys.sort((e1, e2) -> Integer.compare(e2, e1));
@@ -1251,35 +1282,7 @@ public abstract class Model implements Serializable {
                     }
                     List<Model> groupedModelList = groupedModels.get(key);
                     if(groupedModelList==null) groupedModelList = Collections.emptyList();
-                    if(association.getModel().toString().contains("Revenue")) {
-                        groupedModelList = new ArrayList<>(groupedModelList);
-                        groupedModelList.forEach(Model::loadAttributesFromDatabase);
-                        // check for projections
-                        if(startYear!=null && endYear!=null && useCAGR) {
-                            List<Model> tmp = new ArrayList<>();
-                            Map<Integer, Model> yearsFound = groupedModelList.stream().collect(Collectors.toMap(m->(Integer)m.getData().get(Constants.YEAR), m->m));
-                            for(int year = endYear; year >= startYear; year--) {
-                                Model yearlyModel = yearsFound.get(year);
-                                if(yearlyModel==null) {
-                                    Map<String,Object> data = new HashMap<>();
-                                    data.put(Constants.YEAR, year);
-                                    Model model = new ProjectedRevenue(data);
-                                    model.calculationInformation = new ArrayList<>();
-                                    Double yearlyRevenue = calculateFromCAGR(groupedModelList, year, estimateCagr, model.calculationInformation);
-                                    if(yearlyRevenue!=null) {
-                                        model.revenue=yearlyRevenue;
-                                        model.updateAttribute(Constants.VALUE, yearlyRevenue);
-                                        tmp.add(model);
-                                    }
-                                } else {
-                                    tmp.add(yearlyModel);
-                                }
-                            }
-                            groupedModelList = tmp;
-                        } else {
-                            groupedModelList.sort((d1,d2)->Integer.compare((Integer)d2.getData().get(Constants.YEAR), (Integer)d1.getData().get(Constants.YEAR)));
-                        }
-                    }
+
                     for(Model model : groupedModelList) {
                         if(model.isRevenueModel() && model.getData().get(Constants.REGION_ID)==null) { // global revenue model
                             model = model.getSubRevenueByRegionId(revenueDomain, regionId);
@@ -1348,6 +1351,9 @@ public abstract class Model implements Serializable {
 
     public static String formatRevenueString(Double revenue) {
         if(revenue==null) return "";
+        if(Double.isNaN(revenue)) {
+            throw new RuntimeException("Bad revenue calculation: "+revenue);
+        }
         return "$"+String.format("%.2f", revenue);
     }
 

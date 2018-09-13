@@ -39,12 +39,15 @@ public class ProjectedRevenue extends Model {
 
     @Override
     public ContainerTag getSimpleLink(String... additionalClasses) {
-        return div().with(
-                div(getName()), getRevenueAsSpan())
-        )
-        return div(getCalculationInformationInfoDiv(calculationInformation)).attr("style", "list-style: none;");
+        return div(getName()).withClass("resource-data-field").attr("data-val", revenue).attr("onclick", "$(this).find('.projection-info').slideToggle();").attr("style", "cursor: pointer; ").with(
+                getRevenueAsSpan().attr("style", "display: inline; margin-left: 10px;"),
+                getCalculationInformationInfoDiv(calculationInformation)
+        );
     }
 
+    public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue) {
+        return (Double)data.get(Constants.VALUE);
+    }
 
     @Override
     public ContainerTag getLink(@NonNull String associationName, @NonNull String associationModel, @NonNull Integer associationId) {
@@ -61,20 +64,23 @@ public class ProjectedRevenue extends Model {
         throw new RuntimeException("Unable to create database record for projected revenues.");
     }
 
+    @Override
+    public void loadAttributesFromDatabase() {
+        // do nothing
+    }
+
     private ContainerTag getCalculationInformationInfoDiv(List<CalculationInformation> information) {
         if(information!=null) {
             // check for CAGR's used
-            ContainerTag ul = span();
+            ContainerTag ul = div().attr("style", "display: none;").withClass("projection-info");
             for(CalculationInformation info : information.stream().filter(c->c.getYear()!=null).sorted((c1,c2)->Integer.compare(c2.getYear(),c1.getYear())).collect(Collectors.toList())) {
                 if (info.getCagrUsed() != null && info.getRevenue() != null) {
                     // found cagr
                     boolean estimated = info.getReference().getData().get(Constants.CAGR)==null;
                     ul.with(
-                           .attr("style", "font-weight: bold; cursor: pointer;").withClass("resource-data-field").attr("onclick", "$(this).children().slideToggle();").attr("data-val", info.getRevenue().toString()).with(
-                                    div().attr("style", "display: none;").with(
-                                            div("CAGR used: " + Constants.getFieldFormatter(Constants.CAGR).apply(info.getCagrUsed()) + (estimated ? " (Estimated)" : "")).attr("style", "font-weight: normal;"),
-                                            div("From revenue: ").with(info.getReference().getSimpleLink().attr("style", "display: inline;")).attr("style", "font-weight: normal;")
-                                    )
+                            div().with(
+                                    div("CAGR used: " + Constants.getFieldFormatter(Constants.CAGR).apply(info.getCagrUsed()) + (estimated ? " (Estimated)" : "")).attr("style", "font-weight: normal;"),
+                                    div("From revenue: ").with(info.getReference().getSimpleLink().attr("style", "display: inline;")).attr("style", "font-weight: normal;")
                             )
                     );
                 }
