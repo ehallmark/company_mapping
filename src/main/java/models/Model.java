@@ -962,6 +962,14 @@ public abstract class Model implements Serializable {
     private double calculateSubRevenueForRevenueModel(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear) {
         revenue = null;
         Model subRevenue = getSubRevenueByRegionId(revenueDomain, regionId);
+        if(subRevenue==null && revenueDomain.equals(RevenueDomain.regional)) {
+            // check for parent region id
+            Node region = Graph.load().findNode(Association.Model.Region, regionId);
+            // get child ids
+            Set<Integer> childRegions = region.getEdgeMap().getOrDefault("Sub Region", Collections.emptyList())
+                    .stream().map(e->e.getTarget().getModel().getId()).collect(Collectors.toSet());
+            subRevenue = Stream.of(this).filter(m->childRegions.contains((Integer)m.getData().get(Constants.REGION_ID))).findAny().orElse(null);
+        }
         if(subRevenue!=null) {
             subRevenue.calculateRevenueForRevenueModel(startYear, endYear);
             revenue = subRevenue.revenue;
