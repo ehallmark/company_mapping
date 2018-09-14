@@ -410,6 +410,7 @@ var onShowResourceFunction = function($topElem) {
                     }
                 } else {
                     var $innerResults = $('#inner-results');
+                    $innerResults.html('');
                     var i = 0;
                     while(data.hasOwnProperty('chart_'+i.toString())) {
                         var chartId = 'chart_'+i.toString();
