@@ -41,7 +41,7 @@ public class Main {
     private static final String CHART_CACHE = "chart_cache";
     private static final String EXPANDED_NODES_SET = "expanded_nodes_set";
     private static final String SHOW_PAGE_ID = "show_page_resource_id";
-    private static final int MAX_NAVIGATION_HISTORY = 20;
+    private static final int MAX_NAVIGATION_HISTORY = 30;
 
     public static ContainerTag getBackButton(@NonNull Request req) {
         return a("Back").withClass("btn btn-sm btn-outline-secondary back-button");
@@ -872,8 +872,6 @@ public class Main {
             Model model = loadModel(req);
             if(model!=null) {
                 ContainerTag html = div().withClass("col-12").with(
-                        getBackButton(req),
-                        h3("Comparison of "+model.getName()),
                         label(Constants.humanAttrFor(model.getType().toString())+" Name:").with(
                                 select().attr("multiple", "multiple").attr("id", "compare-model-select").attr("style","width: 100%").withClass("form-control multiselect-ajax")
                                         .attr("data-url", "/ajax/resources/"+model.getType()+"/"+model.getType()+"/"+model.getId())
@@ -881,7 +879,9 @@ public class Main {
                         getReportOptionsForm(model,"comparison", ChartHelper.getChartOptionsForm()),
                         div().withId("inner-results")
                 );
-                String str = new Gson().toJson(Collections.singletonMap("result", html.render()));
+
+                model.loadShowTemplate(getBackButton(req), h5("Comparison of "+model.getName()), html);
+                String str = new Gson().toJson(Collections.singletonMap("result", model.getTemplate()));
                 registerNextPage(req, res);
                 return str;
             }
@@ -1021,13 +1021,11 @@ public class Main {
             Model model = loadModel(req);
             if(model!=null) {
                 ContainerTag html = div().withClass("col-12").with(
-                        getBackButton(req),
-                        h3("Graphs of "+model.getName()),
                         getReportOptionsForm(model,"graph", ChartHelper.getChartOptionsForm()),
                         div().withId("inner-results")
                 );
-
-                String str = new Gson().toJson(Collections.singletonMap("result", html.render()));
+                model.loadShowTemplate(getBackButton(req), h5("Graphs of "+model.getName()), html);
+                String str = new Gson().toJson(Collections.singletonMap("result", model.getTemplate()));
                 registerNextPage(req, res);
                 return str;
             }
@@ -1129,13 +1127,12 @@ public class Main {
             if(model!=null) {
 
                 ContainerTag html = div().withClass("col-12").with(
-                        getBackButton(req),
-                        h3("Report of "+model.getName()),
                         getReportOptionsForm(model, "report"),
                         div().withId("inner-results")
                 );
 
-                String str = new Gson().toJson(Collections.singletonMap("result", html.render()));
+                model.loadShowTemplate(getBackButton(req), h5("Report of "+model.getName()), html);
+                String str = new Gson().toJson(Collections.singletonMap("result", model.getTemplate()));
                 registerNextPage(req, res);
                 return str;
             }
@@ -1154,7 +1151,7 @@ public class Main {
                 model.loadAssociations();
                 Set<Node> expanded = getRegisteredExpandedResourcesForShowPage(req, res);
                 if(expanded==null) expanded = Collections.emptySet();
-                model.loadShowTemplate(getBackButton(req), expanded);
+                model.loadShowTemplate(getBackButton(req), h5("Diagram"), model.loadNestedAssociations(false, 0, false, expanded));
                 String html = new Gson().toJson(model);
                 registerNextPage(req, res);
                 if(!stayedOnSameShowPage) {

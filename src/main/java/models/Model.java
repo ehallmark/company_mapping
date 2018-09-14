@@ -50,6 +50,7 @@ public abstract class Model implements Serializable {
     protected transient List<Association> associationsMeta;
     @Getter @Setter
     protected transient Map<Association,List<Model>> associations;
+    @Getter
     protected String template;
     @Getter
     private final boolean isRevenueModel;
@@ -1561,7 +1562,7 @@ public abstract class Model implements Serializable {
         return this.getClass().getSimpleName().equals(Association.Model.Region.toString());
     }
 
-    public void loadShowTemplate(ContainerTag back, Set<Node> expanded) {
+    public void loadShowTemplate(ContainerTag back, ContainerTag... innerTags) {
         ContainerTag backButton;
         if(back!=null) {
             backButton = back;
@@ -1644,7 +1645,7 @@ public abstract class Model implements Serializable {
         ).with(
                 div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Product.toString(),Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
                         div().withClass("btn-group").attr("style", "display: inline;").with(
-                                button("Show").attr("style", "width: 100px;")
+                                button("Diagram").attr("style", "width: 100px;")
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
                                         .withClass("btn btn-outline-secondary btn-md resource-show-link"),
@@ -1664,8 +1665,7 @@ public abstract class Model implements Serializable {
                                 ) : div()
                 ),
                 div().withClass("col-12").with(
-                        h5("Associations"),
-                       loadNestedAssociations(false, 0, false, expanded)
+                        innerTags
                 )
         );
         template = html.render();
