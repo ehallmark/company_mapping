@@ -3,10 +3,14 @@ package models;
 import com.googlecode.wickedcharts.highcharts.options.color.ColorReference;
 import com.googlecode.wickedcharts.highcharts.options.color.RadialGradient;
 import com.googlecode.wickedcharts.highcharts.options.color.RgbaColor;
+import controllers.Main;
 import j2html.tags.ContainerTag;
+import spark.Request;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static j2html.TagCreator.*;
 
@@ -57,16 +61,19 @@ public class ChartHelper {
         line
     }
 
-    public static ContainerTag getChartOptionsForm() {
+
+    public static ContainerTag getChartOptionsForm(Request req) {
+        Map<String,String> defaultValues = req.session().attribute(Main.DEFAULT_FORM_OPTIONS);
+        if(defaultValues==null) defaultValues = new HashMap<>();
         return div().with(
                 label("Time Series Chart Type").with(br(),
                         select().withClass("multiselect form-control").attr("style", "width: 200px").withName(TIME_SERIES_CHART_TYPE).with(
-                                option("Column").withValue(LineChartType.column.toString()),
-                                option("Line").withValue(LineChartType.line.toString())
+                                option("Column").attr("column".equals(defaultValues.get(TIME_SERIES_CHART_TYPE))?"selected": "").withValue(LineChartType.column.toString()),
+                                option("Line").attr("line".equals(defaultValues.get(TIME_SERIES_CHART_TYPE))?"selected": "").withValue(LineChartType.line.toString())
                         )
                 ),br(),
                 label("Max Chart Groups").with(br(),
-                        input().withClass("form-control").withType("number").withValue("15").withName(MAX_NUM_GROUPS)
+                        input().withClass("form-control").withType("number").withValue(defaultValues.getOrDefault(MAX_NUM_GROUPS, "15")).withName(MAX_NUM_GROUPS)
                 )
         );
     }
