@@ -164,7 +164,7 @@ public abstract class Model implements Serializable {
             if(models==null) {
                 for (int year = minYear; year <= maxYear; year++) {
                     this.revenue=null;
-                    calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true);
+                    calculateRevenue(revenueDomain, regionId, year, year, useCAGR, estimateCagr, option, revenue, true);
                     Double rev = this.revenue;
                     getSimpleLink();
                     if (rev != null) {
@@ -466,9 +466,6 @@ public abstract class Model implements Serializable {
         }
         loadAssociations();
         List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
-        if(associationName.equals("Market Revenue") || associationName.equals("Company Revenue")) {
-            assocModels = null;
-        }
         return buildCharts(column, maxGroups, assocModels, association, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option);
     }
 
@@ -481,7 +478,7 @@ public abstract class Model implements Serializable {
         if(this instanceof Market) {
             switch(association.getModel()) {
                 case MarketRevenue: {
-                    buildTimelineSeries(column, maxGroups, null,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, assocModels, options, association);
+                    buildTimelineSeries(column, maxGroups, null,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, null, options, association);
                     break;
                 }
                 case Market: {
@@ -525,7 +522,7 @@ public abstract class Model implements Serializable {
             switch (association.getModel()) {
                 case CompanyRevenue: {
                     // yearly timeline
-                    buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, assocModels, options, association);
+                    buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, null, options, association);
                     break;
                 }
                 case Company: {
