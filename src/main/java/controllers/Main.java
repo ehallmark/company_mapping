@@ -907,7 +907,7 @@ public class Main {
                         div().withId("inner-results")
                 );
 
-                model.loadShowTemplate(getBackButton(req), h5("Comparison of "+model.getName()), html);
+                model.loadShowTemplate(getBackButton(req), "Compare", h5("Comparison of "+model.getName()), html);
                 String str = new Gson().toJson(Collections.singletonMap("result", model.getTemplate()));
                 registerNextPage(req, res);
                 return str;
@@ -1052,7 +1052,7 @@ public class Main {
                         getReportOptionsForm(req, model,"graph", ChartHelper.getChartOptionsForm(req)),
                         div().withId("inner-results")
                 );
-                model.loadShowTemplate(getBackButton(req), h5("Graphs of "+model.getName()), html);
+                model.loadShowTemplate(getBackButton(req), "Graph", h5("Graphs of "+model.getName()), html);
                 String str = new Gson().toJson(Collections.singletonMap("result", model.getTemplate()));
                 registerNextPage(req, res);
                 return str;
@@ -1161,7 +1161,7 @@ public class Main {
                         div().withId("inner-results")
                 );
 
-                model.loadShowTemplate(getBackButton(req), h5("Report of "+model.getName()), html);
+                model.loadShowTemplate(getBackButton(req), "Report", h5("Report of "+model.getName()), html);
                 String str = new Gson().toJson(Collections.singletonMap("result", model.getTemplate()));
                 registerNextPage(req, res);
                 return str;
@@ -1181,7 +1181,7 @@ public class Main {
                 model.loadAssociations();
                 Set<Node> expanded = getRegisteredExpandedResourcesForShowPage(req, res);
                 if(expanded==null) expanded = Collections.emptySet();
-                model.loadShowTemplate(getBackButton(req), h5("Diagram"), model.loadNestedAssociations(false, 0, false, expanded));
+                model.loadShowTemplate(getBackButton(req), "Diagram", h5("Diagram"), model.loadNestedAssociations(false, 0, false, expanded));
                 String html = new Gson().toJson(model);
                 registerNextPage(req, res);
                 if(!stayedOnSameShowPage) {

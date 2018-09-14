@@ -130,6 +130,10 @@ var showGraphsFunction = function(id,resourceId) {
         success: function(data) {
             $('#results').html(data.result);
             onShowResourceFunction($('#results'));
+            // scroll to bottom
+            $('html,body').animate({
+                scrollTop: $(document).height()
+            }, "fast");
         },
         error: function() {
             alert("An error occurred.");
@@ -146,6 +150,9 @@ var showComparisonFunction = function(id,resourceId) {
         success: function(data) {
             $('#results').html(data.result);
             onShowResourceFunction($('#results'));
+            $('html,body').animate({
+                scrollTop: $(document).height()
+            }, "fast");
         },
         error: function() {
             alert("An error occurred.");
@@ -162,6 +169,9 @@ var showReportFunction = function(id,resourceId) {
         success: function(data) {
             $('#results').html(data.result);
             onShowResourceFunction($('#results'));
+            $('html,body').animate({
+                scrollTop: $(document).height()
+            }, "fast");
         },
         error: function() {
             alert("An error occurred.");
@@ -406,6 +416,9 @@ var onShowResourceFunction = function($topElem) {
                         $innerResults.append('<div align="center" id="chart_'+i.toString()+'"></div>');
                         Highcharts.chart(chartId, JSON.parse(data[chartId]));
                         i = i+1;
+                    }
+                    if(!data.hasOwnProperty('chart_0')) {
+                        $('#inner-results').html('<p>No charts to display.</p>');
                     }
                     onShowResourceFunction($('#inner-results'));
                 }

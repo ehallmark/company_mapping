@@ -1562,7 +1562,7 @@ public abstract class Model implements Serializable {
         return this.getClass().getSimpleName().equals(Association.Model.Region.toString());
     }
 
-    public void loadShowTemplate(ContainerTag back, ContainerTag... innerTags) {
+    public void loadShowTemplate(ContainerTag back, String disabledButton, ContainerTag... innerTags) {
         ContainerTag backButton;
         if(back!=null) {
             backButton = back;
@@ -1645,19 +1645,19 @@ public abstract class Model implements Serializable {
         ).with(
                 div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Product.toString(),Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
                         div().withClass("btn-group").attr("style", "display: inline;").with(
-                                button("Diagram").attr("style", "width: 100px;")
+                                button("Diagram").attr(disabledButton.equals("Diagram")?"disabled":"").attr("style", "width: 100px;")
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
                                         .withClass("btn btn-outline-secondary btn-md resource-show-link"),
-                                button("Report").attr("style", "width: 100px;")
+                                button("Report").attr(disabledButton.equals("Report")?"disabled":"").attr("style", "width: 100px;")
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
                                         .withClass("btn btn-outline-secondary btn-md report-button"),
-                                button("Graph").attr("style", "width: 100px;")
+                                button("Graph").attr(disabledButton.equals("Graph")?"disabled":"").attr("style", "width: 100px;")
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
                                         .withClass("btn btn-outline-secondary btn-md graph-button"),
-                                button("Compare").attr("style", "width: 100px;")
+                                button("Compare").attr(disabledButton.equals("Compare")?"disabled":"").attr("style", "width: 100px;")
                                         .attr("data-id", id.toString())
                                         .attr("data-resource", this.getClass().getSimpleName())
                                         .withClass("btn btn-outline-secondary btn-md comparison-button")
