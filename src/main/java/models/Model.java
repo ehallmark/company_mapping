@@ -472,6 +472,9 @@ public abstract class Model implements Serializable {
 
     public List<Options> buildCharts(boolean column, int maxGroups, @NonNull List<Model> assocModels, @NonNull Association association, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option) {
         List<Options> allOptions = new ArrayList<>();
+        if(association.getModel().toString().contains("Revenue")) {
+            assocModels = getSubRevenuesByRegionId(assocModels, revenueDomain, regionId);
+        }
         Options options = getDefaultChartOptions();
         allOptions.add(options);
         calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, null, false);
@@ -949,6 +952,7 @@ public abstract class Model implements Serializable {
         Model subRevenue = getSubRevenueByRegionId(revenueDomain, regionId);
         if(subRevenue!=null) {
             subRevenue.calculateRevenueForRevenueModel(startYear, endYear);
+            revenue = subRevenue.revenue;
         }
         return revenue == null ? 0 : revenue;
     }
