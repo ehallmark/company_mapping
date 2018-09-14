@@ -122,7 +122,7 @@ public abstract class Model implements Serializable {
     }
 
 
-    public static void buildTimelineSeries(boolean column, int maxGroups, @NonNull String name, @NonNull Association.Model type, Integer id, Double revenue, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
+    public void buildTimelineSeries(boolean column, int maxGroups, @NonNull String name, @NonNull Association.Model type, Integer id, Double revenue, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
         // yearly timeline
         if(minYear==null || maxYear==null) return;
         if(maxYear - minYear <= 0) {
@@ -161,20 +161,33 @@ public abstract class Model implements Serializable {
             );
             series.setShowInLegend(false);
             Set<String> missingYears = new HashSet<>(categories);
-            for(Model assoc : models) {
-                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true);
-                Double rev = assoc.revenue;
-                assoc.getSimpleLink();
-                Integer year = (Integer) assoc.getData().get(Constants.YEAR);
-                if(rev!=null) {
-                    series.addPoint(new Point(year.toString(), rev));
-                    missingYears.remove(assoc.getData().get(Constants.YEAR).toString());
+            if(models==null) {
+                for (int year = minYear; year <= maxYear; year++) {
+                    this.revenue=null;
+                    calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true);
+                    Double rev = this.revenue;
+                    getSimpleLink();
+                    if (rev != null) {
+                        series.addPoint(new Point(String.valueOf(year), rev));
+                        missingYears.remove(year);
+                    }
+                }
+            } else {
+                for (Model assoc : models) {
+                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true);
+                    Double rev = assoc.revenue;
+                    assoc.getSimpleLink();
+                    Integer year = (Integer) assoc.getData().get(Constants.YEAR);
+                    if (rev != null) {
+                        series.addPoint(new Point(year.toString(), rev));
+                        missingYears.remove(assoc.getData().get(Constants.YEAR).toString());
+                    }
                 }
             }
             for(String missing : missingYears) {
                 int missingYear = Integer.valueOf(missing);
                 Double missingRev = null;
-                if(useCAGR) {
+                if(useCAGR && models!=null) {
                     missingRev = calculateFromCAGR(models, missingYear, estimateCagr, null);
                 }
 
@@ -453,6 +466,9 @@ public abstract class Model implements Serializable {
         }
         loadAssociations();
         List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
+        if(associationName.equals("Market Revenue") || associationName.equals("Company Revenue")) {
+            assocModels = null;
+        }
         return buildCharts(column, maxGroups, assocModels, association, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option);
     }
 
