@@ -895,10 +895,13 @@ public class Main {
             authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
+                // get previous value (if any) of comparison models
                 ContainerTag html = div().withClass("col-12").with(
                         label(Constants.humanAttrFor(model.getType().toString())+" Name:").with(
                                 select().attr("multiple", "multiple").attr("id", "compare-model-select").attr("style","width: 100%").withClass("form-control multiselect-ajax")
-                                        .attr("data-url", "/ajax/resources/"+model.getType()+"/"+model.getType()+"/"+model.getId())
+                                        .attr("data-url", "/ajax/resources/"+model.getType()+"/"+model.getType()+"/"+model.getId()).with(
+
+                                )
                         ), br(),
                         getReportOptionsForm(req, model,"comparison", ChartHelper.getChartOptionsForm(req)),
                         div().withId("inner-results")
