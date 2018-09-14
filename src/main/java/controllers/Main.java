@@ -41,10 +41,22 @@ public class Main {
     private static final String CHART_CACHE = "chart_cache";
     private static final String EXPANDED_NODES_SET = "expanded_nodes_set";
     private static final String SHOW_PAGE_ID = "show_page_resource_id";
+    private static final String DEFAULT_FORM_OPTIONS = "default_form_options";
     private static final int MAX_NAVIGATION_HISTORY = 30;
 
     public static ContainerTag getBackButton(@NonNull Request req) {
         return a("Back").withClass("btn btn-sm btn-outline-secondary back-button");
+    }
+
+    private static void registerLatestForm(Request req) {
+        Map<String,String> latestForm = new HashMap<>();
+
+        for(String key : req.queryParams()) {
+            latestForm.put(key, req.queryParams(key));
+        }
+
+        System.out.println("Registered form: "+new Gson().toJson(latestForm));
+        req.session().attribute(DEFAULT_FORM_OPTIONS, latestForm);
     }
 
     public static void registerNextPage(@NonNull Request req, @NonNull Response res) {
@@ -341,46 +353,58 @@ public class Main {
         return Database.selectAll(model.isRevenueModel(), type, model.getTableName(), availableAttributes, associations, null);
     }
 
-    public static ContainerTag getReportOptionsForm(Model model, String clazz, ContainerTag... additionalTags) {
+    public static ContainerTag getReportOptionsForm(Request req, Model model, String clazz, ContainerTag... additionalTags) {
+        Map<String,String> defaultValues = req.session().attribute(DEFAULT_FORM_OPTIONS);
+        if(defaultValues==null) defaultValues = new HashMap<>();
+        boolean showCountry = "national".equals(defaultValues.get("revenue_domain"));
+        boolean showRegion = "regional".equals(defaultValues.get("revenue_domain"));
         return form().attr("data-id",model.getId().toString())
                 .attr("data-resource",model.getClass().getSimpleName()).withId(clazz+"-specification-form").with(
                         label("Start Year").with(br(),
-                                input().withType("number").withValue(String.valueOf(LocalDate.now().getYear()-5)).withName("start_year")
+                                input().withType("number").withValue(defaultValues.getOrDefault("start_year", String.valueOf(LocalDate.now().getYear()-5))).withName("start_year")
                         ),
                         br(),
                         label("End Year").with(br(),
-                                input().withType("number").withValue(String.valueOf(LocalDate.now().getYear())).withName("end_year")
+                                input().withType("number").withValue(defaultValues.getOrDefault("end_year", String.valueOf(LocalDate.now().getYear()))).withName("end_year")
                         ),br(),
                         label("Revenue Domain").with(br(),
                                 select().withClass("multiselect revenue_domain").withName("revenue_domain").with(
-                                        option("Global").withValue("global"),
-                                        option("Regional").withValue("regional"),
-                                        option("National").withValue("national")
+                                        option("Global").withValue("global").attr(!showCountry&&!showRegion?"selected":""),
+                                        option("Regional").withValue("regional").attr(showRegion?"selected":""),
+                                        option("National").withValue("national").attr(showCountry?"selected":"")
                                 )
                         ),
-                        label("Country").attr("style", "display: none; width: 250px; margin-left: auto; margin-right: auto;").with(
-                                select().attr("disabled", "disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
+                        label("Country").attr("style", "display: "+(showCountry?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
+                                select().attr(showCountry?"":"disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
                                         .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+model.getType()+"/-1?nationalities_only=true")
                         ),
-                        label("Region").attr("style", "display: none; width: 250px; margin-left: auto; margin-right: auto;").with(
-                                select().attr("disabled", "disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
+                        label("Region").attr("style", "display: "+(showRegion?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
+                                select().attr(showRegion?"":"disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
                                         .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+model.getType()+"/-1?regions_only=true")
+                                .with(defaultValues.containsKey(Constants.REGION_ID)?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID))).getModel().getName())
+                                    .attr("selected").withValue(defaultValues.get(Constants.REGION_ID)): null)
                         ), br(),
                         label("Use CAGR when applicable?").with(br(),
-                                input().withType("checkbox").withValue("true").withName(Constants.CAGR)
+                                input().attr(defaultValues.containsKey(Constants.CAGR)?"checked":"").withType("checkbox").withValue("true").withName(Constants.CAGR)
                         ),
                         br(),
                         label("Estimate CAGR when applicable?").with(br(),
-                                input().withType("checkbox").withValue("true").withName(Constants.ESTIMATE_CAGR)
+                                input().attr(defaultValues.containsKey(Constants.ESTIMATE_CAGR)?"checked":"").withType("checkbox").withValue("true").withName(Constants.ESTIMATE_CAGR)
                         ),
                         br(),
                         label("Missing Revenue Options").with(br(),
                                 select().withClass("multiselect").withName("missing_revenue").with(
-                                        option("Exclude missing").withValue(Constants.MissingRevenueOption.exclude.toString()),
-                                        option("Replace with zeros").withValue(Constants.MissingRevenueOption.replace.toString()),
-                                        option("Raise error").withValue(Constants.MissingRevenueOption.error.toString())
+                                        option("Exclude missing")
+                                                .attr(Constants.MissingRevenueOption.exclude.toString().equals(defaultValues.get("missing_revenue"))?"selected":"")
+                                                .withValue(Constants.MissingRevenueOption.exclude.toString()),
+                                        option("Replace with zeros")
+                                                .attr(Constants.MissingRevenueOption.replace.toString().equals(defaultValues.get("missing_revenue"))?"selected":"")
+                                                .withValue(Constants.MissingRevenueOption.replace.toString()),
+                                        option("Raise error")
+                                                .attr(Constants.MissingRevenueOption.error.toString().equals(defaultValues.get("missing_revenue"))?"selected":"")
+                                                .withValue(Constants.MissingRevenueOption.error.toString())
                                 )
                         ),br()
                 ).with(additionalTags).with(br(),
@@ -876,7 +900,7 @@ public class Main {
                                 select().attr("multiple", "multiple").attr("id", "compare-model-select").attr("style","width: 100%").withClass("form-control multiselect-ajax")
                                         .attr("data-url", "/ajax/resources/"+model.getType()+"/"+model.getType()+"/"+model.getId())
                         ), br(),
-                        getReportOptionsForm(model,"comparison", ChartHelper.getChartOptionsForm()),
+                        getReportOptionsForm(req, model,"comparison", ChartHelper.getChartOptionsForm()),
                         div().withId("inner-results")
                 );
 
@@ -901,6 +925,7 @@ public class Main {
             }
 
             if(model!=null && compareModels.size()>0) {
+                registerLatestForm(req);
                 boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                 boolean column = extractString(req, ChartHelper.TIME_SERIES_CHART_TYPE, ChartHelper.LineChartType.column.toString()).equals(ChartHelper.LineChartType.column.toString());
@@ -1021,7 +1046,7 @@ public class Main {
             Model model = loadModel(req);
             if(model!=null) {
                 ContainerTag html = div().withClass("col-12").with(
-                        getReportOptionsForm(model,"graph", ChartHelper.getChartOptionsForm()),
+                        getReportOptionsForm(req, model,"graph", ChartHelper.getChartOptionsForm()),
                         div().withId("inner-results")
                 );
                 model.loadShowTemplate(getBackButton(req), h5("Graphs of "+model.getName()), html);
@@ -1038,6 +1063,7 @@ public class Main {
             Model model = loadModel(req);
             if(model!=null) {
                 try {
+                    registerLatestForm(req);
                     boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                     int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                     int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
@@ -1081,6 +1107,7 @@ public class Main {
             authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
+                registerLatestForm(req);
                 boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                 boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
@@ -1127,7 +1154,7 @@ public class Main {
             if(model!=null) {
 
                 ContainerTag html = div().withClass("col-12").with(
-                        getReportOptionsForm(model, "report"),
+                        getReportOptionsForm(req, model, "report"),
                         div().withId("inner-results")
                 );
 
