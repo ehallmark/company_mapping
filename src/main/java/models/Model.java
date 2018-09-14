@@ -889,8 +889,18 @@ public abstract class Model implements Serializable {
         return toReturn;
     }
 
+    public Model getParentRevenue() {
+        if(!isRevenueModel) throw new RuntimeException("Unable to get parent revenues for non revenue model: "+getType());
+        Association association = findAssociation("Parent Revenue");
+        List<Model> parentRevenues = new ArrayList<>();
+        if(associations==null) loadAssociations();
+        if(association!=null) {
+            parentRevenues.addAll(associations.getOrDefault(association, Collections.emptyList()));
+        }
+        return parentRevenues.isEmpty() ? null : parentRevenues.get(0);
+    }
 
-    private List<Model> getSubRevenues() {
+    public List<Model> getSubRevenues() {
         if(!isRevenueModel) throw new RuntimeException("Unable to get subrevenues for non revenue model: "+getType());
         Association association = findAssociation("Sub Revenue");
         List<Model> subRevenues = new ArrayList<>();

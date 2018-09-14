@@ -630,6 +630,35 @@ public class Main {
                             showTopLevelOnly = true;
                         }
                         parentRegionId = (Integer) actualModel.getData().get(Constants.REGION_ID);
+                        if(parentRegionId!=null) idsToAvoid.add(parentRegionId);
+                        // find all regions of any subrevenues
+                        if(actualModel.isRevenueModel()) {
+                            // get all associated regions
+                            // start with getting grandparents
+                            Model temp = actualModel;
+                            int i = 0;
+                            while(temp.getData().get(Constants.PARENT_REVENUE_ID)!=null && i < 2) {
+                                temp = temp.getParentRevenue();
+                                i++;
+                            }
+                            // then add region ids of all descendants
+                            Integer regionId = (Integer) temp.getData().get(Constants.REGION_ID);
+                            if(regionId!=null) {
+                                idsToAvoid.add(regionId);
+                            }
+                            List<Model> tempList = Collections.singletonList(temp);
+                            i = 0;
+                            while(tempList.size()>0 && i < 2) {
+                                tempList = tempList.stream().flatMap(t->t.getSubRevenues().stream()).collect(Collectors.toList());
+                                for(Model _temp : tempList) {
+                                    regionId = (Integer) _temp.getData().get(Constants.REGION_ID);
+                                    if (regionId != null) {
+                                        idsToAvoid.add(regionId);
+                                    }
+                                }
+                                i++;
+                            }
+                        }
                     }
                     for(Association association : actualModel.getAssociationsMeta()) {
                         if(association.getModel().equals(type)) {
