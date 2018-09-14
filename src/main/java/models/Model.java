@@ -623,23 +623,23 @@ public abstract class Model implements Serializable {
         fieldToSelectToResourceName.put(Constants.REGION_ID, Association.Model.Region.toString());
     }
 
-    public ContainerTag getCreateNewForm(@NonNull Association.Model type, Integer associationId) {
+    public ContainerTag getCreateNewForm(@NonNull Association.Model type, Integer associationId, Integer otherAssociationId) {
         if (type.equals(Association.Model.Region) || (type.toString().contains("Revenue") && referencesCountry())) {
             return span();
         }
         if(type.toString().endsWith("Revenue")) {
             List<String> fieldsToSelect = new ArrayList<>();
-            String fieldToHide;
+            List<String> fieldsToHide = new ArrayList<>();
             boolean isMarketShare = false;
             boolean isRevenueToRevenue = this.getClass().getSimpleName().contains("Revenue") && type.toString().contains("Revenue");
             boolean isRegionToRevenue = isRegion() && type.toString().contains("Revenue");
             if(isRevenueToRevenue) {
-                fieldToHide = Constants.PARENT_REVENUE_ID;
+                fieldsToHide.add(Constants.PARENT_REVENUE_ID);
                 if(type.equals(Association.Model.MarketShareRevenue)) {
                     isMarketShare = true;
                 }
             } else if(isRegionToRevenue) {
-                fieldToHide = Constants.REGION_ID;
+                fieldsToHide.add(Constants.REGION_ID);
                 if(type.equals(Association.Model.MarketShareRevenue)) {
                     isMarketShare = true;
                     fieldsToSelect.add(Constants.COMPANY_ID);
@@ -655,16 +655,20 @@ public abstract class Model implements Serializable {
                 }
             } else if(type.equals(Association.Model.MarketShareRevenue)) {
                 isMarketShare = true;
-                fieldsToSelect.add(this.getClass().getSimpleName().startsWith("Company") ? Constants.MARKET_ID : Constants.COMPANY_ID);
-                fieldToHide = this.getClass().getSimpleName().startsWith("Company") ? Constants.COMPANY_ID : Constants.MARKET_ID;
+                fieldsToHide.add(this.getClass().getSimpleName().startsWith("Company") ? Constants.COMPANY_ID : Constants.MARKET_ID);
+                if(otherAssociationId==null) {
+                    fieldsToSelect.add(this.getClass().getSimpleName().startsWith("Company") ? Constants.MARKET_ID : Constants.COMPANY_ID);
+                } else {
+                    fieldsToHide.add(this.getClass().getSimpleName().startsWith("Company") ? Constants.MARKET_ID : Constants.COMPANY_ID);
+                }
             } else if(this.getClass().getSimpleName().startsWith("Market")) {
-                fieldToHide = Constants.MARKET_ID;
+                fieldsToHide.add(Constants.MARKET_ID);
             } else if(this.getClass().getSimpleName().startsWith("Product")) {
-                fieldToHide = Constants.PRODUCT_ID;
+                fieldsToHide.add(Constants.PRODUCT_ID);
             } else if(this.getClass().getSimpleName().startsWith("Company")) {
-                fieldToHide = Constants.COMPANY_ID;
+                fieldsToHide.add(Constants.COMPANY_ID);
             } else if(this.getClass().getSimpleName().startsWith("Region")) {
-                fieldToHide = Constants.REGION_ID;
+                fieldsToHide.add(Constants.REGION_ID);
             } else {
                 throw new RuntimeException("Unknown revenue type exception.");
             }
@@ -676,11 +680,22 @@ public abstract class Model implements Serializable {
                 // if none are associated, then it provides both select dropdowns
                 // default does nothing different if the model type is not a market share
                 if(id!=null) {
-                    associationTag = div().with(
-                            input().withType("hidden")
-                                    .withValue(id.toString())
-                                    .withName(fieldToHide)
-                    );
+                    associationTag = div();
+                    if(fieldsToHide.size()>0) {
+                        associationTag.with(
+                                input().withType("hidden")
+                                        .withValue(id.toString())
+                                        .withName(fieldsToHide.get(0))
+                        );
+                    }
+                    if(fieldsToHide.size()>1 && otherAssociationId!=null) {
+                        // add other association id
+                        associationTag.with(
+                                input().withType("hidden")
+                                        .withValue(otherAssociationId.toString())
+                                        .withName(fieldsToHide.get(1))
+                        );
+                    }
                 } else {
                     associationTag = div();
                 }
@@ -1370,9 +1385,14 @@ public abstract class Model implements Serializable {
                         references.add(_id);
                         alreadySeen.add(_id);
                     }
+                    if(groupRevenue!=null && allowEdit) {
+                        groupUl.with(li().attr("style", "list-style: none;").with(
+                                allowEdit?getAddAssociationPanel(association, key, listRef, original):span())
+                        );
+                    }
                 }
                 ul.with(li().attr("style", "list-style: none;").with(
-                        allowEdit?getAddAssociationPanel(association, listRef, original):span())
+                        allowEdit?getAddAssociationPanel(association, null, listRef, original):span())
                 );
                 container.with(tag);
             }
@@ -1500,11 +1520,11 @@ public abstract class Model implements Serializable {
         return in.substring(0, 1).toUpperCase() + in.substring(1);
     }
 
-    public ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel) {
-        return getAddAssociationPanel(association, listRef, diagramModel, null, false);
+    public ContainerTag getAddAssociationPanel(@NonNull Association association, Integer otherAssociationId, String listRef, Model diagramModel) {
+        return getAddAssociationPanel(association, otherAssociationId, listRef, diagramModel, null, false);
     }
 
-    public ContainerTag getAddAssociationPanel(@NonNull Association association, String listRef, Model diagramModel, String overrideCreateText, boolean report) {
+    public ContainerTag getAddAssociationPanel(@NonNull Association association, Integer otherAssociationId, String listRef, Model diagramModel, String overrideCreateText, boolean report) {
         if(association.getAssociationName().equals("Parent Revenue") || (association.getAssociationName().equals("Sub Revenue") && referencesCountry()) || association.getModel().equals(Association.Model.Region)) {
             return span();
         }
@@ -1546,7 +1566,7 @@ public abstract class Model implements Serializable {
                 ), br()));
         ContainerTag panel = div().with(isGlobalRegion? p("Global") : a(createText).withHref("#").withClass("resource-new-link"),div().attr("style", "display: none;").with(
                 (isRegion ? span() :
-                        getCreateNewForm(association.getModel(),id).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("."+listRef)).attr("data-association", association.getModel().toString())
+                        getCreateNewForm(association.getModel(),id, otherAssociationId).attr("data-prepend",prepend).attr("data-list-ref",listRef==null ? null : ("."+listRef)).attr("data-association", association.getModel().toString())
                                 .attr("data-resource", this.getClass().getSimpleName())
                                 .attr("data-refresh",diagramModel!=null ? "refresh" : "f")
                                 .attr("data-report", report ? "true" : null)

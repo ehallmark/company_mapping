@@ -1137,7 +1137,7 @@ public class Main {
                         response.put("error", mre.getMessage());
                         Model modelWithError = loadModel(mre.getModel(), mre.getId());
                         Association revenueAssociation = mre.getAssociation();
-                        ContainerTag helperLink = modelWithError.getAddAssociationPanel(revenueAssociation, null, model, "(Add Revenue)", true);
+                        ContainerTag helperLink = modelWithError.getAddAssociationPanel(revenueAssociation,null, null, model, "(Add Revenue)", true);
                         ContainerTag link = modelWithError.getSimpleLink();
                         ContainerTag html = div().with(link, br(), helperLink);
                         response.put("helper", html.render());
@@ -1351,7 +1351,7 @@ public class Main {
             Model model = getModelByType(type);
             Map<String,Object> result = new HashMap<>();
             if(!type.toString().contains("Revenue")&&!type.equals(Association.Model.Region)) {
-                result.put("new_form", model.getCreateNewForm(type, null).attr("style", "display: none;").render());
+                result.put("new_form", model.getCreateNewForm(type, null,null).attr("style", "display: none;").render());
             }
             result.put("resource_list_show", "#"+model.getTableName()+"_index_btn");
             String html = new Gson().toJson(result);
