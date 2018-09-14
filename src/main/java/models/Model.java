@@ -1155,14 +1155,9 @@ public abstract class Model implements Serializable {
             modelMap.put(association, assocModels);
         }
         calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, true);
-        if(modelMap.size()>0) {
+        //if(modelMap.size()>0) {
             // recurse
             String display = "block;";
-            String displayPlus = original==this || modelMap.size()==1 ? "none;" : "block;";
-            container.with(
-                    li().attr("style", "list-style: none; cursor: pointer; display: "+displayPlus).withText("+")
-                            .attr("onclick", "$(this).nextAll().slideToggle();")
-            );
             for(Association association : associationsMeta) {
                 List<Model> models = modelMap.get(association);
                 if(models==null) continue; // IMPORTANT
@@ -1337,7 +1332,7 @@ public abstract class Model implements Serializable {
                         }
                         if (!(model instanceof ProjectedRevenue) && !sameModel && !alreadySeen.contains(_id) && !model.getType().equals(Association.Model.Region)) {
                             alreadySeen.add(_id);
-                            if (linkToAssociations.contains(association) || (maxDepth==depth && !alwaysExpandNodes.contains(new Node(model)))) {
+                            if (linkToAssociations.contains(association) || (depth>=maxDepth && !alwaysExpandNodes.contains(new Node(model)))) {
                                 // just show link
                                 inner.attr("style", "display: inline;").with(
                                         a("(Expand)").attr("href", "#").withClass("diagram-button nested diagram-"+getType()+"-"+id).attr("data-id", model.getId())
@@ -1356,7 +1351,7 @@ public abstract class Model implements Serializable {
                 );
                 container.with(tag);
             }
-        }
+        //}
     }
 
     public static String formatRevenueString(Double revenue) {
