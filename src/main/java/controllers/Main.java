@@ -41,6 +41,7 @@ public class Main {
     private static final String CHART_CACHE = "chart_cache";
     private static final String EXPANDED_NODES_SET = "expanded_nodes_set";
     private static final String SHOW_PAGE_ID = "show_page_resource_id";
+    private static final String SHOW_PAGE_RESOURCE = "show_page_resource";
     public static final String DEFAULT_FORM_OPTIONS = "default_form_options";
     private static final int MAX_NAVIGATION_HISTORY = 30;
 
@@ -90,6 +91,7 @@ public class Main {
         Model model = loadModel(req);
         req.session().attribute(EXPANDED_NODES_SET, Collections.synchronizedSet(new HashSet<Node>()));
         req.session().attribute(SHOW_PAGE_ID, model.getType().toString()+model.getId());
+        req.session().attribute(SHOW_PAGE_RESOURCE, model.getType().toString());
     }
 
     private synchronized static boolean stayedOnSameShowPage(Request req, Response res) {
@@ -101,6 +103,7 @@ public class Main {
     private synchronized static void clearShowPage(Request req, Response res) {
         req.session().removeAttribute(EXPANDED_NODES_SET);
         req.session().removeAttribute(SHOW_PAGE_ID);
+        req.session().removeAttribute(SHOW_PAGE_RESOURCE);
     }
 
     private synchronized static Set<Node> getRegisteredExpandedResourcesForShowPage(Request req, Response res) {
@@ -858,8 +861,15 @@ public class Main {
             authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
+                Association.Model showResourceType = Association.Model.valueOf(req.session().attribute(SHOW_PAGE_RESOURCE));
+                Association.Model diagramResourceType = Association.Model.valueOf(req.params("resource"));
                 Set<Node> expandedNodes = getRegisteredExpandedResourcesForShowPage(req, res);
-                ContainerTag diagram = model.loadNestedAssociations(true, 0, false, expandedNodes);
+                Integer withinGroupId = null;
+                if((showResourceType.equals(Association.Model.Company) && diagramResourceType.equals(Association.Model.Market)) ||
+                        (showResourceType.equals(Association.Model.Market) && diagramResourceType.equals(Association.Model.Company))) {
+                    withinGroupId = Integer.valueOf(req.session().attribute(SHOW_PAGE_ID).toString().replace(showResourceType.toString(),""));
+                }
+                ContainerTag diagram = model.loadNestedAssociations(true, 0, false, expandedNodes, withinGroupId);
                 registerExpandedResourceForShowPage(req, res);
                 return new Gson().toJson(Collections.singletonMap("result", diagram.render()));
             }
@@ -1181,7 +1191,7 @@ public class Main {
                 model.loadAssociations();
                 Set<Node> expanded = getRegisteredExpandedResourcesForShowPage(req, res);
                 if(expanded==null) expanded = Collections.emptySet();
-                model.loadShowTemplate(getBackButton(req), "Diagram", h5("Diagram"), model.loadNestedAssociations(false, 0, false, expanded));
+                model.loadShowTemplate(getBackButton(req), "Diagram", h5("Diagram"), model.loadNestedAssociations(false, 0, false, expanded, null));
                 String html = new Gson().toJson(model);
                 registerNextPage(req, res);
                 if(!stayedOnSameShowPage) {

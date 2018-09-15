@@ -773,7 +773,7 @@ public abstract class Model implements Serializable {
         }
     }
 
-    public ContainerTag loadNestedAssociations(boolean nested, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes) {
+    public ContainerTag loadNestedAssociations(boolean nested, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes, Integer withinGroupId) {
         RevenueDomain revenueDomain = RevenueDomain.global;
         if(data==null) {
             loadAttributesFromDatabase();
@@ -794,7 +794,7 @@ public abstract class Model implements Serializable {
                 )
         );
         Set<String> allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, null),true, revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, expandAll, alwaysExpandNodes);
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, null),true, revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, expandAll, alwaysExpandNodes, withinGroupId);
         if(nested) return inner;
         return tag;
     };
@@ -839,7 +839,7 @@ public abstract class Model implements Serializable {
                 )
         );
         Set<String> allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, regionId),false, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, false, Collections.emptySet());
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, regionId),false, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, false, Collections.emptySet(), null);
         return tag;
     };
 
@@ -1168,6 +1168,10 @@ public abstract class Model implements Serializable {
         return revenue==null ? 0. : revenue;
     }
 
+    private ContainerTag getExpandLink() {
+        return a("(Expand)").attr("href", "#").withClass("diagram-button nested diagram-"+getType()+"-"+id).attr("data-id", getId())
+                .attr("data-resource", getType().toString());
+    }
 
 
     /*
@@ -1176,8 +1180,9 @@ public abstract class Model implements Serializable {
          If no revenue is present for a company, do nothing. If no revenue is present for a product, do nothing.
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
-    private void loadNestedAssociationHelper(@NonNull String regionDomainName, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes) {
+    private void loadNestedAssociationHelper(@NonNull String regionDomainName, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes, Integer withinGroupId) {
         if(depth > maxDepth && !alwaysExpandNodes.contains(new Node(this))) return;
+        final boolean withinGroup = withinGroupId != null;
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
         String originalId = original.getClass().getSimpleName()+original.getId();
         Map<Association,List<Model>> modelMap = new HashMap<>();
@@ -1186,6 +1191,8 @@ public abstract class Model implements Serializable {
             if(!expandAll && association.shouldNotExpand(isRevenueModel())) {
                 continue;
             }
+            if(withinGroup && !association.getModel().equals(Association.Model.MarketShareRevenue)) continue;
+
             if(depth >= maxDepth && !alwaysExpandNodes.contains(new Node(this))) {
                 linkToAssociations.add(association);
             }
@@ -1208,82 +1215,84 @@ public abstract class Model implements Serializable {
             String display = "block;";
             for(Association association : associationsMeta) {
                 List<Model> models = modelMap.get(association);
-                if(models==null) continue; // IMPORTANT
+                if (models == null) continue; // IMPORTANT
                 boolean pluralize = Arrays.asList(Association.Type.OneToMany, Association.Type.ManyToMany).contains(association.getType());
                 List<ContainerTag> tag = new ArrayList<>();
                 ContainerTag ul = ul();
-                String name;
-                if (association.getModel().toString().contains("Revenue") && !association.getModel().toString().equals(MarketShareRevenue.class.getSimpleName())) {
-                    if(association.getAssociationName().startsWith("Sub")) {
-                        name = pluralize ? "Sub Revenues" : "Sub Revenue";
+                if (!withinGroup) {
+                    String name;
+                    if (association.getModel().toString().contains("Revenue") && !association.getModel().toString().equals(MarketShareRevenue.class.getSimpleName())) {
+                        if (association.getAssociationName().startsWith("Sub")) {
+                            name = pluralize ? "Sub Revenues" : "Sub Revenue";
+                        } else {
+                            name = regionDomainName + (pluralize ? " Revenues" : " Revenue");
+                        }
                     } else {
-                        name = regionDomainName + (pluralize ? " Revenues" : " Revenue");
+                        name = pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName();
                     }
-                } else {
-                    name = pluralize ? Constants.pluralizeAssociationName(association.getAssociationName()) : association.getAssociationName();
+                    tag.add(
+                            li().attr("style", "list-style: none; display: " + display).with(
+                                    h6(name).attr("style", "cursor: pointer; display: inline;")
+                                            .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
+                                    span("(Revenue: " + formatRevenueString(revenue) + ")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
+                            ).with(
+                                    ul.attr("style", "display: " + display)
+                            )
+                    );
                 }
-                tag.add(
-                        li().attr("style", "list-style: none; display: " + display).with(
-                                h6(name).attr("style", "cursor: pointer; display: inline;")
-                                        .attr("onclick", "$(this).nextAll('ul,li').slideToggle();"),
-                                span("(Revenue: " + formatRevenueString(revenue) +")").withClass("association-revenue-totals").attr("style", "margin-left: 10px; display: inline;")
-                        ).with(
-                                ul.attr("style", "display: " + display)
-                        )
-                );
 
                 boolean revenueAssociation = association.getModel().equals(Association.Model.MarketShareRevenue);
-                Map<Integer,List<Model>> groupedModels;
+                Map<Integer, List<Model>> groupedModels;
                 String groupRevenuesBy;
-                if(revenueAssociation) {
+                if (revenueAssociation) {
                     if (this instanceof Market) {
-                        groupRevenuesBy = Constants.COMPANY_ID;
+                        groupRevenuesBy = withinGroup ? null : Constants.COMPANY_ID;
                     } else if (this instanceof Company) {
-                        groupRevenuesBy = Constants.MARKET_ID;
+                        groupRevenuesBy = withinGroup ? null : Constants.MARKET_ID;
                     } else {
                         groupRevenuesBy = null;
                     }
-                } else if(isRevenueModel) {
+                } else if (isRevenueModel) {
                     groupRevenuesBy = Constants.REGION_ID;
                 } else {
                     groupRevenuesBy = null;
                 }
-                if(revenueAssociation && groupRevenuesBy!=null) {
+                if (revenueAssociation && groupRevenuesBy != null) {
                     // group models by year
-                    groupedModels = models.stream().collect(Collectors.groupingBy(e->(Integer)e.getData().get(groupRevenuesBy)));
+                    groupedModels = models.stream().collect(Collectors.groupingBy(e -> (Integer) e.getData().get(groupRevenuesBy)));
                 } else {
                     groupedModels = Collections.singletonMap(null, models);
                 }
                 List<Integer> groupKeys = new ArrayList<>(groupedModels.keySet());
                 Double totalRevAllGroups = null;
                 Map<Integer, Double> groupToRevenueMap = new HashMap<>();
-                if(groupKeys.size()>0 && groupKeys.get(0)!=null) {
-                    groupedModels = groupedModels.entrySet().stream().collect(Collectors.toMap(e->e.getKey(), e-> {
+                if (groupKeys.size() > 0 && groupKeys.get(0) != null) {
+                    groupedModels = groupedModels.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> {
                         List<Model> groupedModelList = e.getValue();
-                        if(association.getModel().toString().contains("Revenue")) {
+                        if (association.getModel().toString().contains("Revenue")) {
                             groupedModelList = new ArrayList<>(groupedModelList);
                             groupedModelList.forEach(Model::loadAttributesFromDatabase);
-                            groupedModelList = groupedModelList.stream().map(model->{
-                                if(model.isRevenueModel() && model.getData().get(Constants.REGION_ID)==null) { // global revenue model
+                            groupedModelList = groupedModelList.stream().map(model -> {
+                                if (model.isRevenueModel() && model.getData().get(Constants.REGION_ID) == null) { // global revenue model
                                     model = model.getSubRevenueByRegionId(revenueDomain, regionId);
                                 }
                                 return model;
-                            }).filter(m->m!=null).collect(Collectors.toList());
+                            }).filter(m -> m != null).collect(Collectors.toList());
                             groupedModelList.forEach(Model::loadAttributesFromDatabase);
                             // check for projections
-                            if(startYear!=null && endYear!=null && useCAGR) {
+                            if (startYear != null && endYear != null && useCAGR) {
                                 List<Model> tmp = new ArrayList<>();
-                                Map<Integer, Model> yearsFound = groupedModelList.stream().collect(Collectors.toMap(m->(Integer)m.getData().get(Constants.YEAR), m->m));
-                                for(int year = endYear; year >= startYear; year--) {
+                                Map<Integer, Model> yearsFound = groupedModelList.stream().collect(Collectors.toMap(m -> (Integer) m.getData().get(Constants.YEAR), m -> m));
+                                for (int year = endYear; year >= startYear; year--) {
                                     Model yearlyModel = yearsFound.get(year);
-                                    if(yearlyModel==null) {
-                                        Map<String,Object> data = new HashMap<>();
+                                    if (yearlyModel == null) {
+                                        Map<String, Object> data = new HashMap<>();
                                         data.put(Constants.YEAR, year);
                                         Model model = new ProjectedRevenue(data);
                                         model.calculationInformation = new ArrayList<>();
                                         Double yearlyRevenue = calculateFromCAGR(groupedModelList, year, estimateCagr, model.calculationInformation);
-                                        if(yearlyRevenue!=null) {
-                                            model.revenue=yearlyRevenue;
+                                        if (yearlyRevenue != null) {
+                                            model.revenue = yearlyRevenue;
                                             model.updateAttribute(Constants.VALUE, yearlyRevenue);
                                             tmp.add(model);
                                         }
@@ -1293,10 +1302,10 @@ public abstract class Model implements Serializable {
                                 }
                                 groupedModelList = tmp;
                             } else {
-                                groupedModelList.sort((d1,d2)->Integer.compare((Integer)d2.getData().get(Constants.YEAR), (Integer)d1.getData().get(Constants.YEAR)));
+                                groupedModelList.sort((d1, d2) -> Integer.compare((Integer) d2.getData().get(Constants.YEAR), (Integer) d1.getData().get(Constants.YEAR)));
                             }
                         }
-                        groupedModelList.stream().filter(m->!(m instanceof ProjectedRevenue)).forEach(Model::loadAttributesFromDatabase);
+                        groupedModelList.stream().filter(m -> !(m instanceof ProjectedRevenue)).forEach(Model::loadAttributesFromDatabase);
                         double rev = groupedModelList.stream().mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false)).sum();
                         groupToRevenueMap.put(e.getKey(), rev);
                         return groupedModelList;
@@ -1309,38 +1318,52 @@ public abstract class Model implements Serializable {
                     }
                     if (totalRevAllGroups == 0) totalRevAllGroups = null;
                 }
-                String listRef = "association-"+getType() + "-" + id + "-" + association.getAssociationName().toLowerCase().replace(" ", "-");
+                String listRef = "association-" + getType() + "-" + id + "-" + association.getAssociationName().toLowerCase().replace(" ", "-");
                 ul = ul.withClass(listRef);
                 for (Integer key : groupKeys) {
                     ContainerTag groupUl;
                     Double groupRevenue = key == null ? null : groupToRevenueMap.get(key);
-                    if(groupRevenue!=null) {
-                        String groupName;
-                        if(groupRevenuesBy.endsWith(("_id"))) {
-                            Association.Model resource = Association.Model.valueOf(capitalize(groupRevenuesBy.substring(0, groupRevenuesBy.length()-3)));
+                    if (groupRevenue != null) {
+                        ContainerTag groupLink;
+                        ContainerTag expandLink = null;
+                        if (groupRevenuesBy.endsWith(("_id"))) {
+                            Association.Model resource = Association.Model.valueOf(capitalize(groupRevenuesBy.substring(0, groupRevenuesBy.length() - 3)));
                             Node node = nodeCache.findNode(resource, key);
-                            if(node!=null) {
+                            if (node != null) {
                                 Model assoc = node.getModel();
                                 assoc.loadAttributesFromDatabase();
-                                groupName = assoc.getName();
+                                groupLink = assoc.getSimpleLink();
+                                if (allowEdit && !alwaysExpandNodes.contains(node)) {
+                                    expandLink = assoc.getExpandLink();
+                                }
                             } else {
                                 throw new RuntimeException("Unable to find group name...");
                             }
                         } else {
-                            groupName = key.toString();
+                            groupLink = b(key.toString());
                         }
                         String percentStr = totalRevAllGroups == null ? "" : (String.format("%.1f", (groupRevenue * 100d) / totalRevAllGroups) + "%");
-                        groupUl = ul().attr("data-val", groupRevenue.toString()).withClass("resource-data-field");
-                        ul.with(li().with(div().with(b(String.valueOf(groupName) + " - "+regionDomainName)).withText(" (Revenue: " + formatRevenueString(groupRevenue) + ") - "+percentStr)
-                                .attr("style", "cursor: pointer;").attr("onclick", "$(this).next().slideToggle();")
-                        ).attr("style", "display: inline; list-style: none;").with(groupUl));
+                        groupUl = ul().attr("data-val", groupRevenue.toString()).attr("style", "display: " + (expandLink != null ? "inline;" : "block;")).withClass("resource-data-field").with(expandLink);
+                        ul.with(li().with(groupLink).withText(" - " + regionDomainName + " (Revenue: " + formatRevenueString(groupRevenue) + ") - " + percentStr)
+                                .attr("style", "list-style: none;").with(groupUl));
+                        if (expandLink != null) {
+                            continue; // group is not expanded
+                        }
                     } else {
                         groupUl = ul;
                     }
                     List<Model> groupedModelList = groupedModels.get(key);
-                    if(groupedModelList==null) groupedModelList = Collections.emptyList();
+                    if (groupedModelList == null) groupedModelList = Collections.emptyList();
 
-                    for(Model model : groupedModelList) {
+                    if (key == null) {
+                        if (withinGroup) {
+                            // must be
+                            groupedModelList = new ArrayList<>(groupedModelList);
+                            groupedModelList.sort((e1, e2) -> Integer.compare((Integer) e2.getData().get(Constants.YEAR), (Integer) e1.getData().get(Constants.YEAR)));
+                        }
+                    }
+
+                    for (Model model : groupedModelList) {
                         if (model.isRevenueModel && startYear != null && endYear != null) {
                             int year = (Integer) model.getData().get(Constants.YEAR);
                             if (year < startYear || year > endYear) {
@@ -1354,7 +1377,7 @@ public abstract class Model implements Serializable {
                         if (!this.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
                             revToUse = revenue;
                         }
-                        if(groupRevenue!=null) {
+                        if (groupRevenue != null) {
                             revToUse = groupRevenue;
                         }
                         boolean isParentRevenue;
@@ -1365,11 +1388,11 @@ public abstract class Model implements Serializable {
                         } else {
                             isParentRevenue = true;
                         }
-                        if(!(model instanceof ProjectedRevenue)) {
+                        if (!(model instanceof ProjectedRevenue)) {
                             model.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, revToUse, isParentRevenue);
                         }
 
-                        if(model instanceof ProjectedRevenue) {
+                        if (model instanceof ProjectedRevenue) {
                             groupUl.with(li().attr("style", "list-style: none;").with(
                                     model.getSimpleLink(), inner));
                         } else {
@@ -1380,29 +1403,32 @@ public abstract class Model implements Serializable {
                         }
                         if (!(model instanceof ProjectedRevenue) && !sameModel && !alreadySeen.contains(_id) && !model.getType().equals(Association.Model.Region)) {
                             alreadySeen.add(_id);
-                            if (linkToAssociations.contains(association) || (depth>=maxDepth && !alwaysExpandNodes.contains(new Node(model)))) {
+                            if (linkToAssociations.contains(association) || (depth >= maxDepth && !alwaysExpandNodes.contains(new Node(model)))) {
                                 // just show link
                                 inner.attr("style", "display: inline;").with(
-                                        a("(Expand)").attr("href", "#").withClass("diagram-button nested diagram-"+getType()+"-"+id).attr("data-id", model.getId())
-                                        .attr("data-resource", model.getType().toString())
+                                        model.getExpandLink()
                                 );
                             } else {
-                                model.loadNestedAssociationHelper(regionDomainName, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth, false, alwaysExpandNodes);
+                                model.loadNestedAssociationHelper(regionDomainName, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth, false, alwaysExpandNodes, null);
                             }
                         }
                         references.add(_id);
                         alreadySeen.add(_id);
                     }
-                    if(groupRevenue!=null && allowEdit) {
+                    if (groupRevenue != null && allowEdit) {
                         groupUl.with(li().attr("style", "list-style: none;").with(
-                                allowEdit?getAddAssociationPanel(association, key, listRef, original):span())
+                                allowEdit ? getAddAssociationPanel(association, key, listRef, original) : span())
                         );
                     }
                 }
                 ul.with(li().attr("style", "list-style: none;").with(
-                        allowEdit?getAddAssociationPanel(association, null, listRef, original):span())
+                        allowEdit ? getAddAssociationPanel(association, withinGroup?withinGroupId:null, listRef, original) : span())
                 );
-                container.with(tag);
+                if (withinGroup) {
+                    container.with(ul);
+                } else {
+                    container.with(tag);
+                }
             }
         //}
     }

@@ -104,7 +104,11 @@ var showDiagramFunction = function(id,resourceId,$target,onCompleteFunc) {
         dataType: 'json',
         type: 'POST',
         success: function($target) { return function(data) {
-            $target.html($(data.result).children()).css('display', 'block');
+            var $data = $(data.result).children();
+            while($data.is("ul")) {
+                $data = $data.children();
+            }
+            $target.html($data).css('display', 'block');
             onShowResourceFunction($target);
             if(onCompleteFunc) {
                 onCompleteFunc();
