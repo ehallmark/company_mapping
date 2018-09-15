@@ -857,7 +857,7 @@ public abstract class Model implements Serializable {
                     calculationInfoSpan.withText("(Propagated from market shares)");
                 } else if (info.isCalculatedFromSubmarkets()) {
                     // check for sub market revenue propagation
-                    calculationInfoSpan.withText("Propagated from sub markets");
+                    calculationInfoSpan.withText("(Propagated from sub markets)");
                 }
             }
         }
