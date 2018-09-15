@@ -232,6 +232,7 @@ public abstract class Model implements Serializable {
                         missingYears.remove(_year.toString());
                     }
                 }
+                list = getSubRevenuesByRegionId(list, revenueDomain, regionId);
                 for (String missing : missingYears) {
                     int missingYear = Integer.valueOf(missing);
                     Double missingRev = null;
@@ -332,6 +333,7 @@ public abstract class Model implements Serializable {
                         y = (y==null? rev : y + rev);
                     }
                 }
+                list = getSubRevenuesByRegionId(list, revenueDomain, regionId);
                 for(String missing : missingYears) {
                     int missingYear = Integer.valueOf(missing);
                     Double missingRev = null;
