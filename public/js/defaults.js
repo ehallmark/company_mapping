@@ -132,7 +132,7 @@ var showGraphsFunction = function(id,resourceId) {
             onShowResourceFunction($('#results'));
             // scroll to bottom
             $('html,body').animate({
-                scrollTop: $(document).height()
+                scrollTop: $('.buttons-div').offset().top-50
             }, "fast");
         },
         error: function() {
@@ -151,7 +151,7 @@ var showComparisonFunction = function(id,resourceId) {
             $('#results').html(data.result);
             onShowResourceFunction($('#results'));
             $('html,body').animate({
-                scrollTop: $(document).height()
+                scrollTop: $('.buttons-div').offset().top-50
             }, "fast");
         },
         error: function() {
@@ -170,7 +170,7 @@ var showReportFunction = function(id,resourceId) {
             $('#results').html(data.result);
             onShowResourceFunction($('#results'));
             $('html,body').animate({
-                scrollTop: $(document).height()
+                scrollTop: $('.buttons-div').offset().top-50
             }, "fast");
         },
         error: function() {

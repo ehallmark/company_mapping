@@ -849,7 +849,7 @@ public abstract class Model implements Serializable {
             double percentageFull = percentage * 100;
             revStr += " - " + String.format("%.1f", percentageFull)+"%";
         }
-        ContainerTag calculationInfoSpan = span();
+        ContainerTag calculationInfoSpan = span().attr("style", "margin-left: 10px;");
         if(calculationInformation!=null) {
             for(CalculationInformation info : calculationInformation) {
                 if (info.isCalculatedFromMarketShares()) {
@@ -1685,7 +1685,7 @@ public abstract class Model implements Serializable {
                         )
                 )
         ).with(
-                div().withClass("col-12").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Product.toString(),Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
+                div().withClass("col-12 buttons-div").with(Arrays.asList(Association.Model.Company.toString(),Association.Model.Product.toString(),Association.Model.Market.toString()).contains(this.getClass().getSimpleName()) ?
                         div().withClass("btn-group").attr("style", "display: inline;").with(
                                 button("Diagram").attr(disabledButton.equals("Diagram")?"disabled":"").attr("style", "width: 100px;")
                                         .attr("data-id", id.toString())
