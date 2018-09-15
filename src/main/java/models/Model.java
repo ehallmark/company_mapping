@@ -1442,7 +1442,7 @@ public abstract class Model implements Serializable {
                         references.add(_id);
                         alreadySeen.add(_id);
                     }
-                    if (groupRevenue != null && allowEdit) {
+                    if (groupRevenue != null && allowEdit && !withinGroup) {
                         groupUl.with(li().attr("style", "list-style: none;").with(
                                 allowEdit ? getAddAssociationPanel(association, key, listRef, original) : span())
                         );
