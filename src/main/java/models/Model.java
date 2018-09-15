@@ -1257,6 +1257,17 @@ public abstract class Model implements Serializable {
                 } else {
                     groupRevenuesBy = null;
                 }
+                if(withinGroup) {
+                    models = models.stream().filter(model->{
+                        if(Model.this instanceof Company) {
+                            return withinGroupId.equals(model.getData().get(Constants.MARKET_ID));
+                        } else if(Model.this instanceof Market) {
+                            return withinGroupId.equals(model.getData().get(Constants.COMPANY_ID));
+                        } else {
+                            return false;
+                        }
+                    }).collect(Collectors.toList());
+                }
                 if (revenueAssociation && groupRevenuesBy != null) {
                     // group models by year
                     groupedModels = models.stream().collect(Collectors.groupingBy(e -> (Integer) e.getData().get(groupRevenuesBy)));
@@ -1355,6 +1366,10 @@ public abstract class Model implements Serializable {
                     List<Model> groupedModelList = groupedModels.get(key);
                     if (groupedModelList == null) groupedModelList = Collections.emptyList();
 
+                    if(withinGroup) {
+                        groupRevenue = models.stream().mapToDouble(model->model.revenue==null?0d:model.revenue).sum();
+                    }
+
                     for (Model model : groupedModelList) {
                         if (model.isRevenueModel && startYear != null && endYear != null) {
                             int year = (Integer) model.getData().get(Constants.YEAR);
@@ -1362,7 +1377,6 @@ public abstract class Model implements Serializable {
                                 continue;
                             }
                         }
-                        String _id = model.getClass().getSimpleName() + model.getId();
                         Double revToUse = null;
                         if (!this.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
                             revToUse = revenue;
