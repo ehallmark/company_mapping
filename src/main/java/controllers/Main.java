@@ -860,15 +860,9 @@ public class Main {
         post("/diagram/:resource/:id", (req, res)-> {
             authorize(req,res);
             Model model = loadModel(req);
+            Integer withinGroupId = DataTable.extractInt(req, "group_id", null);
             if(model!=null) {
-                Association.Model showResourceType = Association.Model.valueOf(req.session().attribute(SHOW_PAGE_RESOURCE));
-                Association.Model diagramResourceType = Association.Model.valueOf(req.params("resource"));
                 Set<Node> expandedNodes = getRegisteredExpandedResourcesForShowPage(req, res);
-                Integer withinGroupId = null;
-                if((showResourceType.equals(Association.Model.Company) && diagramResourceType.equals(Association.Model.Market)) ||
-                        (showResourceType.equals(Association.Model.Market) && diagramResourceType.equals(Association.Model.Company))) {
-                    withinGroupId = Integer.valueOf(req.session().attribute(SHOW_PAGE_ID).toString().replace(showResourceType.toString(),""));
-                }
                 ContainerTag diagram = model.loadNestedAssociations(true, 0, false, expandedNodes, withinGroupId);
                 registerExpandedResourceForShowPage(req, res);
                 return new Gson().toJson(Collections.singletonMap("result", diagram.render()));

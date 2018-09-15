@@ -1334,7 +1334,7 @@ public abstract class Model implements Serializable {
                                 assoc.loadAttributesFromDatabase();
                                 groupLink = assoc.getSimpleLink();
                                 if (allowEdit && !alwaysExpandNodes.contains(node)) {
-                                    expandLink = assoc.getExpandLink();
+                                    expandLink = assoc.getExpandLink().attr("data-group", getId().toString());
                                 }
                             } else {
                                 throw new RuntimeException("Unable to find group name...");
@@ -1355,14 +1355,6 @@ public abstract class Model implements Serializable {
                     List<Model> groupedModelList = groupedModels.get(key);
                     if (groupedModelList == null) groupedModelList = Collections.emptyList();
 
-                    if (key == null) {
-                        if (withinGroup) {
-                            // must be
-                            groupedModelList = new ArrayList<>(groupedModelList);
-                            groupedModelList.sort((e1, e2) -> Integer.compare((Integer) e2.getData().get(Constants.YEAR), (Integer) e1.getData().get(Constants.YEAR)));
-                        }
-                    }
-
                     for (Model model : groupedModelList) {
                         if (model.isRevenueModel && startYear != null && endYear != null) {
                             int year = (Integer) model.getData().get(Constants.YEAR);
@@ -1371,8 +1363,6 @@ public abstract class Model implements Serializable {
                             }
                         }
                         String _id = model.getClass().getSimpleName() + model.getId();
-                        boolean sameModel = _id.equals(originalId);
-                        ContainerTag inner = ul();
                         Double revToUse = null;
                         if (!this.getClass().getSimpleName().equals(MarketShareRevenue.class.getSimpleName())) {
                             revToUse = revenue;
@@ -1391,6 +1381,29 @@ public abstract class Model implements Serializable {
                         if (!(model instanceof ProjectedRevenue)) {
                             model.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, revToUse, isParentRevenue);
                         }
+                    }
+
+                    if (key == null) { // apply sort
+                        groupedModelList = new ArrayList<>(groupedModelList);
+                        if (withinGroup) {
+                            // must be
+                            groupedModelList.sort((e1, e2) -> Integer.compare((Integer) e2.getData().get(Constants.YEAR), (Integer) e1.getData().get(Constants.YEAR)));
+                        } else {
+                            // sort by revenues
+                            groupedModelList.sort((e1, e2) -> Double.compare(e2.revenue==null?0:e2.revenue, e1.revenue==null?0:e1.revenue));
+                        }
+                    }
+
+                    for (Model model : groupedModelList) {
+                        if (model.isRevenueModel && startYear != null && endYear != null) {
+                            int year = (Integer) model.getData().get(Constants.YEAR);
+                            if (year < startYear || year > endYear) {
+                                continue;
+                            }
+                        }
+                        String _id = model.getClass().getSimpleName() + model.getId();
+                        boolean sameModel = _id.equals(originalId);
+                        ContainerTag inner = ul();
 
                         if (model instanceof ProjectedRevenue) {
                             groupUl.with(li().attr("style", "list-style: none;").with(

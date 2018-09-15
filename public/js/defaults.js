@@ -98,10 +98,13 @@ var createResourceDynatable = function(resource) {
     });
 };
 
-var showDiagramFunction = function(id,resourceId,$target,onCompleteFunc) {
+var showDiagramFunction = function(id,resourceId,groupId,$target,onCompleteFunc) {
     $.ajax({
         url: '/diagram/'+resourceId+'/'+id,
         dataType: 'json',
+        data: {
+            group_id: groupId
+        },
         type: 'POST',
         success: function($target) { return function(data) {
             var $data = $(data.result).children();
@@ -301,12 +304,13 @@ var onShowResourceFunction = function($topElem) {
         var $this = $(this);
         var id = $this.attr('data-id');
         var resourceId = $this.attr('data-resource');
+        var group = $this.attr('data-group');
         var $target = null;
         $target = $this.closest('ul');
         $target.addClass('diagram-expanded');
         $target.attr('data-id', id);
         $target.attr('data-resource', resourceId);
-        showDiagramFunction(id,resourceId,$target);
+        showDiagramFunction(id,resourceId,group, $target);
     });
 
     $topElem.find('#report-specification-form').submit(function(e) {
