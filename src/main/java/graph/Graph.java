@@ -89,6 +89,7 @@ public class Graph {
             connectNodes(node1, node2, association);
             Association reverseAssociation = node2.getModel().findAssociation(association.getReverseAssociationName());
             connectNodes(node2, node1, reverseAssociation);
+
         } finally {
             lock.unlock();
         }

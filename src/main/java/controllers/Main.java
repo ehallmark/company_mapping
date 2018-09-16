@@ -415,6 +415,65 @@ public class Main {
                 );
     }
 
+    private static void addAttributesToModel(Model model, Request req, boolean withAssociations, boolean requireParam) {
+        model.getAvailableAttributes().forEach(attr->{
+            if(!Arrays.asList(Constants.UPDATED_AT, Constants.CREATED_AT).contains(attr)) {
+                Object val = extractString(req, attr, null);
+                if (!requireParam || req.queryParams().contains(attr)) {
+                    String fieldType = Constants.fieldTypeForAttr(attr);
+                    if (val != null) {
+                        val = val.toString().trim();
+                    }
+                    if (attr.endsWith("_id")) {
+                        if (withAssociations) {
+                            // update association
+                            Association association = model.getAssociationsMeta().stream().filter(a -> a.getParentIdField().equals(attr) && a.getType().equals(Association.Type.ManyToOne)).findAny().orElse(null);
+                            if (association != null) {
+                                try {
+                                    val = val == null || val.toString().trim().isEmpty() ? null : Integer.valueOf(val.toString().trim());
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    val = null;
+                                }
+                                if (val != null) {
+                                    Model related = loadModel(association.getModel(), (Integer) val);
+                                    handleNewAssociation(model, related, association.getAssociationName());
+                                    return;
+                                }
+                            }
+                        } else if (val != null) {
+                            try {
+                                val = Double.valueOf(val.toString().trim());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                val = 0;
+                            }
+                        }
+                    } else if (val != null && fieldType.equals(Constants.NUMBER_FIELD_TYPE)) {
+                        if(attr.equals(Constants.ESTIMATE_TYPE)) {
+                            try {
+                                val = Integer.valueOf(val.toString().trim());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                val = 0;
+                            }
+                        } else {
+                            try {
+                                val = Double.valueOf(val.toString().trim());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                val = 0;
+                            }
+                        }
+                    } else if (fieldType.equals(Constants.BOOL_FIELD_TYPE)) {
+                        val = val != null && val.toString().toLowerCase().trim().startsWith("t");
+                    }
+                    model.updateAttribute(attr, val);
+                }
+            }
+        });
+    }
+
     private static void handleNewAssociation(Model baseModel, Model relatedModel, String associationName) {
         if(!(baseModel.isRevenueModel() && relatedModel.isRevenueModel())) {
             try {
@@ -1203,42 +1262,7 @@ public class Main {
                 if(model.getClass().getSimpleName().equals(Association.Model.Region.toString())) {
                     return new Gson().toJson(Collections.singletonMap("error", "Cannot edit regions."));
                 }
-                model.getAvailableAttributes().forEach(attr->{
-                    Object val = extractString(req,attr,null);
-                    if(req.queryParams().contains(attr)) {
-                        String fieldType = Constants.fieldTypeForAttr(attr);
-                        if(val!=null) {
-                            val = val.toString().trim();
-                        }
-                        if(attr.endsWith("_id")) {
-                            // update association
-                            Association association = model.getAssociationsMeta().stream().filter(a->a.getParentIdField().equals(attr)&&a.getType().equals(Association.Type.ManyToOne)).findAny().orElse(null);
-                            if(association!=null) {
-                                try {
-                                    val = val == null || val.toString().trim().isEmpty() ? null : Integer.valueOf(val.toString().trim());
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                    val = null;
-                                }
-                                if(val!=null) {
-                                    Model related = loadModel(association.getModel(), (Integer)val);
-                                    handleNewAssociation(model, related, association.getAssociationName());
-                                    return;
-                                }
-                            }
-                        } else if(val!=null && fieldType.equals(Constants.NUMBER_FIELD_TYPE)) {
-                            try {
-                                val = Double.valueOf(val.toString().trim());
-                            } catch(Exception e) {
-                                e.printStackTrace();
-                                val = 0;
-                            }
-                        } else if(fieldType.equals(Constants.BOOL_FIELD_TYPE)) {
-                            val = val!=null && val.toString().toLowerCase().trim().startsWith("t");
-                        }
-                        model.updateAttribute(attr, val);
-                    }
-                });
+                addAttributesToModel(model, req, true, true);
                 try {
                     model.updateInDatabase();
                     return new Gson().toJson(model);
@@ -1265,14 +1289,34 @@ public class Main {
                     return new Gson().toJson(Collections.singletonMap("error", "Cannot edit regions."));
                 }
                 model.setData(new HashMap<>());
-                model.getAvailableAttributes().forEach(attr->{
-                    String val = req.queryParams(attr);
-                    if(val != null && val.trim().length()>0) {
-                        model.updateAttribute(attr, val);
-                    }
-                });
+                addAttributesToModel(model, req, false, false);
                 try {
                     model.createInDatabase();
+                    // add associations
+                    model.getAvailableAttributes().forEach(attr-> {
+                        if (attr.endsWith("_id")) {
+                            Object val = extractString(req,attr,null);
+                            if(req.queryParams().contains(attr)) {
+                                if (val != null) {
+                                    val = val.toString().trim();
+                                }
+                                // update association
+                                Association association = model.getAssociationsMeta().stream().filter(a -> a.getParentIdField().equals(attr) && a.getType().equals(Association.Type.ManyToOne)).findAny().orElse(null);
+                                if (association != null) {
+                                    try {
+                                        val = val == null || val.toString().trim().isEmpty() ? null : Integer.valueOf(val.toString().trim());
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                        val = null;
+                                    }
+                                    if (val != null) {
+                                        Model related = loadModel(association.getModel(), (Integer) val);
+                                        handleNewAssociation(model, related, association.getAssociationName());
+                                    }
+                                }
+                            }
+                        }
+                    });
                     return new Gson().toJson(model);
                 } catch(Exception e) {
                     e.printStackTrace();

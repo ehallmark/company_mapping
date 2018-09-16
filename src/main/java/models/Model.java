@@ -1401,7 +1401,7 @@ public abstract class Model implements Serializable {
 
                     if (key == null) { // apply sort
                         groupedModelList = new ArrayList<>(groupedModelList);
-                        if (withinGroup) {
+                        if (withinGroup || association.getModel().toString().contains("Revenue")) {
                             // must be
                             groupedModelList.sort((e1, e2) -> Integer.compare((Integer) e2.getData().get(Constants.YEAR), (Integer) e1.getData().get(Constants.YEAR)));
                         } else {
@@ -1574,6 +1574,10 @@ public abstract class Model implements Serializable {
                     }
                 }
                 nodeCache.linkNodeWithAssociation(this, otherModel, association);
+                otherModel.associations=null;
+                otherModel.loadAssociations();
+                associations = null;
+                loadAssociations();
                 break;
             }
         }
