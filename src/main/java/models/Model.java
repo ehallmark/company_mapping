@@ -1374,6 +1374,7 @@ public abstract class Model implements Serializable {
 
                     for (Model model : groupedModelList) {
                         if (model.isRevenueModel && startYear != null && endYear != null) {
+                            model.loadAttributesFromDatabase();
                             int year = (Integer) model.getData().get(Constants.YEAR);
                             if (year < startYear || year > endYear) {
                                 continue;
