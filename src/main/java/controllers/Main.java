@@ -495,6 +495,7 @@ public class Main {
         staticFiles.externalLocation(new File("public").getAbsolutePath());
         final PasswordHandler passwordHandler = new PasswordHandler();
         port(6969);
+        Graph.load();
 
         get("/create_user", (req, res)->{
             authorize(req,res);
