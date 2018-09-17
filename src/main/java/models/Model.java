@@ -112,6 +112,22 @@ public abstract class Model implements Serializable {
         );
     }
 
+    public String getCalculationInfoToString() {
+        StringJoiner joiner = new StringJoiner("; ");
+        if(calculationInformation!=null) {
+            for(CalculationInformation info : calculationInformation) {
+                if (info.isCalculatedFromMarketShares()) {
+                    // check for market share projects
+                    joiner.add("(Propagated from market shares)");
+                } else if (info.isCalculatedFromSubmarkets()) {
+                    // check for sub market revenue propagation
+                    joiner.add("(Propagated from sub markets)");
+                }
+            }
+        }
+        return joiner.toString();
+    }
+
     public Association findAssociation(@NonNull String associationName) {
         return associationsMeta.stream().filter(a->a.getAssociationName().equals(associationName))
                 .findAny().orElse(null);
@@ -147,11 +163,13 @@ public abstract class Model implements Serializable {
             title = "Revenue Timeline";
         } else {
             title = "Revenue Timeline by "+Constants.humanAttrFor(groupByField);
-            options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>{series.name}</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
+            options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>{series.name}</b><br/><b>Revenue: ${point.y:.2f} </b><br/>{point.info}<br/>");
         }
+        options.setTooltip(null);
         options.setSubtitle(new Title().setText(title));
         if(groupByField==null) {
             PointSeries series = new PointSeries();
+            series.setName(getName());
             series.setDataLabels(new DataLabels(true)
                     .setRotation(0)
                     .setColor(Color.black)
@@ -166,10 +184,9 @@ public abstract class Model implements Serializable {
                     this.revenue=null;
                     calculateRevenue(revenueDomain, regionId, year, year, useCAGR, estimateCagr, option, revenue, true);
                     Double rev = this.revenue;
-                    getSimpleLink();
                     if (rev != null) {
-                        series.addPoint(new Point(String.valueOf(year), rev));
-                        missingYears.remove(year);
+                        series.addPoint(new CalculationPoint(String.valueOf(year), getCalculationInfoToString(), rev));
+                        missingYears.remove(String.valueOf(year));
                     }
                 }
             } else {
@@ -179,7 +196,7 @@ public abstract class Model implements Serializable {
                     assoc.getSimpleLink();
                     Integer year = (Integer) assoc.getData().get(Constants.YEAR);
                     if (rev != null) {
-                        series.addPoint(new Point(year.toString(), rev));
+                        series.addPoint(new CalculationPoint(year.toString(), getCalculationInfoToString(), rev));
                         missingYears.remove(assoc.getData().get(Constants.YEAR).toString());
                     }
                 }
@@ -192,7 +209,7 @@ public abstract class Model implements Serializable {
                 }
 
                 if(missingRev!=null) {
-                    series.addPoint(new Point(String.valueOf(missingYear), missingRev));
+                    series.addPoint(new CalculationPoint(String.valueOf(missingYear), getCalculationInfoToString(), missingRev));
                 } else {
                     if(option.equals(Constants.MissingRevenueOption.error)) {
                         throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + name, missingYear, type, id, association);
@@ -851,18 +868,7 @@ public abstract class Model implements Serializable {
             double percentageFull = percentage * 100;
             revStr += " - " + String.format("%.1f", percentageFull)+"%";
         }
-        ContainerTag calculationInfoSpan = span().attr("style", "margin-left: 10px;");
-        if(calculationInformation!=null) {
-            for(CalculationInformation info : calculationInformation) {
-                if (info.isCalculatedFromMarketShares()) {
-                    // check for market share projects
-                    calculationInfoSpan.withText("(Propagated from market shares)");
-                } else if (info.isCalculatedFromSubmarkets()) {
-                    // check for sub market revenue propagation
-                    calculationInfoSpan.withText("(Propagated from sub markets)");
-                }
-            }
-        }
+        ContainerTag calculationInfoSpan = span().attr("style", "margin-left: 10px;").withText(getCalculationInfoToString());
         return span(revStr).with(calculationInfoSpan).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
@@ -1078,7 +1084,7 @@ public abstract class Model implements Serializable {
                                     }
                                     list = byYear;
                                 }
-                                Double v = list.stream().mapToDouble(d -> (Double)d.getData().get(Constants.VALUE)).sum() + byCagr.stream().mapToDouble(d->d).sum();
+                                Double v = list.stream().peek(Model::loadAttributesFromDatabase).mapToDouble(d -> (Double)d.getData().get(Constants.VALUE)).sum() + byCagr.stream().mapToDouble(d->d).sum();
                                 return v;
                             }).sum();
                             foundRevenueInMarketShares = true;

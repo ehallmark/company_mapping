@@ -7,6 +7,18 @@ function objectifyForm(formArray) {//serialize data function
   return returnArray;
 }
 
+var setupHighcharts = function(id, data) {
+    var chartJson = JSON.parse(data[id]);
+    if(!chartJson.hasOwnProperty('tooltip')) {
+        chartJson['tooltip'] = {
+            formatter: function() {
+                 return "<span style=\"color:"+this.point.color+"\">\u25CF</span> <b>"+this.series.name+"</b><br /><b>Year: "+this.point.name+"</b><br/><b>Revenue: "+formatRevenueString(this.point.y)+"</b><br/>"+this.point.info+"<br/>";
+            }
+        };
+    }
+    Highcharts.chart(id, chartJson);
+}
+
 
 $(document).ready(function() {
     $('#main-menu .options button').each(function() {
@@ -269,7 +281,7 @@ var onShowResourceFunction = function($topElem) {
                     while(data.hasOwnProperty('chart_'+chartId.toString()+'_'+i.toString())) {
                         var id = 'chart_'+chartId.toString()+'_'+i.toString();
                         $results.append('<div align="center" id="'+id+'"></div>');
-                        Highcharts.chart(id, JSON.parse(data[id]));
+                        setupHighcharts(id, data);
                         i = i+1;
                     }
                     $([document.body, document.documentElement]).animate({
@@ -382,7 +394,7 @@ var onShowResourceFunction = function($topElem) {
                     while(data.hasOwnProperty('chart_'+i.toString())) {
                         var chartId = 'chart_'+i.toString();
                         $innerResults.append('<div align="center" id="chart_'+i.toString()+'"></div>');
-                        Highcharts.chart(chartId, JSON.parse(data[chartId]));
+                        setupHighcharts(chartId, data);
                         i = i+1;
                     }
                     if(data.hasOwnProperty('template')) {
@@ -424,7 +436,7 @@ var onShowResourceFunction = function($topElem) {
                     while(data.hasOwnProperty('chart_'+i.toString())) {
                         var chartId = 'chart_'+i.toString();
                         $innerResults.append('<div align="center" id="chart_'+i.toString()+'"></div>');
-                        Highcharts.chart(chartId, JSON.parse(data[chartId]));
+                        setupHighcharts(chartId, data);
                         i = i+1;
                     }
                     if(!data.hasOwnProperty('chart_0')) {
