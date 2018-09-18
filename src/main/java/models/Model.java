@@ -686,16 +686,42 @@ public abstract class Model implements Serializable {
             boolean isRegionToRevenue = isRegion() && type.toString().contains("Revenue");
             Map<String,String> fieldToValuesMap = new HashMap<>();
             if(isRevenueToRevenue) {
-                fieldsToHide.add(Constants.PARENT_REVENUE_ID);
-                if(type.equals(Association.Model.MarketShareRevenue)) {
-                    isMarketShare = true;
-                }
                 loadAttributesFromDatabase();
                 for(String k : data.keySet()) {
                     Object v = data.get(k);
                     if(v!=null) {
                         fieldToValuesMap.put(k, v.toString());
                     }
+                }
+            } else {
+                // something to revenue - we want to default form values to closest year
+                // all revenues
+                loadAssociations();
+                Association association;
+                if(type.equals(Association.Model.MarketShareRevenue)) {
+                    association = findAssociation("Market Share");
+                } else {
+                    association = findAssociation(type.toString()+" Revenue");
+                }
+                List<Model> otherYears = associations.get(association);
+                if(otherYears!=null && otherYears.size()>0) {
+                    Model bestChoice = otherYears.stream().peek(Model::loadAttributesFromDatabase)
+                            .min((e1,e2)->Integer.compare((Integer)e2.getData().get(Constants.YEAR), (Integer)e1.getData().get(Constants.YEAR)))
+                            .orElse(null);
+                    if(bestChoice!=null) {
+                        for (String k : bestChoice.data.keySet()) {
+                            Object v = bestChoice.data.get(k);
+                            if (v != null) {
+                                fieldToValuesMap.put(k, v.toString());
+                            }
+                        }
+                    }
+                }
+            }
+            if(isRevenueToRevenue) {
+                fieldsToHide.add(Constants.PARENT_REVENUE_ID);
+                if(type.equals(Association.Model.MarketShareRevenue)) {
+                    isMarketShare = true;
                 }
             } else if(isRegionToRevenue) {
                 fieldsToHide.add(Constants.REGION_ID);
