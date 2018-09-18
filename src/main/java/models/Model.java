@@ -685,6 +685,7 @@ public abstract class Model implements Serializable {
             boolean isRevenueToRevenue = this.getClass().getSimpleName().contains("Revenue") && type.toString().contains("Revenue");
             boolean isRegionToRevenue = isRegion() && type.toString().contains("Revenue");
             Map<String,String> fieldToValuesMap = new HashMap<>();
+            Integer year = null;
             if(isRevenueToRevenue) {
                 loadAttributesFromDatabase();
                 for(String k : data.keySet()) {
@@ -701,19 +702,18 @@ public abstract class Model implements Serializable {
                 if(type.equals(Association.Model.MarketShareRevenue)) {
                     association = findAssociation("Market Share");
                 } else {
-                    association = findAssociation(type.toString()+" Revenue");
+                    association = findAssociation(type.toString().replace("Revenue", " Revenue"));
                 }
                 List<Model> otherYears = associations.get(association);
                 if(otherYears!=null && otherYears.size()>0) {
                     Model bestChoice = otherYears.stream().peek(Model::loadAttributesFromDatabase)
                             .min((e1,e2)->Integer.compare((Integer)e2.getData().get(Constants.YEAR), (Integer)e1.getData().get(Constants.YEAR)))
-                            .orElse(null);
-                    if(bestChoice!=null) {
-                        for (String k : bestChoice.data.keySet()) {
-                            Object v = bestChoice.data.get(k);
-                            if (v != null) {
-                                fieldToValuesMap.put(k, v.toString());
-                            }
+                            .get();
+                    year = (Integer) bestChoice.data.get(Constants.YEAR) + 1;
+                    for (String k : bestChoice.data.keySet()) {
+                        Object v = bestChoice.data.get(k);
+                        if (v != null) {
+                            fieldToValuesMap.put(k, v.toString());
                         }
                     }
                 }
@@ -798,7 +798,9 @@ public abstract class Model implements Serializable {
                 }
             }
             boolean showRegion = this.isRevenueModel() && type.toString().contains("Revenue");
-            int year = LocalDate.now().getYear();
+            if(year==null) {
+                year = LocalDate.now().getYear();
+            }
             if(id!=null && isRevenueToRevenue) {
                 year = (Integer)data.get(Constants.YEAR);
             }
