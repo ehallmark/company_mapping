@@ -134,25 +134,32 @@ public abstract class Model implements Serializable {
     }
 
     public void buildTimelineSeries(boolean column, int maxGroups, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
-        buildTimelineSeries(column, maxGroups, getName(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, models, options, association);
+        buildTimelineSeries(column, maxGroups, getName(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, models, options, association, null, null);
+    }
+
+    public void buildTimelineSeries(boolean column, int maxGroups, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association, String revenueGrouping, List<String> _categories) {
+        buildTimelineSeries(column, maxGroups, getName(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, models, options, association, revenueGrouping, _categories);
     }
 
 
-    public void buildTimelineSeries(boolean column, int maxGroups, @NonNull String name, @NonNull Association.Model type, Integer id, Double revenue, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
+    public void buildTimelineSeries(boolean column, int maxGroups, @NonNull String name, @NonNull Association.Model type, Integer id, Double revenue, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association, String revenueGrouping, List<String> _categories) {
+        final boolean appendSeries = revenueGrouping!=null;
         // yearly timeline
         if(minYear==null || maxYear==null) return;
         if(maxYear - minYear <= 0) {
             return;
         }
         options.setTitle(new Title().setText(name));
-        List<String> categories = new ArrayList<>();
-        for(int year = minYear; year <= maxYear; year ++ ) {
-            categories.add(String.valueOf(year));
+        List<String> categories = _categories == null ? new ArrayList<>() : _categories;
+        if(!appendSeries) {
+            for (int year = minYear; year <= maxYear; year++) {
+                categories.add(String.valueOf(year));
+            }
         }
         if(column) {
-            options.setPlotOptions(new PlotOptionsChoice().setColumn(new PlotOptions().setGroupPadding(0.02f).setShowInLegend(groupByField != null)));
+            options.setPlotOptions(new PlotOptionsChoice().setColumn(new PlotOptions().setGroupPadding(0.02f).setShowInLegend(appendSeries||groupByField != null)));
         } else {
-            options.setPlotOptions(new PlotOptionsChoice().setLine(new PlotOptions().setShowInLegend(groupByField != null)));
+            options.setPlotOptions(new PlotOptionsChoice().setLine(new PlotOptions().setShowInLegend(appendSeries||groupByField != null)));
         }
 
         options.setChartOptions(new ChartOptions().setType(column? SeriesType.COLUMN : SeriesType.LINE).setWidth(1000));
@@ -177,7 +184,7 @@ public abstract class Model implements Serializable {
                     .setFormat("${point.y:.2f}")
                     .setY(-5)
             );
-            series.setShowInLegend(false);
+            series.setShowInLegend(appendSeries);
             Set<String> missingYears = new HashSet<>(categories);
             if(models==null) {
                 for (int year = minYear; year <= maxYear; year++) {
@@ -190,31 +197,47 @@ public abstract class Model implements Serializable {
                     }
                 }
             } else {
-                for (Model assoc : models) {
-                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true);
-                    Double rev = assoc.revenue;
-                    assoc.getSimpleLink();
-                    Integer year = (Integer) assoc.getData().get(Constants.YEAR);
-                    if (rev != null) {
-                        series.addPoint(new CalculationPoint(year.toString(), getCalculationInfoToString(), rev));
-                        missingYears.remove(assoc.getData().get(Constants.YEAR).toString());
+                if(!appendSeries) {
+                    for (Model assoc : models) {
+                        assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true);
+                        Double rev = assoc.revenue;
+                        Integer year = (Integer) assoc.getData().get(Constants.YEAR);
+                        if (rev != null) {
+                            series.addPoint(new CalculationPoint(year.toString(), getCalculationInfoToString(), rev));
+                            missingYears.remove(assoc.getData().get(Constants.YEAR).toString());
+                        }
                     }
+                } else {
+                    // need to group
+                    models.stream().collect(Collectors.groupingBy(e -> e.getData().get(revenueGrouping))).forEach((group, list) -> {
+                        String groupName = Graph.load().findNode(Association.Model.Market, (Integer)group).getModel().getName();
+                        if(categories.contains(groupName)) {
+                            double rev = list.stream().mapToDouble(assoc -> {
+                                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true);
+                                if (assoc.revenue == null) return 0d;
+                                return assoc.revenue;
+                            }).sum();
+                            series.addPoint(new CalculationPoint(group.toString(), getCalculationInfoToString(), rev));
+                        }
+                    });
                 }
             }
-            for(String missing : missingYears) {
-                int missingYear = Integer.valueOf(missing);
-                Double missingRev = null;
-                if(useCAGR && models!=null) {
-                    missingRev = calculateFromCAGR(models, missingYear, estimateCagr, null);
-                }
+            if(!appendSeries) {
+                for (String missing : missingYears) {
+                    int missingYear = Integer.valueOf(missing);
+                    Double missingRev = null;
+                    if (useCAGR && models != null) {
+                        missingRev = calculateFromCAGR(models, missingYear, estimateCagr, null);
+                    }
 
-                if(missingRev!=null) {
-                    series.addPoint(new CalculationPoint(String.valueOf(missingYear), getCalculationInfoToString(), missingRev));
-                } else {
-                    if(option.equals(Constants.MissingRevenueOption.error)) {
-                        throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + name, missingYear, type, id, association);
-                    } else if(option.equals(Constants.MissingRevenueOption.replace)) {
-                        series.addPoint(new Point(String.valueOf(missingYear), 0));
+                    if (missingRev != null) {
+                        series.addPoint(new CalculationPoint(String.valueOf(missingYear), getCalculationInfoToString(), missingRev));
+                    } else {
+                        if (option.equals(Constants.MissingRevenueOption.error)) {
+                            throw new MissingRevenueException("Missing revenues in " + missingYear + " for " + name, missingYear, type, id, association);
+                        } else if (option.equals(Constants.MissingRevenueOption.replace)) {
+                            series.addPoint(new Point(String.valueOf(missingYear), 0));
+                        }
                     }
                 }
             }
@@ -478,18 +501,18 @@ public abstract class Model implements Serializable {
                 .setCreditOptions(new CreditOptions().setEnabled(true).setText("GTT Group").setHref("http://www.gttgrp.com/"));
     }
 
-    public List<Options> buildCharts(boolean column, int maxGroups, @NonNull String associationName, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option) {
+    public List<Options> buildCharts(boolean forComparison, boolean column, int maxGroups, @NonNull String associationName, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<String> commonMarkets) {
         Association association = findAssociation(associationName);
         if(association==null) {
             return null;
         }
         loadAssociations();
         List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
-        return buildCharts(column, maxGroups, assocModels, association, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option);
+        return buildCharts(forComparison, column, maxGroups, assocModels, association, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, commonMarkets);
     }
 
 
-    public List<Options> buildCharts(boolean column, int maxGroups, @NonNull List<Model> assocModels, @NonNull Association association, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option) {
+    public List<Options> buildCharts(boolean forComparison, boolean column, int maxGroups, @NonNull List<Model> assocModels, @NonNull Association association, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<String> commonMarkets) {
         List<Options> allOptions = new ArrayList<>();
         Options options = getDefaultChartOptions();
         allOptions.add(options);
@@ -549,6 +572,15 @@ public abstract class Model implements Serializable {
                     if(association.getAssociationName().startsWith("Sub")) {
                         // children
                         buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Subsidiaries", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, assocModels, options, association, null);
+                        if(forComparison) {
+                            Options timelineOptions = getDefaultChartOptions();
+                            for(Model assoc : assocModels) {
+                                assoc.loadAssociations();
+                                List<Model> revenueModels = assoc.getAssociations().get(assoc.findAssociation("Market Share"));
+                                assoc.buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenueModels, timelineOptions, association, Constants.MARKET_ID, commonMarkets);
+                            }
+                            allOptions.add(timelineOptions);
+                        }
                     } else {
                         // parent
                         options.setSubtitle(new Title().setText("Parent Company"));
@@ -652,10 +684,18 @@ public abstract class Model implements Serializable {
             boolean isMarketShare = false;
             boolean isRevenueToRevenue = this.getClass().getSimpleName().contains("Revenue") && type.toString().contains("Revenue");
             boolean isRegionToRevenue = isRegion() && type.toString().contains("Revenue");
+            Map<String,String> fieldToValuesMap = new HashMap<>();
             if(isRevenueToRevenue) {
                 fieldsToHide.add(Constants.PARENT_REVENUE_ID);
                 if(type.equals(Association.Model.MarketShareRevenue)) {
                     isMarketShare = true;
+                }
+                loadAttributesFromDatabase();
+                for(String k : data.keySet()) {
+                    Object v = data.get(k);
+                    if(v!=null) {
+                        fieldToValuesMap.put(k, v.toString());
+                    }
                 }
             } else if(isRegionToRevenue) {
                 fieldsToHide.add(Constants.REGION_ID);
@@ -741,43 +781,46 @@ public abstract class Model implements Serializable {
                     (isRevenueToRevenue ? input().withType("hidden").withName(Constants.YEAR).withValue(String.valueOf(year)) :
                             label(Constants.humanAttrFor(Constants.YEAR)).with(
                             br(),
-                            input().attr("value", String.valueOf(year)).withClass("form-control").withName(Constants.YEAR).withType("number")
+                            input().withValue(String.valueOf(year)).withClass("form-control").withName(Constants.YEAR).withType("number")
                     )),
                     (isRevenueToRevenue ? span() : br()),
                     label(Constants.humanAttrFor(Constants.VALUE)).with(
                             br(),
-                            input().withClass("form-control").withName(Constants.VALUE).withType("number")
+                            input().withValue(fieldToValuesMap.getOrDefault(Constants.VALUE, "")).withClass("form-control").withName(Constants.VALUE).withType("number")
                     ), br(),
                     (showRegion?label(Constants.humanAttrFor(Constants.REGION_ID)).with(
                             br(),
                             select().attr("style","width: 100%").withClass("form-control multiselect-ajax").withName(Constants.REGION_ID)
                                     .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+this.getClass().getSimpleName()+"/"+id)
+                            .with(
+                                    fieldToValuesMap.getOrDefault(Constants.REGION_ID, "").equals("") ? null : option(Graph.load().findNode(Association.Model.Region, (Integer)data.get(Constants.REGION_ID)).getModel().getName()).withValue(data.get(Constants.REGION_ID).toString())
+                            )
                     ) : span()),
                     (showRegion? br() : span()),
                     label(Constants.humanAttrFor(Constants.CAGR)).with(
                             br(),
-                            input().withClass("form-control").withName(Constants.CAGR).withType("number")
+                            input().withClass("form-control").withValue(fieldToValuesMap.getOrDefault(Constants.CAGR, "")).withName(Constants.CAGR).withType("number")
                     ), br(),
                     label(Constants.humanAttrFor(Constants.SOURCE)).with(
                             br(),
-                            input().withClass("form-control").withName(Constants.SOURCE).withType("text")
+                            input().withClass("form-control").withValue(fieldToValuesMap.getOrDefault(Constants.SOURCE, "")).withName(Constants.SOURCE).withType("text")
                     ), br(),
                     label(Constants.humanAttrFor(Constants.IS_ESTIMATE)).with(
                             br(),
-                            input().withName(Constants.IS_ESTIMATE).withType("checkbox").attr("value", "true")
+                            input().withName(Constants.IS_ESTIMATE).attr(fieldToValuesMap.getOrDefault(Constants.IS_ESTIMATE, "").equals("true")?"checked":"").withType("checkbox").withValue("true")
                     ), br(),
                     label(Constants.humanAttrFor(Constants.ESTIMATE_TYPE)).with(
                             br(),
                             select().withClass("multiselect").withName(Constants.ESTIMATE_TYPE).with(
-                                    option().attr("selected", "selected"),
-                                    option("Low").withValue("0"),
-                                    option("Medium").withValue("1"),
-                                    option("High").withValue("2")
+                                    option().attr(fieldToValuesMap.getOrDefault(Constants.ESTIMATE_TYPE, "").equals("") ? "selected" : null),
+                                    option("Low").withValue("0").attr(fieldToValuesMap.getOrDefault(Constants.ESTIMATE_TYPE, "").equals("0") ? "selected" : ""),
+                                    option("Medium").withValue("1").attr(fieldToValuesMap.getOrDefault(Constants.ESTIMATE_TYPE, "").equals("1") ? "selected" : ""),
+                                    option("High").withValue("2").attr(fieldToValuesMap.getOrDefault(Constants.ESTIMATE_TYPE, "").equals("2") ? "selected" : "")
                             )
                     ), br(),
                     label(Constants.humanAttrFor(Constants.NOTES)).with(
                             br(),
-                            textarea().withClass("form-control").withName(Constants.NOTES)
+                            textarea().withText(fieldToValuesMap.getOrDefault(Constants.NOTES, "")).withClass("form-control").withName(Constants.NOTES)
                     ), br(),
                     button("Create").withClass("btn btn-outline-secondary btn-sm").withType("submit")
             );

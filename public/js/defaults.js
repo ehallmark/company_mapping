@@ -12,7 +12,11 @@ var setupHighcharts = function(id, data) {
     if(!chartJson.hasOwnProperty('tooltip')) {
         chartJson['tooltip'] = {
             formatter: function() {
-                 return "<span style=\"color:"+this.point.color+"\">\u25CF</span> <b>"+this.series.name+"</b><br /><b>Year: "+this.point.name+"</b><br/><b>Revenue: "+formatRevenueString(this.point.y)+"</b><br/>"+this.point.info+"<br/>";
+                 var tooltip = "<span style=\"color:"+this.point.color+"\">\u25CF</span> <b>"+this.series.name+"</b><br /><b>Year: "+this.point.name+"</b><br/><b>Revenue: "+formatRevenueString(this.point.y)+"</b><br/>";
+                 if(this.point.hasOwnProperty('info')) {
+                    tooltip = tooltip+this.point.info+"<br/>";
+                 }
+                 return tooltip;
             }
         };
     }

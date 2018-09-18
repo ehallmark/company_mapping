@@ -1023,6 +1023,8 @@ public class Main {
                     final Set<Integer> modelIds = compareModels.stream().map(m->m.getId()).collect(Collectors.toCollection(HashSet::new));
                     modelIds.add(model.getId());
 
+                    List<String> commonElements = model instanceof Company ? modelGroups.getOrDefault(Association.Model.Market, Collections.emptyList()).stream().map(m->m.getName()).collect(Collectors.toList()) : Collections.emptyList();
+
                     AtomicInteger idx = new AtomicInteger(0);
                     final List<Model> allComparables = new ArrayList<>(compareModels);
                     allComparables.add(model);
@@ -1032,8 +1034,8 @@ public class Main {
                     fakeParents.setData(Collections.singletonMap(Constants.NAME, "Total Revenue"));
                     Association fakeAssoc = new Association("Sub "+Model.capitalize(model.getType().toString()), model.getType(), model.getTableName(),  model.getTableName(), null, Association.Type.OneToMany,  "parent_"+model.getType().toString()+"_id", model.getType().toString()+"_id", false, "All Revenue");
                     fakeParents.setAssociations(Collections.singletonMap(fakeAssoc, allComparables));
-                    List<Options> parentOptions = fakeParents.buildCharts(column, maxGroups, allComparables, fakeAssoc,
-                            revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption);
+                    List<Options> parentOptions = fakeParents.buildCharts(true, column, maxGroups, allComparables, fakeAssoc,
+                            revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, commonElements);
                     for(Options options : parentOptions) {
                         String json = new JsonRenderer().toJson(options);
                         results.put("chart_" + idx.getAndIncrement(), json);
@@ -1080,7 +1082,7 @@ public class Main {
                                                 // convert to regions
                                                 marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
                                                 if (marketShares.size() > 0) {
-                                                    List<Options> allOptions = assoc.buildCharts(column, maxGroups, marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption);
+                                                    List<Options> allOptions = assoc.buildCharts(true, column, maxGroups, marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null);
                                                     return allOptions;
                                                 }
                                             }
@@ -1149,7 +1151,7 @@ public class Main {
                     Map<String, Object> results = new HashMap<>();
                     AtomicInteger idx = new AtomicInteger(0);
                     for(Association association : model.getAssociationsMeta()) {
-                        List<Options> allOptions = model.buildCharts(column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption);
+                        List<Options> allOptions = model.buildCharts(false, column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null);
                         if(allOptions!=null) {
                             for(Options options : allOptions) {
                                 if(options.getSeries()!=null && options.getSeries().size()>0 && options.getSeries().get(0).getData()!=null &&

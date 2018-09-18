@@ -19,7 +19,7 @@ import java.util.zip.GZIPInputStream;
 
 public class Ingester {
     // GO HERE http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download
-    public static void main(String[] args) throws Exception {
+    public static void ingestAll(boolean seedMarkets) throws Exception {
         CSVReader nasdaqReader = new CSVReader(new BufferedReader(new FileReader(new File("NASDAQ_tickers.csv"))));
         List<String[]> nasdaqLines = nasdaqReader.readAll();
         CSVReader nyseReader = new CSVReader(new BufferedReader(new FileReader(new File("NYSE_tickers.csv"))));
@@ -32,14 +32,14 @@ public class Ingester {
         nyseReader.close();
         aseReader.close();
 
-        ingest(nasdaqLines, Scraper.Prefix.xnas);
-        ingest(nyseLines, Scraper.Prefix.xnys);
-        ingest(aseLines, Scraper.Prefix.xase);
+        ingest(nasdaqLines, Scraper.Prefix.xnas, seedMarkets);
+        ingest(nyseLines, Scraper.Prefix.xnys, seedMarkets);
+        ingest(aseLines, Scraper.Prefix.xase, seedMarkets);
 
     }
 
 
-    private static void ingest(List<String[]> stockLines, Scraper.Prefix prefix) {
+    private static void ingest(List<String[]> stockLines, Scraper.Prefix prefix, boolean seedMarkets) {
 
         for(String[] row : stockLines.subList(1, stockLines.size())) {
             String code = row[0].toLowerCase().trim();
@@ -58,7 +58,7 @@ public class Ingester {
                             String industry = row[6].trim();
                             if(sector.equals("n/a")) sector = null;
                             if(industry.equals("n/a")) industry = null;
-                            parseContent(content, prefix, code, row[1].trim(), sector, industry);
+                            parseContent(content, prefix, code, row[1].trim(), sector, industry, seedMarkets);
                         }
                     }
                 } catch(Exception e) {
@@ -76,9 +76,9 @@ public class Ingester {
     }
 
     private static AtomicLong counter = new AtomicLong(0);
-    private static void parseContent(String content, Scraper.Prefix prefix, String code, String name, String sector, String industry) throws Exception {
+    private static void parseContent(String content, Scraper.Prefix prefix, String code, String name, String sector, String industry, boolean seedMarkets) throws Exception {
         Integer industryId = null;
-        if(sector!=null) {
+        if(sector!=null && seedMarkets) {
             Integer sectorId = null;
             sectorId = Database.findIdByName(Constants.MARKET_TABLE, sector);
             if(sectorId == null) {
@@ -172,7 +172,7 @@ public class Ingester {
                 revenueData.put(Constants.CAGR, cagr);
 
                 Model revenueModel;
-                if(industryId!=null) {
+                if(industryId!=null && seedMarkets) {
                     revenueData.put(Constants.MARKET_ID, industryId);
                     revenueModel = new MarketShareRevenue(null, revenueData);
                 } else {
