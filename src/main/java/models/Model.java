@@ -411,9 +411,6 @@ public abstract class Model implements Serializable {
         if (series != null && series.getData()!=null) {
             options.addSeries(series);
             if (groupByFields.length > 0) {
-                if(groupByFields[0].equals(Constants.MARKET_ID) && series.getData().size()>3) {
-                    series.setData(series.getData().subList(0, 3));
-                }
                 series.setSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT)).setInnerSize(new PixelOrPercent(25, PixelOrPercent.Unit.PERCENT));
                 series.setDataLabels(new DataLabels(true).setColor(Color.WHITE).setDistance(-40));
                 PointSeries priorSeries = series;
@@ -588,7 +585,11 @@ public abstract class Model implements Serializable {
                             buildMarketShare(Constants.COMPANY_ID,"Market Revenue by Company", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions, association, Collections.singletonMap("Market", Constants.MARKET_ID), "Market");
                             allOptions.add(additionalOptions);
                             Options additionalOptions2 = getDefaultChartOptions();
-                            buildMarketShare(Constants.MARKET_ID,"Company Revenue by Market (Top 3)", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions2, association, Collections.singletonMap("Company", Constants.COMPANY_ID), "Company");
+                            allRevenues = allRevenues.stream().collect(Collectors.groupingBy(rev->rev.getData().get(Constants.MARKET_ID))).entrySet()
+                                    .stream().filter(e->e.getValue().stream().map(m->m.getData().get(Constants.COMPANY_ID)).collect(Collectors.toSet()).size()>1)
+                                    .flatMap(e->e.getValue().stream()).collect(Collectors.toList());
+                            
+                            buildMarketShare(Constants.MARKET_ID,"Company Revenue by Market", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions2, association, Collections.singletonMap("Company", Constants.COMPANY_ID), "Company");
                             allOptions.add(additionalOptions2);
                         }
                     } else {
