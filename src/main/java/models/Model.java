@@ -584,13 +584,13 @@ public abstract class Model implements Serializable {
                             Options additionalOptions = getDefaultChartOptions();
                             buildMarketShare(Constants.COMPANY_ID,"Market Revenue by Company", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions, association, Collections.singletonMap("Market", Constants.MARKET_ID), "Market");
                             allOptions.add(additionalOptions);
-                            Options additionalOptions2 = getDefaultChartOptions();
+                     /*       Options additionalOptions2 = getDefaultChartOptions();
                             allRevenues = allRevenues.stream().collect(Collectors.groupingBy(rev->rev.getData().get(Constants.MARKET_ID))).entrySet()
                                     .stream().filter(e->e.getValue().stream().map(m->m.getData().get(Constants.COMPANY_ID)).collect(Collectors.toSet()).size()>1)
                                     .flatMap(e->e.getValue().stream()).collect(Collectors.toList());
 
                             buildMarketShare(Constants.MARKET_ID,"Company Revenue in Shared Markets", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions2, association, Collections.singletonMap("Company", Constants.COMPANY_ID), "Company");
-                            allOptions.add(additionalOptions2);
+                            allOptions.add(additionalOptions2); */
                         }
                     } else {
                         // parent
