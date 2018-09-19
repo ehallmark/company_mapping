@@ -313,7 +313,7 @@ public abstract class Model implements Serializable {
     }
 
 
-    public PointSeries buildPieSeries(String groupByField, String title,RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association) {
+    public PointSeries buildPieSeries(String groupByField, String title,RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association, boolean sort) {
         // yearly timeline
         if(minYear==null || maxYear==null) return null;
         if(maxYear - minYear <= 0) return null;
@@ -398,7 +398,7 @@ public abstract class Model implements Serializable {
             });
         }
         // sort series
-        if (series.getData() != null) {
+        if (sort && series.getData() != null) {
             series.setData(series.getData().stream().sorted((e1, e2) -> Double.compare(e2.getY().doubleValue(), e1.getY().doubleValue())).collect(Collectors.toList()));
 
         }
@@ -407,17 +407,17 @@ public abstract class Model implements Serializable {
 
 
     public void buildMarketShare(String groupByField, String title, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association, Map<String,String> groupToFieldMap, String... groupByFields) {
-        final PointSeries series = buildPieSeries(groupByField, title,revenueDomain, regionId,  minYear, maxYear, useCAGR, estimateCagr, option, models, options, association);
+        final PointSeries series = buildPieSeries(groupByField, title,revenueDomain, regionId,  minYear, maxYear, useCAGR, estimateCagr, option, models, options, association, groupByFields.length==0);
         if (series != null) {
             options.addSeries(series);
             if (groupByFields.length > 0) {
-                series.setSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT));
+                series.setSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT)).setInnerSize(new PixelOrPercent(25, PixelOrPercent.Unit.PERCENT));
                 series.setDataLabels(new DataLabels(true).setColor(Color.WHITE).setDistance(-40));
                 PointSeries priorSeries = series;
                 for (String additionalGroup : groupByFields) {
                     List<PointSeries> groups = new ArrayList<>();
                     models.stream().collect(Collectors.groupingBy(e->(Integer)e.getData().get(groupByField))).forEach((key, assocs) -> {
-                        PointSeries inner = buildPieSeries(groupToFieldMap.get(additionalGroup), title, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, assocs, options, association);
+                        PointSeries inner = buildPieSeries(groupToFieldMap.get(additionalGroup), title, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, assocs, options, association, true);
                         if (inner != null) {
                             groups.add(inner);
                         } else {
@@ -581,8 +581,11 @@ public abstract class Model implements Serializable {
                             }
                             allOptions.add(timelineOptions);
                             Options additionalOptions = getDefaultChartOptions();
-                            buildMarketShare(Constants.COMPANY_ID,"Markets by Company", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, options, association, Collections.singletonMap("Market", Constants.MARKET_ID), "Market");
+                            buildMarketShare(Constants.COMPANY_ID,"Market Revenue by Company", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions, association, Collections.singletonMap("Market", Constants.MARKET_ID), "Market");
                             allOptions.add(additionalOptions);
+                            Options additionalOptions2 = getDefaultChartOptions();
+                            buildMarketShare(Constants.MARKET_ID,"Company Revenue by Market", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions2, association, Collections.singletonMap("Company", Constants.COMPANY_ID), "Company");
+                            allOptions.add(additionalOptions2);
                         }
                     } else {
                         // parent
