@@ -344,18 +344,18 @@ public abstract class Model implements Serializable {
                 if (rev == null) {
                     rev = 0d;
                 }
-                series.addPoint(new Point(name, rev));
+                series.addPoint(new Point(name, rev).setId(assoc.getId().toString()));
             }
         } else {
-            models.stream().collect(Collectors.groupingBy(e -> e.getData().get(groupByField))).forEach((name, list) -> {
+            models.stream().collect(Collectors.groupingBy(e -> e.getData().get(groupByField))).forEach((id, list) -> {
                 // get name of group by field by id
                 Model dataReference;
                 if(groupByField.equals(Constants.MARKET_ID)) {
                     // find market
-                    dataReference = new Market((Integer)name, null);
+                    dataReference = new Market((Integer)id, null);
                 } else if(groupByField.equals(Constants.COMPANY_ID)){
                     // find company
-                    dataReference = new Company((Integer)name, null);
+                    dataReference = new Company((Integer)id, null);
 
                 } else {
                     throw new RuntimeException("Unknown group by field in time line chart.");
@@ -386,14 +386,14 @@ public abstract class Model implements Serializable {
 
                     } else {
                         if(option.equals(Constants.MissingRevenueOption.error)) {
-                            throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + getName(), missingYear, Association.Model.valueOf(this.getClass().getSimpleName()), id, association);
+                            throw new MissingRevenueException("Missing revenues in " + missingYear+" for " + getName(), missingYear, Association.Model.valueOf(this.getClass().getSimpleName()), getId(), association);
                         }
                     }
                 }
                 if(y==null) {
                     y = 0d;
                 }
-                series.addPoint(new Point(label, y));
+                series.addPoint(new Point(label, y).setId(id.toString()));
 
             });
         }
@@ -407,24 +407,28 @@ public abstract class Model implements Serializable {
 
 
     public void buildMarketShare(String groupByField, String title, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, List<Model> models, Options options, Association association, Map<String,String> groupToFieldMap, String... groupByFields) {
-        final PointSeries series = buildPieSeries(groupByField, title,revenueDomain, regionId,  minYear, maxYear, useCAGR, estimateCagr, option, models, options, association, groupByFields.length==0);
-        if (series != null) {
+        final PointSeries series = buildPieSeries(groupByField, title,revenueDomain, regionId,  minYear, maxYear, useCAGR, estimateCagr, option, models, options, association, true);
+        if (series != null && series.getData()!=null) {
             options.addSeries(series);
             if (groupByFields.length > 0) {
+                if(groupByFields[0].equals(Constants.MARKET_ID) && series.getData().size()>3) {
+                    series.setData(series.getData().subList(0, 3));
+                }
                 series.setSize(new PixelOrPercent(60, PixelOrPercent.Unit.PERCENT)).setInnerSize(new PixelOrPercent(25, PixelOrPercent.Unit.PERCENT));
                 series.setDataLabels(new DataLabels(true).setColor(Color.WHITE).setDistance(-40));
                 PointSeries priorSeries = series;
                 for (String additionalGroup : groupByFields) {
                     List<PointSeries> groups = new ArrayList<>();
-                    models.stream().collect(Collectors.groupingBy(e->(Integer)e.getData().get(groupByField))).forEach((key, assocs) -> {
+                    for(Point point : series.getData()) {
+                        List<Model> assocs = models.stream().filter(m->m.getData().get(groupByField).equals(Integer.valueOf(point.getId())))
+                                .collect(Collectors.toList());
                         PointSeries inner = buildPieSeries(groupToFieldMap.get(additionalGroup), title, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, assocs, options, association, true);
                         if (inner != null) {
                             groups.add(inner);
                         } else {
                             groups.add(new PointSeries());
                         }
-                        //return assocs.stream();
-                    });//.collect(Collectors.toList());
+                    }
                     PointSeries innerSeries = combineSeriesGroups(groups, priorSeries);
                     priorSeries = innerSeries;
                     innerSeries.setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT));
@@ -584,7 +588,7 @@ public abstract class Model implements Serializable {
                             buildMarketShare(Constants.COMPANY_ID,"Market Revenue by Company", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions, association, Collections.singletonMap("Market", Constants.MARKET_ID), "Market");
                             allOptions.add(additionalOptions);
                             Options additionalOptions2 = getDefaultChartOptions();
-                            buildMarketShare(Constants.MARKET_ID,"Company Revenue by Market", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions2, association, Collections.singletonMap("Company", Constants.COMPANY_ID), "Company");
+                            buildMarketShare(Constants.MARKET_ID,"Company Revenue by Market (Top 3)", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions2, association, Collections.singletonMap("Company", Constants.COMPANY_ID), "Company");
                             allOptions.add(additionalOptions2);
                         }
                     } else {
