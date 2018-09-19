@@ -416,17 +416,15 @@ public abstract class Model implements Serializable {
                 PointSeries priorSeries = series;
                 for (String additionalGroup : groupByFields) {
                     List<PointSeries> groups = new ArrayList<>();
-                    models = models.stream().flatMap(model -> {
-                        model.loadAssociations();
-                        List<Model> assocs = model.getAssociations().getOrDefault(model.findAssociation(additionalGroup), Collections.emptyList());
-                        PointSeries innerSeries = buildPieSeries(groupToFieldMap.get(additionalGroup), title, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, assocs, options, association);
-                        if (innerSeries != null) {
-                            groups.add(innerSeries);
+                    models.stream().collect(Collectors.groupingBy(e->(Integer)e.getData().get(groupByField))).forEach((key, assocs) -> {
+                        PointSeries inner = buildPieSeries(groupToFieldMap.get(additionalGroup), title, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, assocs, options, association);
+                        if (inner != null) {
+                            groups.add(inner);
                         } else {
                             groups.add(new PointSeries());
                         }
-                        return assocs.stream();
-                    }).collect(Collectors.toList());
+                        //return assocs.stream();
+                    });//.collect(Collectors.toList());
                     PointSeries innerSeries = combineSeriesGroups(groups, priorSeries);
                     priorSeries = innerSeries;
                     innerSeries.setSize(new PixelOrPercent(80, PixelOrPercent.Unit.PERCENT));
@@ -574,12 +572,17 @@ public abstract class Model implements Serializable {
                         buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Subsidiaries", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, assocModels, options, association, null);
                         if(forComparison) {
                             Options timelineOptions = getDefaultChartOptions();
+                            List<Model> allRevenues = new ArrayList<>();
                             for(Model assoc : assocModels) {
                                 assoc.loadAssociations();
                                 List<Model> revenueModels = assoc.getAssociations().get(assoc.findAssociation("Market Share"));
+                                allRevenues.addAll(revenueModels);
                                 assoc.buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenueModels, timelineOptions, association, Constants.MARKET_ID, commonMarkets);
                             }
                             allOptions.add(timelineOptions);
+                            Options additionalOptions = getDefaultChartOptions();
+                            buildMarketShare(Constants.COMPANY_ID,"Markets by Company", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, options, association, Collections.singletonMap("Market", Constants.MARKET_ID), "Market");
+                            allOptions.add(additionalOptions);
                         }
                     } else {
                         // parent
