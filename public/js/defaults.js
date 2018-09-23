@@ -139,10 +139,10 @@ var showDiagramFunction = function(id,resourceId,groupId,$target,onCompleteFunc)
     });
 };
 
-var refreshDiagramFunction = function() {
+var refreshDiagramFunction = function(afterFunc) {
     var ul = $('#results ul').filter(':first');
     var a = ul.find('a.resource-show-link').filter(':first');
-    showResourceFunction(a.attr('data-resource'), a.attr('data-id'));
+    showResourceFunction(a.attr('data-resource'), a.attr('data-id'),afterFunc);
 };
 
 var showGraphsFunction = function(id,resourceId) {
@@ -838,7 +838,7 @@ var createNewResourceForm = function(resourceId, resourceName, data) {
 
 };
 
-var showResourceFunction = function(resourceId, id) {
+var showResourceFunction = function(resourceId, id, afterFunc) {
     // check for open tabs
     $.ajax({
         url: '/show/'+resourceId+'/'+id,
@@ -849,6 +849,9 @@ var showResourceFunction = function(resourceId, id) {
             $results.empty();
             $results.html(showData.template);
             onShowResourceFunction($('#results'));
+            if(afterFunc) {
+                afterFunc();
+            }
         }
     });
 };
