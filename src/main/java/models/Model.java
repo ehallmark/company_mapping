@@ -94,6 +94,20 @@ public abstract class Model implements Serializable {
         return id != null;
     }
 
+    public Double getDiscountedValue(Integer startYear, Double discountRate) {
+        if(!isRevenueModel) throw new RuntimeException("Unable to compute discounted value for non-revenue model");
+        loadAttributesFromDatabase();
+        Double value = (Double)data.get(Constants.VALUE);
+        if(startYear == null) {
+            return value;
+        }
+        int year = (Integer)data.get(Constants.YEAR);
+        if(year > startYear && discountRate!=null && 0d!=discountRate) {
+            value = value / Math.pow(1.0 + (discountRate/100d), year - startYear);
+        }
+        return value;
+    }
+
     public ContainerTag getLink(@NonNull String associationName, @NonNull String associationModel, @NonNull Integer associationId) {
         if(data==null) {
             loadAttributesFromDatabase();
@@ -1166,7 +1180,7 @@ public abstract class Model implements Serializable {
                                     }
                                     list = byYear;
                                 }
-                                Double v = list.stream().peek(Model::loadAttributesFromDatabase).mapToDouble(d -> (Double)d.getData().get(Constants.VALUE)).sum() + byCagr.stream().mapToDouble(d->d).sum();
+                                Double v = list.stream().peek(Model::loadAttributesFromDatabase).mapToDouble(d -> d.getDiscountedValue(startYear, discountRate)).sum() + byCagr.stream().mapToDouble(d->d).sum();
                                 return v;
                             }).sum();
                             foundRevenueInMarketShares = true;
@@ -1210,7 +1224,7 @@ public abstract class Model implements Serializable {
                                     revenueModelsSorted = byYear;
                                 }
                                 if (revenueModelsSorted.size() > 0 || byCagr.size()>0) {
-                                    revenue = revenueModelsSorted.stream().mapToDouble(e->(Double)e.getData().get(Constants.VALUE)).sum() + byCagr.stream().mapToDouble(d->d).sum();
+                                    revenue = revenueModelsSorted.stream().mapToDouble(e->e.getDiscountedValue(startYear, discountRate)).sum() + byCagr.stream().mapToDouble(d->d).sum();
 
                                 } else {
                                     if(option.equals(Constants.MissingRevenueOption.error) &&  !foundRevenueInSubMarket && !foundRevenueInMarketShares) {

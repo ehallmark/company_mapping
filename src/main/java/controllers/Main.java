@@ -1541,14 +1541,16 @@ public class Main {
                                         Association assoc = market.findAssociation("Sub Market");
                                         List<Model> subMarkets = market.getAssociations().get(assoc);
                                         if(subMarkets!=null) {
+                                            subMarkets = subMarkets.stream().sorted(Comparator.comparing(e->e.getName()))
+                                                    .collect(Collectors.toList());
                                             for(Model subMarket : subMarkets) {
                                                 double subRevenue = subMarket.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, revenue, true, discountRate);
                                                 rows.add(tr().with(
                                                         td(),
                                                         td(),
                                                         td(subMarket.getSimpleLink()),
-                                                        td(String.valueOf(Math.round(subRevenue/1000000))),
                                                         td(),
+                                                        td(String.valueOf(Math.round(subRevenue/1000000))),
                                                         td(),
                                                         td(),
                                                         td(),
