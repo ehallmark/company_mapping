@@ -362,6 +362,8 @@ public class Main {
         if(defaultValues==null) defaultValues = new HashMap<>();
         boolean showCountry = "national".equals(defaultValues.getOrDefault("revenue_domain", new String[]{null})[0]);
         boolean showRegion = "regional".equals(defaultValues.getOrDefault("revenue_domain", new String[]{null})[0]);
+        boolean defaultRegionIsRegion = defaultValues.containsKey(Constants.REGION_ID) && Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID)[0])).getModel().getData().get(Constants.PARENT_REGION_ID) == null;
+        boolean defaultRegionIsCountry = defaultValues.containsKey(Constants.REGION_ID) && Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID)[0])).getModel().getData().get(Constants.PARENT_REGION_ID) != null;
         return form().attr("data-id",model.getId().toString())
                 .attr("data-resource",model.getClass().getSimpleName()).withId(clazz+"-specification-form").with(
                         label("Start Year").with(br(),
@@ -385,12 +387,14 @@ public class Main {
                                 select().attr(showCountry?"":"disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
                                         .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+model.getType()+"/-1?nationalities_only=true")
+                                        .with(defaultRegionIsCountry?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID)[0])).getModel().getName())
+                                                .attr("selected").withValue(defaultValues.get(Constants.REGION_ID)[0]): null)
                         ),
                         label("Region").attr("style", "display: "+(showRegion?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
                                 select().attr(showRegion?"":"disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
                                         .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+model.getType()+"/-1?regions_only=true")
-                                .with(defaultValues.containsKey(Constants.REGION_ID)?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID)[0])).getModel().getName())
+                                .with(defaultRegionIsRegion?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID)[0])).getModel().getName())
                                     .attr("selected").withValue(defaultValues.get(Constants.REGION_ID)[0]): null)
                         ), br(),
                         label("Use CAGR when applicable?").with(br(),
@@ -507,13 +511,19 @@ public class Main {
                                 select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
                                         .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/Market/-1?regions_only=true")
-                                        .with(defaultValues.containsKey(Constants.REGION_ID)?Stream.of(defaultValues.get(Constants.REGION_ID)).map(val->option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(val)).getModel().getName()).attr("selected").withValue(val))
+                                        .with(defaultValues.containsKey(Constants.REGION_ID)?Stream.of(defaultValues.get(Constants.REGION_ID)).map(val->Graph.load().findNode(Association.Model.Region, Integer.valueOf(val)).getModel())
+                                                .filter(m->m.getData().get(Constants.PARENT_REGION_ID)==null)
+                                                .map(m->option(m.getName()).attr("selected").withValue(m.getId().toString()))
                                                 .collect(Collectors.toList()) : null)
                         ),
                         label("Countries").attr("style", "display: "+(showCountry?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
                                 select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
                                         .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/Market/-1?nationalities_only=true")
+                                        .with(defaultValues.containsKey(Constants.REGION_ID)?Stream.of(defaultValues.get(Constants.REGION_ID)).map(val->Graph.load().findNode(Association.Model.Region, Integer.valueOf(val)).getModel())
+                                                .filter(m->m.getData().get(Constants.PARENT_REGION_ID)!=null)
+                                                .map(m->option(m.getName()).attr("selected").withValue(m.getId().toString()))
+                                                .collect(Collectors.toList()) : null)
                         ),br(),
                         label("Use CAGR when applicable?").with(br(),
                                 input().attr(defaultValues.containsKey(Constants.CAGR)?"checked":"").withType("checkbox").withValue("true").withName(Constants.CAGR)
