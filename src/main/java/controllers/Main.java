@@ -371,6 +371,9 @@ public class Main {
                         label("End Year").with(br(),
                                 input().withType("number").withValue(defaultValues.getOrDefault("end_year", String.valueOf(LocalDate.now().getYear()))).withName("end_year")
                         ),br(),
+                        label("Discount Rate (%)").with(br(),
+                                input().withType("number").withValue(defaultValues.getOrDefault("discount_rate", "10")).withName("discount_rate")
+                        ),br(),
                         label("Revenue Domain").with(br(),
                                 select().withClass("multiselect revenue_domain").withName("revenue_domain").with(
                                         option("Global").withValue("global").attr(!showCountry&&!showRegion?"selected":""),
@@ -480,7 +483,8 @@ public class Main {
         if(defaultValues==null) defaultValues = new HashMap<>();
         final boolean showCountry = true;
         final boolean showRegion = true;
-        String html = div().withClass("col-12").with(h4("Report Generation").with(
+        String html = div().withClass("col-12").with(
+                h4("Report Generation"),
                 form().withId("main_reports_options_form").with(
                         label("Start Year (used for NPV)").with(br(),
                                 input().withType("number").withValue(defaultValues.getOrDefault("start_year", String.valueOf(LocalDate.now().getYear()-5))).withName("start_year")
@@ -498,11 +502,6 @@ public class Main {
                                         .attr("multiple").withName(Constants.COMPANY_ID).attr("data-url", "/ajax/resources/Company/Market/-1")
 
                         ),br(),
-                        label("Countries").attr("style", "display: "+(showCountry?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
-                                select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
-                                        .withName(Constants.REGION_ID)
-                                        .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/Market/-1?nationalities_only=true")
-                        ),
                         label("Regions").attr("style", "display: "+(showRegion?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
                                 select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
                                         .withName(Constants.REGION_ID)
@@ -510,6 +509,11 @@ public class Main {
                                         .with(defaultValues.containsKey(Constants.REGION_ID)?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID))).getModel().getName())
                                                 .attr("selected").withValue(defaultValues.get(Constants.REGION_ID)): null)
                         ), br(),
+                        label("Countries").attr("style", "display: "+(showCountry?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
+                                select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
+                                        .withName(Constants.REGION_ID)
+                                        .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/Market/-1?nationalities_only=true")
+                        ),br(),
                         label("Use CAGR when applicable?").with(br(),
                                 input().attr(defaultValues.containsKey(Constants.CAGR)?"checked":"").withType("checkbox").withValue("true").withName(Constants.CAGR)
                         ),
@@ -533,8 +537,9 @@ public class Main {
                         ),br()
                 ).with(additionalTags).with(br(),
                         button("Generate").withType("submit").withClass("btn btn-sm btn-outline-secondary")
-                )
-        )).render();
+                ), br(),
+                div().withClass("col-12").withId("inner-results")
+        ).render();
         return new Gson().toJson(Collections.singletonMap("result", html));
     }
 
@@ -1058,6 +1063,7 @@ public class Main {
 
             if(model!=null && compareModels.size()>0) {
                 registerLatestForm(req, DEFAULT_FORM_OPTIONS);
+                double discountRate = req.queryParams("discount_rate")!=null && req.queryParams("discount_rate").length()>0 ? Double.valueOf(req.queryParams("discount_rate")) : 0;
                 boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                 boolean column = extractString(req, ChartHelper.TIME_SERIES_CHART_TYPE, ChartHelper.LineChartType.column.toString()).equals(ChartHelper.LineChartType.column.toString());
@@ -1100,7 +1106,7 @@ public class Main {
                     Association fakeAssoc = new Association("Sub "+Model.capitalize(model.getType().toString()), model.getType(), model.getTableName(),  model.getTableName(), null, Association.Type.OneToMany,  "parent_"+model.getType().toString()+"_id", model.getType().toString()+"_id", false, "All Revenue");
                     fakeParents.setAssociations(Collections.singletonMap(fakeAssoc, allComparables));
                     List<Options> parentOptions = fakeParents.buildCharts(true, column, maxGroups, allComparables, fakeAssoc,
-                            revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, commonElements);
+                            revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, commonElements);
                     for(Options options : parentOptions) {
                         String json = new JsonRenderer().toJson(options);
                         results.put("chart_" + idx.getAndIncrement(), json);
@@ -1147,7 +1153,7 @@ public class Main {
                                                 // convert to regions
                                                 marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
                                                 if (marketShares.size() > 0) {
-                                                    List<Options> allOptions = assoc.buildCharts(true, column, maxGroups, marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null);
+                                                    List<Options> allOptions = assoc.buildCharts(true, column, maxGroups, marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, null);
                                                     return allOptions;
                                                 }
                                             }
@@ -1198,6 +1204,7 @@ public class Main {
             if(model!=null) {
                 try {
                     registerLatestForm(req, DEFAULT_FORM_OPTIONS);
+                    double discountRate = req.queryParams("discount_rate")!=null && req.queryParams("discount_rate").length()>0 ? Double.valueOf(req.queryParams("discount_rate")) : 0;
                     boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                     int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                     int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
@@ -1216,7 +1223,7 @@ public class Main {
                     Map<String, Object> results = new HashMap<>();
                     AtomicInteger idx = new AtomicInteger(0);
                     for(Association association : model.getAssociationsMeta()) {
-                        List<Options> allOptions = model.buildCharts(false, column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null);
+                        List<Options> allOptions = model.buildCharts(false, column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, null);
                         if(allOptions!=null) {
                             for(Options options : allOptions) {
                                 if(options.getSeries()!=null && options.getSeries().size()>0 && options.getSeries().get(0).getData()!=null &&
@@ -1242,6 +1249,7 @@ public class Main {
             Model model = loadModel(req);
             if(model!=null) {
                 registerLatestForm(req, DEFAULT_FORM_OPTIONS);
+                double discountRate = req.queryParams("discount_rate")!=null && req.queryParams("discount_rate").length()>0 ? Double.valueOf(req.queryParams("discount_rate")) : 0;
                 boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                 boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
@@ -1256,7 +1264,7 @@ public class Main {
                         throw new RuntimeException("Please select a valid Revenue Domain.");
                     }
 
-                    ContainerTag diagram = model.loadReport(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption);
+                    ContainerTag diagram = model.loadReport(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate);
 
                     ContainerTag html = div().withClass("col-12").with(h4("Date Range: "+startYear+" - "+endYear), br(), diagram);
                     return new Gson().toJson(Collections.singletonMap("result", html.render()));
@@ -1479,6 +1487,52 @@ public class Main {
             }
             registerNextPage(req, res);
             return html;
+        });
+
+        post("/main_report", (req, res)-> {
+            authorize(req, res);
+            registerLatestForm(req, DEFAULT_REPORT_OPTIONS);
+            String[] companyIds = req.queryParamsValues(Constants.COMPANY_ID);
+            String[] regionIds = req.queryParamsValues(Constants.REGION_ID);
+            boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
+            double discountRate = req.queryParams("discount_rate")!=null && req.queryParams("discount_rate").length()>0 ? Double.valueOf(req.queryParams("discount_rate")) : 0;
+            int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
+            int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+            boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
+            Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
+            // get all global markets
+            List<Model> globalMarkets = Graph.load().getModelList(Association.Model.Market)
+                    .stream().filter(m->m.getData().get(Constants.PARENT_MARKET_ID)==null)
+                    .sorted(Comparator.comparing(e->e.getName()))
+                    .collect(Collectors.toList());
+
+            String html = div().withClass("col-12").with(
+                    table().withClass("table table-striped").with(
+                            thead().with(
+                                    tr().with(
+                                            th("Industry"),
+                                            th("Global Industry Revenue (NPV in $M)"),
+                                            th("Industry Segment"),
+                                            th("CF"),
+                                            th("Industry Segment Revenue (NPV in $M)"),
+                                            th("Applicable Companies"),
+                                            th("Applicable Products"),
+                                            th("Source"),
+                                            th("Notes")
+                                    )
+                            )
+                    ), tbody().with(
+                            globalMarkets.stream().map(market->{
+                                double revenue = market.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null, false, discountRate);
+
+                                return tr().with(
+                                        td(market.getSimpleLink()),
+                                        td(String.valueOf(Math.round(revenue/1000000)))
+                                );
+                            }).collect(Collectors.toList())
+                    )
+            ).render();
+            return new Gson().toJson(Collections.singletonMap("result", html));
         });
 
         post("/new_association/:resource/:association/:resource_id/:association_id", (req,res)->{

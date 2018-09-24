@@ -151,8 +151,7 @@ public class Graph {
         lock.lock();
         try {
             Map<Integer, Node> idMap = nodeCache.getOrDefault(model, Collections.emptyMap());
-            return idMap.values().stream().map(Node::getModel)
-                    .sorted((n1, n2) -> Integer.compare(n1.getId(), n2.getId())).collect(Collectors.toList());
+            return idMap.values().stream().map(Node::getModel).collect(Collectors.toList());
         } finally {
             lock.unlock();
         }
