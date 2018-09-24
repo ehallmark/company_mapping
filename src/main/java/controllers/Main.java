@@ -43,13 +43,14 @@ public class Main {
     private static final String SHOW_PAGE_ID = "show_page_resource_id";
     private static final String SHOW_PAGE_RESOURCE = "show_page_resource";
     public static final String DEFAULT_FORM_OPTIONS = "default_form_options";
+    public static final String DEFAULT_REPORT_OPTIONS = "default_report_options";
     private static final int MAX_NAVIGATION_HISTORY = 30;
 
     public static ContainerTag getBackButton(@NonNull Request req) {
         return a("Back").withClass("btn btn-sm btn-outline-secondary back-button");
     }
 
-    private static void registerLatestForm(Request req) {
+    private static void registerLatestForm(Request req, String sessionParam) {
         Map<String,String> latestForm = new HashMap<>();
 
         for(String key : req.queryParams()) {
@@ -57,7 +58,7 @@ public class Main {
         }
 
         System.out.println("Registered form: "+new Gson().toJson(latestForm));
-        req.session().attribute(DEFAULT_FORM_OPTIONS, latestForm);
+        req.session().attribute(sessionParam, latestForm);
     }
 
     public static void registerNextPage(@NonNull Request req, @NonNull Response res) {
@@ -474,6 +475,69 @@ public class Main {
         });
     }
 
+    private static String handleShowReports(Request req, Response res, ContainerTag... additionalTags) {
+        Map<String,String> defaultValues = req.session().attribute(DEFAULT_REPORT_OPTIONS);
+        if(defaultValues==null) defaultValues = new HashMap<>();
+        final boolean showCountry = true;
+        final boolean showRegion = true;
+        String html = div().withClass("col-12").with(h4("Report Generation").with(
+                form().withId("main_reports_options_form").with(
+                        label("Start Year (used for NPV)").with(br(),
+                                input().withType("number").withValue(defaultValues.getOrDefault("start_year", String.valueOf(LocalDate.now().getYear()-5))).withName("start_year")
+                        ),
+                        br(),
+                        label("End Year (used for NPV)").with(br(),
+                                input().withType("number").withValue(defaultValues.getOrDefault("end_year", String.valueOf(LocalDate.now().getYear()))).withName("end_year")
+                        ),br(),
+                        label("Discount Rate (%)").with(br(),
+                                input().withType("number").withValue(defaultValues.getOrDefault("discount_rate", "10")).withName("discount_rate")
+                        ),br(),
+                        label("Companies").with(
+                                br(),
+                                select().withClass("multiselect-ajax")
+                                        .attr("multiple").withName(Constants.COMPANY_ID).attr("data-url", "/ajax/resources/Company/Market/-1")
+
+                        ),br(),
+                        label("Countries").attr("style", "display: "+(showCountry?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
+                                select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
+                                        .withName(Constants.REGION_ID)
+                                        .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/Market/-1?nationalities_only=true")
+                        ),
+                        label("Regions").attr("style", "display: "+(showRegion?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
+                                select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
+                                        .withName(Constants.REGION_ID)
+                                        .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/Market/-1?regions_only=true")
+                                        .with(defaultValues.containsKey(Constants.REGION_ID)?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID))).getModel().getName())
+                                                .attr("selected").withValue(defaultValues.get(Constants.REGION_ID)): null)
+                        ), br(),
+                        label("Use CAGR when applicable?").with(br(),
+                                input().attr(defaultValues.containsKey(Constants.CAGR)?"checked":"").withType("checkbox").withValue("true").withName(Constants.CAGR)
+                        ),
+                        br(),
+                        label("Estimate CAGR when applicable?").with(br(),
+                                input().attr(defaultValues.containsKey(Constants.ESTIMATE_CAGR)?"checked":"").withType("checkbox").withValue("true").withName(Constants.ESTIMATE_CAGR)
+                        ),
+                        br(),
+                        label("Missing Revenue Options").with(br(),
+                                select().withClass("multiselect").withName("missing_revenue").with(
+                                        option("Exclude missing")
+                                                .attr(Constants.MissingRevenueOption.exclude.toString().equals(defaultValues.get("missing_revenue"))?"selected":"")
+                                                .withValue(Constants.MissingRevenueOption.exclude.toString()),
+                                        option("Replace with zeros")
+                                                .attr(Constants.MissingRevenueOption.replace.toString().equals(defaultValues.get("missing_revenue"))?"selected":"")
+                                                .withValue(Constants.MissingRevenueOption.replace.toString()),
+                                        option("Raise error")
+                                                .attr(Constants.MissingRevenueOption.error.toString().equals(defaultValues.get("missing_revenue"))?"selected":"")
+                                                .withValue(Constants.MissingRevenueOption.error.toString())
+                                )
+                        ),br()
+                ).with(additionalTags).with(br(),
+                        button("Generate").withType("submit").withClass("btn btn-sm btn-outline-secondary")
+                )
+        )).render();
+        return new Gson().toJson(Collections.singletonMap("result", html));
+    }
+
     private static void handleNewAssociation(Model baseModel, Model relatedModel, String associationName) {
         if(!(baseModel.isRevenueModel() && relatedModel.isRevenueModel())) {
             try {
@@ -629,6 +693,7 @@ public class Main {
                                                     div().withClass("col-12").withId("main-menu").with(
                                                             div().withClass("row").with( authorized ?
                                                                     div().withClass("col-12 btn-group-vertical options").with(
+                                                                            button("Reports").attr("data-resource", "Report").withId("reports_index_btn").withClass("btn btn-outline-secondary"),
                                                                             button("Markets").attr("data-resource", "Market").withId("markets_index_btn").withClass("btn btn-outline-secondary"),
                                                                             button("Companies").attr("data-resource", "Company").withId("companies_index_btn").withClass("btn btn-outline-secondary"),
                                                                             button("Products").attr("data-resource", "Product").withId("products_index_btn").withClass("btn btn-outline-secondary"),
@@ -992,7 +1057,7 @@ public class Main {
             }
 
             if(model!=null && compareModels.size()>0) {
-                registerLatestForm(req);
+                registerLatestForm(req, DEFAULT_FORM_OPTIONS);
                 boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                 boolean column = extractString(req, ChartHelper.TIME_SERIES_CHART_TYPE, ChartHelper.LineChartType.column.toString()).equals(ChartHelper.LineChartType.column.toString());
@@ -1132,7 +1197,7 @@ public class Main {
             Model model = loadModel(req);
             if(model!=null) {
                 try {
-                    registerLatestForm(req);
+                    registerLatestForm(req, DEFAULT_FORM_OPTIONS);
                     boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                     int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                     int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
@@ -1176,7 +1241,7 @@ public class Main {
             authorize(req,res);
             Model model = loadModel(req);
             if(model!=null) {
-                registerLatestForm(req);
+                registerLatestForm(req, DEFAULT_FORM_OPTIONS);
                 boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
                 boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
@@ -1392,20 +1457,26 @@ public class Main {
         get("/resources/:resource", (req, res) -> {
             authorize(req,res);
             String resource = req.params("resource");
-            Association.Model type;
-            try {
-                type = Association.Model.valueOf(resource);
-            } catch(Exception e) {
-                e.printStackTrace();
-                return null;
+            String html;
+            if(resource.equals("Report")) {
+                // report
+                html = handleShowReports(req,res);
+            } else {
+                Association.Model type;
+                try {
+                    type = Association.Model.valueOf(resource);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return null;
+                }
+                Model model = getModelByType(type);
+                Map<String, Object> result = new HashMap<>();
+                if (!type.toString().contains("Revenue") && !type.equals(Association.Model.Region)) {
+                    result.put("new_form", model.getCreateNewForm(type, null, null).attr("style", "display: none;").render());
+                }
+                result.put("resource_list_show", "#" + model.getTableName() + "_index_btn");
+                html = new Gson().toJson(result);
             }
-            Model model = getModelByType(type);
-            Map<String,Object> result = new HashMap<>();
-            if(!type.toString().contains("Revenue")&&!type.equals(Association.Model.Region)) {
-                result.put("new_form", model.getCreateNewForm(type, null,null).attr("style", "display: none;").render());
-            }
-            result.put("resource_list_show", "#"+model.getTableName()+"_index_btn");
-            String html = new Gson().toJson(result);
             registerNextPage(req, res);
             return html;
         });
