@@ -508,7 +508,7 @@ public class Main {
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/Market/-1?regions_only=true")
                                         .with(defaultValues.containsKey(Constants.REGION_ID)?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID))).getModel().getName())
                                                 .attr("selected").withValue(defaultValues.get(Constants.REGION_ID)): null)
-                        ), br(),
+                        ),
                         label("Countries").attr("style", "display: "+(showCountry?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
                                 select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
                                         .withName(Constants.REGION_ID)
