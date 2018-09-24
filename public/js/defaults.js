@@ -44,9 +44,14 @@ $(document).ready(function() {
                 success: function(data) {
                     var $results = $('#results');
                     $results.empty();
-                    $results.html(createResourceList(resource, $btn.text(),data));
-                    onShowResourceFunction($(document.body));
-                    createResourceDynatable(resource);
+                    if(resource==='Report') {
+                        $results.html(data.result);
+                        onShowResourceFunction($results);
+                    } else {
+                        $results.html(createResourceList(resource, $btn.text(),data));
+                        onShowResourceFunction($(document.body));
+                        createResourceDynatable(resource);
+                    }
                 }
             });
         });
@@ -269,6 +274,28 @@ var updateResourceFormHelper = function($this) {
 
 var onShowResourceFunction = function($topElem) {
     updateAssociationTotals();
+
+    $('#main_reports_options_form').submit(function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $form = $(this);
+        var $results = $('#inner-results');
+        $results.empty();
+        $.ajax({
+            url: '/main_report',
+            dataType: 'json',
+            data: $form.serialize(),
+            type: 'POST',
+            success: function(data) {
+                if(data.hasOwnProperty('error')) {
+                    alert(data.error);
+                } else {
+                    $results.html(data.result);
+                    onShowResourceFunction($results);
+                }
+            }
+        });
+    });
 
     $topElem.find('.chart-ajax-select').on('change', function(e) {
         var $results = $('#additional-charts');
