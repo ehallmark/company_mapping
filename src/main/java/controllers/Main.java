@@ -1520,16 +1520,45 @@ public class Main {
                                             th("Source"),
                                             th("Notes")
                                     )
+                            ), tbody().with(
+                                    globalMarkets.stream().flatMap(market->{
+                                        double revenue = market.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null, false, discountRate);
+                                        List<ContainerTag> rows = new ArrayList<>();
+                                        rows.add(
+                                                tr().with(
+                                                        td(market.getSimpleLink()),
+                                                        td(String.valueOf(Math.round(revenue/1000000))),
+                                                        td(),
+                                                        td(),
+                                                        td(),
+                                                        td(),
+                                                        td(),
+                                                        td(),
+                                                        td()
+                                                )
+                                        );
+                                        market.loadAssociations();
+                                        Association assoc = market.findAssociation("Sub Market");
+                                        List<Model> subMarkets = market.getAssociations().get(assoc);
+                                        if(subMarkets!=null) {
+                                            for(Model subMarket : subMarkets) {
+                                                double subRevenue = subMarket.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, revenue, true, discountRate);
+                                                rows.add(tr().with(
+                                                        td(),
+                                                        td(),
+                                                        td(subMarket.getSimpleLink()),
+                                                        td(String.valueOf(Math.round(subRevenue/1000000))),
+                                                        td(),
+                                                        td(),
+                                                        td(),
+                                                        td(),
+                                                        td()
+                                                ));
+                                            }
+                                        }
+                                        return rows.stream();
+                                    }).collect(Collectors.toList())
                             )
-                    ), tbody().with(
-                            globalMarkets.stream().map(market->{
-                                double revenue = market.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null, false, discountRate);
-
-                                return tr().with(
-                                        td(market.getSimpleLink()),
-                                        td(String.valueOf(Math.round(revenue/1000000)))
-                                );
-                            }).collect(Collectors.toList())
                     )
             ).render();
             return new Gson().toJson(Collections.singletonMap("result", html));
