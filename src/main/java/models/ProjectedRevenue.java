@@ -46,7 +46,7 @@ public class ProjectedRevenue extends Model {
     }
 
     @Override
-    public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue, Double discountRate) {
+    public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue, Double discountRate, Integer companyIdForMarketShares) {
         return calculateRevenueForRevenueModel(startYear, endYear, discountRate);
     }
 

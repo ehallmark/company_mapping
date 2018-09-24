@@ -51,10 +51,10 @@ public class Main {
     }
 
     private static void registerLatestForm(Request req, String sessionParam) {
-        Map<String,String> latestForm = new HashMap<>();
+        Map<String,String[]> latestForm = new HashMap<>();
 
         for(String key : req.queryParams()) {
-            latestForm.put(key, req.queryParams(key));
+            latestForm.put(key, req.queryParamsValues(key));
         }
 
         System.out.println("Registered form: "+new Gson().toJson(latestForm));
@@ -358,21 +358,21 @@ public class Main {
     }
 
     public static ContainerTag getReportOptionsForm(Request req, Model model, String clazz, ContainerTag... additionalTags) {
-        Map<String,String> defaultValues = req.session().attribute(DEFAULT_FORM_OPTIONS);
+        Map<String,String[]> defaultValues = req.session().attribute(DEFAULT_FORM_OPTIONS);
         if(defaultValues==null) defaultValues = new HashMap<>();
-        boolean showCountry = "national".equals(defaultValues.get("revenue_domain"));
-        boolean showRegion = "regional".equals(defaultValues.get("revenue_domain"));
+        boolean showCountry = "national".equals(defaultValues.getOrDefault("revenue_domain", new String[]{null})[0]);
+        boolean showRegion = "regional".equals(defaultValues.getOrDefault("revenue_domain", new String[]{null})[0]);
         return form().attr("data-id",model.getId().toString())
                 .attr("data-resource",model.getClass().getSimpleName()).withId(clazz+"-specification-form").with(
                         label("Start Year").with(br(),
-                                input().withType("number").withValue(defaultValues.getOrDefault("start_year", String.valueOf(LocalDate.now().getYear()-5))).withName("start_year")
+                                input().withType("number").withValue(defaultValues.getOrDefault("start_year", new String[]{String.valueOf(LocalDate.now().getYear())})[0]).withName("start_year")
                         ),
                         br(),
                         label("End Year").with(br(),
-                                input().withType("number").withValue(defaultValues.getOrDefault("end_year", String.valueOf(LocalDate.now().getYear()))).withName("end_year")
+                                input().withType("number").withValue(defaultValues.getOrDefault("end_year", new String[]{String.valueOf(LocalDate.now().getYear()+5)})[0]).withName("end_year")
                         ),br(),
                         label("Discount Rate (%)").with(br(),
-                                input().withType("number").withValue(defaultValues.getOrDefault("discount_rate", "10")).withName("discount_rate")
+                                input().withType("number").withValue(defaultValues.getOrDefault("discount_rate", new String[]{"10"})[0]).withName("discount_rate")
                         ),br(),
                         label("Revenue Domain").with(br(),
                                 select().withClass("multiselect revenue_domain").withName("revenue_domain").with(
@@ -390,8 +390,8 @@ public class Main {
                                 select().attr(showRegion?"":"disabled").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
                                         .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/"+model.getType()+"/-1?regions_only=true")
-                                .with(defaultValues.containsKey(Constants.REGION_ID)?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID))).getModel().getName())
-                                    .attr("selected").withValue(defaultValues.get(Constants.REGION_ID)): null)
+                                .with(defaultValues.containsKey(Constants.REGION_ID)?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID)[0])).getModel().getName())
+                                    .attr("selected").withValue(defaultValues.get(Constants.REGION_ID)[0]): null)
                         ), br(),
                         label("Use CAGR when applicable?").with(br(),
                                 input().attr(defaultValues.containsKey(Constants.CAGR)?"checked":"").withType("checkbox").withValue("true").withName(Constants.CAGR)
@@ -479,7 +479,7 @@ public class Main {
     }
 
     private static String handleShowReports(Request req, Response res, ContainerTag... additionalTags) {
-        Map<String,String> defaultValues = req.session().attribute(DEFAULT_REPORT_OPTIONS);
+        Map<String,String[]> defaultValues = req.session().attribute(DEFAULT_REPORT_OPTIONS);
         if(defaultValues==null) defaultValues = new HashMap<>();
         final boolean showCountry = true;
         final boolean showRegion = true;
@@ -487,27 +487,28 @@ public class Main {
                 h4("Report Generation"),
                 form().withId("main_reports_options_form").with(
                         label("Start Year (used for NPV)").with(br(),
-                                input().withType("number").withValue(defaultValues.getOrDefault("start_year", String.valueOf(LocalDate.now().getYear()-5))).withName("start_year")
+                                input().withType("number").withValue(defaultValues.getOrDefault("start_year", new String[]{String.valueOf(LocalDate.now().getYear())})[0]).withName("start_year")
                         ),
                         br(),
                         label("End Year (used for NPV)").with(br(),
-                                input().withType("number").withValue(defaultValues.getOrDefault("end_year", String.valueOf(LocalDate.now().getYear()))).withName("end_year")
+                                input().withType("number").withValue(defaultValues.getOrDefault("end_year", new String[]{String.valueOf(LocalDate.now().getYear()+5)})[0]).withName("end_year")
                         ),br(),
                         label("Discount Rate (%)").with(br(),
-                                input().withType("number").withValue(defaultValues.getOrDefault("discount_rate", "10")).withName("discount_rate")
+                                input().withType("number").withValue(defaultValues.getOrDefault("discount_rate", new String[]{"10"})[0]).withName("discount_rate")
                         ),br(),
                         label("Companies").with(
                                 br(),
                                 select().withClass("multiselect-ajax")
-                                        .attr("multiple").withName(Constants.COMPANY_ID).attr("data-url", "/ajax/resources/Company/Market/-1")
-
+                                        .withName(Constants.COMPANY_ID).attr("data-url", "/ajax/resources/Company/Market/-1")
+                                        .with(defaultValues.containsKey(Constants.COMPANY_ID)?option(Graph.load().findNode(Association.Model.Company, Integer.valueOf(defaultValues.get(Constants.COMPANY_ID)[0])).getModel().getName())
+                                                .attr("selected").withValue(defaultValues.get(Constants.COMPANY_ID)[0]): null)
                         ),br(),
                         label("Regions").attr("style", "display: "+(showRegion?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
                                 select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-regional")
                                         .withName(Constants.REGION_ID)
                                         .attr("data-url", "/ajax/resources/"+Association.Model.Region+"/Market/-1?regions_only=true")
-                                        .with(defaultValues.containsKey(Constants.REGION_ID)?option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(defaultValues.get(Constants.REGION_ID))).getModel().getName())
-                                                .attr("selected").withValue(defaultValues.get(Constants.REGION_ID)): null)
+                                        .with(defaultValues.containsKey(Constants.REGION_ID)?Stream.of(defaultValues.get(Constants.REGION_ID)).map(val->option(Graph.load().findNode(Association.Model.Region, Integer.valueOf(val)).getModel().getName()).attr("selected").withValue(val))
+                                                .collect(Collectors.toList()) : null)
                         ),
                         label("Countries").attr("style", "display: "+(showCountry?"block":"none")+"; width: 250px; margin-left: auto; margin-right: auto;").with(
                                 select().attr("multiple").attr("style","width: 100%").withClass("form-control multiselect-ajax revenue-national")
@@ -1492,78 +1493,85 @@ public class Main {
         post("/main_report", (req, res)-> {
             authorize(req, res);
             registerLatestForm(req, DEFAULT_REPORT_OPTIONS);
-            String[] companyIds = req.queryParamsValues(Constants.COMPANY_ID);
-            String[] regionIds = req.queryParamsValues(Constants.REGION_ID);
-            boolean useCAGR = req.queryParams(Constants.CAGR)!=null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
-            double discountRate = req.queryParams("discount_rate")!=null && req.queryParams("discount_rate").length()>0 ? Double.valueOf(req.queryParams("discount_rate")) : 0;
-            int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
-            int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
-            boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
-            Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
-            // get all global markets
-            List<Model> globalMarkets = Graph.load().getModelList(Association.Model.Market)
-                    .stream().filter(m->m.getData().get(Constants.PARENT_MARKET_ID)==null)
-                    .sorted(Comparator.comparing(e->e.getName()))
-                    .collect(Collectors.toList());
+            try {
+                int companyId = DataTable.extractInt(req, Constants.COMPANY_ID, -1);
+                if (companyId < 0) throw new RuntimeException("Please select a company");
+                String[] regionIds = req.queryParamsValues(Constants.REGION_ID);
+                boolean useCAGR = req.queryParams(Constants.CAGR) != null && req.queryParams(Constants.CAGR).trim().toLowerCase().startsWith("t");
+                double discountRate = req.queryParams("discount_rate") != null && req.queryParams("discount_rate").length() > 0 ? Double.valueOf(req.queryParams("discount_rate")) : 0;
+                int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
+                int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR) != null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
+                Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
+                // get all global markets
+                Model company = Graph.load().findNode(Association.Model.Company, companyId).getModel();
+                List<Model> globalMarkets = Graph.load().getModelList(Association.Model.Market)
+                        .stream().filter(m -> m.getData().get(Constants.PARENT_MARKET_ID) == null)
+                        .sorted(Comparator.comparing(e -> e.getName()))
+                        .collect(Collectors.toList());
 
-            String html = div().withClass("col-12").with(
-                    table().withClass("table table-striped").with(
-                            thead().with(
-                                    tr().with(
-                                            th("Industry"),
-                                            th("Global Industry Revenue (NPV in $M)"),
-                                            th("Industry Segment"),
-                                            th("CF"),
-                                            th("Industry Segment Revenue (NPV in $M)"),
-                                            th("Applicable Companies"),
-                                            th("Applicable Products"),
-                                            th("Source"),
-                                            th("Notes")
-                                    )
-                            ), tbody().with(
-                                    globalMarkets.stream().flatMap(market->{
-                                        double revenue = market.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null, false, discountRate);
-                                        List<ContainerTag> rows = new ArrayList<>();
-                                        rows.add(
-                                                tr().with(
-                                                        td(market.getSimpleLink()),
-                                                        td(String.valueOf(Math.round(revenue/1000000))),
-                                                        td(),
-                                                        td(),
-                                                        td(),
-                                                        td(),
-                                                        td(),
-                                                        td(),
-                                                        td()
-                                                )
-                                        );
-                                        market.loadAssociations();
-                                        Association assoc = market.findAssociation("Sub Market");
-                                        List<Model> subMarkets = market.getAssociations().get(assoc);
-                                        if(subMarkets!=null) {
-                                            subMarkets = subMarkets.stream().sorted(Comparator.comparing(e->e.getName()))
-                                                    .collect(Collectors.toList());
-                                            for(Model subMarket : subMarkets) {
-                                                double subRevenue = subMarket.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, revenue, true, discountRate);
-                                                rows.add(tr().with(
-                                                        td(),
-                                                        td(),
-                                                        td(subMarket.getSimpleLink()),
-                                                        td(),
-                                                        td(String.valueOf(Math.round(subRevenue/1000000))),
-                                                        td(),
-                                                        td(),
-                                                        td(),
-                                                        td()
-                                                ));
+                String html = div().withClass("col-12").with(
+                        table().withClass("table table-striped").with(
+                                thead().with(
+                                        tr().with(
+                                                th("Industry"),
+                                                th("Global Industry Revenue (NPV in $M)"),
+                                                th("Industry Segment"),
+                                                th("CF"),
+                                                th("Industry Segment Revenue (NPV in $M)"),
+                                                th("Applicable Companies"),
+                                                th("Applicable Products"),
+                                                th("Source"),
+                                                th("Notes")
+                                        )
+                                ), tbody().with(
+                                        globalMarkets.stream().flatMap(market -> {
+                                            double revenue = market.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null, false, discountRate, companyId);
+                                            List<ContainerTag> rows = new ArrayList<>();
+                                            rows.add(
+                                                    tr().with(
+                                                            td(market.getSimpleLink()),
+                                                            td(String.valueOf(Math.round(revenue / 1000000))),
+                                                            td(),
+                                                            td(),
+                                                            td(),
+                                                            td(),
+                                                            td(),
+                                                            td(),
+                                                            td()
+                                                    )
+                                            );
+                                            market.loadAssociations();
+                                            Association assoc = market.findAssociation("Sub Market");
+                                            List<Model> subMarkets = market.getAssociations().get(assoc);
+                                            if (subMarkets != null) {
+                                                subMarkets = subMarkets.stream().sorted(Comparator.comparing(e -> e.getName()))
+                                                        .collect(Collectors.toList());
+                                                for (Model subMarket : subMarkets) {
+                                                    double subRevenue = subMarket.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, revenue, true, discountRate, companyId);
+                                                    rows.add(tr().with(
+                                                            td(),
+                                                            td(),
+                                                            td(subMarket.getSimpleLink()),
+                                                            td(),
+                                                            td(String.valueOf(Math.round(subRevenue / 1000000))),
+                                                            td(),
+                                                            td(),
+                                                            td(),
+                                                            td()
+                                                    ));
+                                                }
                                             }
-                                        }
-                                        return rows.stream();
-                                    }).collect(Collectors.toList())
-                            )
-                    )
-            ).render();
-            return new Gson().toJson(Collections.singletonMap("result", html));
+                                            return rows.stream();
+                                        }).collect(Collectors.toList())
+                                )
+                        )
+                ).render();
+                return new Gson().toJson(Collections.singletonMap("result", html));
+            } catch(Exception e) {
+                e.printStackTrace();
+                return new Gson().toJson(Collections.singletonMap("error", e.getMessage()));
+            }
         });
 
         post("/new_association/:resource/:association/:resource_id/:association_id", (req,res)->{

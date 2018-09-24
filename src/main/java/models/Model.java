@@ -203,7 +203,7 @@ public abstract class Model implements Serializable {
             if(models==null) {
                 for (int year = minYear; year <= maxYear; year++) {
                     this.revenue=null;
-                    calculateRevenue(revenueDomain, regionId, year, year, useCAGR, estimateCagr, option, revenue, true, discountRate);
+                    calculateRevenue(revenueDomain, regionId, year, year, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
                     Double rev = this.revenue;
                     if (rev != null) {
                         series.addPoint(new CalculationPoint(String.valueOf(year), getCalculationInfoToString(), rev));
@@ -213,7 +213,7 @@ public abstract class Model implements Serializable {
             } else {
                 if(!appendSeries) {
                     for (Model assoc : models) {
-                        assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate);
+                        assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
                         Double rev = assoc.revenue;
                         Integer year = (Integer) assoc.getData().get(Constants.YEAR);
                         if (rev != null) {
@@ -227,7 +227,7 @@ public abstract class Model implements Serializable {
                         String groupName = Graph.load().findNode(Association.Model.Market, (Integer)group).getModel().getName();
                         if(categories.contains(groupName)) {
                             double rev = list.stream().mapToDouble(assoc -> {
-                                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate);
+                                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
                                 if (assoc.revenue == null) return 0d;
                                 return assoc.revenue;
                             }).sum();
@@ -277,7 +277,7 @@ public abstract class Model implements Serializable {
                 series.setName(dataReference.getName());
                 Set<String> missingYears = new HashSet<>(categories);
                 for (Model assoc : list) {
-                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR,estimateCagr, option, revenue, true, discountRate);
+                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR,estimateCagr, option, revenue, true, discountRate, null);
                     Double rev = assoc.revenue;
                     assoc.getSimpleLink();
                     Integer _year = (Integer) assoc.getData().get(Constants.YEAR);
@@ -350,7 +350,7 @@ public abstract class Model implements Serializable {
         );
         if (groupByField == null) {
             for (Model assoc : models) {
-                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate);
+                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
                 Double rev = assoc.revenue;
                 assoc.getSimpleLink();
                 String name = assoc.getName();
@@ -378,7 +378,7 @@ public abstract class Model implements Serializable {
                 Set<String> missingYears = new HashSet<>(categories);
                 Double y = null;
                 for (Model assoc : list) {
-                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate);
+                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
                     Double rev = assoc.revenue;
                     Integer year = (Integer) assoc.getData().get(Constants.YEAR);
                     if (rev != null) {
@@ -527,7 +527,7 @@ public abstract class Model implements Serializable {
         List<Options> allOptions = new ArrayList<>();
         Options options = getDefaultChartOptions();
         allOptions.add(options);
-        calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, null, false, discountRate);
+        calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, null, false, discountRate, null);
         if(this instanceof Market) {
             switch(association.getModel()) {
                 case MarketRevenue: {
@@ -900,7 +900,7 @@ public abstract class Model implements Serializable {
             }
         }
         ContainerTag inner = ul();
-        calculateRevenue(revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, null, false, null);
+        calculateRevenue(revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, null, false, null, null);
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(getSimpleLink().attr("style", "display: inline;"),getRevenueAsSpan()).attr("style", "list-style: none;").with(
                         br(),inner
@@ -944,7 +944,7 @@ public abstract class Model implements Serializable {
                 throw new RuntimeException("Error loading node cache...");
             }
         }
-        calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false, discountRate);
+        calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false, discountRate, null);
         ContainerTag inner = ul();
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan()).attr("style", "list-style: none;").with(
@@ -1114,7 +1114,7 @@ public abstract class Model implements Serializable {
         return model;
     }
 
-    public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue, Double discountRate) {
+    public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue, Double discountRate, Integer companyIdForMarketShares) {
         //if(revenue!=null && parentRevenue==null) return revenue;
         revenue = null;
         this.calculationInformation = new ArrayList<>();
@@ -1135,7 +1135,7 @@ public abstract class Model implements Serializable {
                         if (assocModels != null && assocModels.size() > 0) {
                             for (Model assoc : assocModels) {
                                 foundRevenueInSubMarket = true;
-                                totalRevenueOfLevel += assoc.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, isParentRevenue, discountRate);
+                                totalRevenueOfLevel += assoc.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, isParentRevenue, discountRate, companyIdForMarketShares);
                             }
                         }
                     }
@@ -1148,7 +1148,7 @@ public abstract class Model implements Serializable {
                         String associationIdField = getType().equals(Association.Model.Market)? Constants.COMPANY_ID : Constants.MARKET_ID;
                         if (revenues != null && revenues.size() > 0) {
                             // group
-                            Map<Integer, List<Model>> revenueGroups = revenues.stream().collect(Collectors.groupingBy(e -> (Integer) e.getData().get(associationIdField), Collectors.toList()));
+                            Map<Integer, List<Model>> revenueGroups = revenues.stream().filter(rev->companyIdForMarketShares==null || companyIdForMarketShares.equals(rev.getData().get(Constants.COMPANY_ID))).collect(Collectors.groupingBy(e -> (Integer) e.getData().get(associationIdField), Collectors.toList()));
                             totalRevenueFromMarketShares = revenueGroups.values().stream().mapToDouble(list -> {
                                 list = getSubRevenuesByRegionId(list, revenueDomain, regionId); // sub revenues if necessary
                                 list.forEach(Model::loadAttributesFromDatabase);
@@ -1313,7 +1313,7 @@ public abstract class Model implements Serializable {
             }
             modelMap.put(association, assocModels);
         }
-        calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, true, discountRate);
+        calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, true, discountRate, null);
         //if(modelMap.size()>0) {
             // recurse
             String display = "block;";
@@ -1421,7 +1421,7 @@ public abstract class Model implements Serializable {
                             }
                         }
                         groupedModelList.stream().filter(m -> !(m instanceof ProjectedRevenue)).forEach(Model::loadAttributesFromDatabase);
-                        double rev = groupedModelList.stream().mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false, discountRate)).sum();
+                        double rev = groupedModelList.stream().mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false, discountRate, null)).sum();
                         groupToRevenueMap.put(e.getKey(), rev);
                         return groupedModelList;
                     }));
@@ -1498,7 +1498,7 @@ public abstract class Model implements Serializable {
                             isParentRevenue = true;
                         }
                         if (!(model instanceof ProjectedRevenue)) {
-                            model.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, revToUse, isParentRevenue, discountRate);
+                            model.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, revToUse, isParentRevenue, discountRate, null);
                         }
                     }
 
