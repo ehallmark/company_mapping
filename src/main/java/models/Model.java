@@ -589,8 +589,10 @@ public abstract class Model implements Serializable {
                             for(Model assoc : assocModels) {
                                 assoc.loadAssociations();
                                 List<Model> revenueModels = assoc.getAssociations().get(assoc.findAssociation("Market Share"));
-                                allRevenues.addAll(revenueModels);
-                                assoc.buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, revenueModels, timelineOptions, association, Constants.MARKET_ID, commonMarkets);
+                                if (revenueModels != null) {
+                                    allRevenues.addAll(revenueModels);
+                                    assoc.buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, revenueModels, timelineOptions, association, Constants.MARKET_ID, commonMarkets);
+                                }
                             }
                             allOptions.add(timelineOptions);
                             Options additionalOptions = getDefaultChartOptions();
