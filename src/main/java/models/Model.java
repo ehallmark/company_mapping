@@ -712,6 +712,9 @@ public abstract class Model implements Serializable {
             if(isRevenueToRevenue) {
                 loadAttributesFromDatabase();
                 for(String k : data.keySet()) {
+                    if(k.equals(Constants.REGION_ID)) {
+                        continue;
+                    }
                     Object v = data.get(k);
                     if(v!=null) {
                         fieldToValuesMap.put(k, v.toString());
