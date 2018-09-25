@@ -63,17 +63,17 @@ public class ChartHelper {
 
 
     public static ContainerTag getChartOptionsForm(Request req) {
-        Map<String,String> defaultValues = req.session().attribute(Main.DEFAULT_FORM_OPTIONS);
+        Map<String,String[]> defaultValues = req.session().attribute(Main.DEFAULT_FORM_OPTIONS);
         if(defaultValues==null) defaultValues = new HashMap<>();
         return div().with(
                 label("Time Series Chart Type").with(br(),
                         select().withClass("multiselect form-control").attr("style", "width: 200px").withName(TIME_SERIES_CHART_TYPE).with(
-                                option("Column").attr("column".equals(defaultValues.get(TIME_SERIES_CHART_TYPE))?"selected": "").withValue(LineChartType.column.toString()),
-                                option("Line").attr("line".equals(defaultValues.get(TIME_SERIES_CHART_TYPE))?"selected": "").withValue(LineChartType.line.toString())
+                                option("Column").attr("column".equals(defaultValues.getOrDefault(TIME_SERIES_CHART_TYPE, new String[]{null})[0])?"selected": "").withValue(LineChartType.column.toString()),
+                                option("Line").attr("line".equals(defaultValues.getOrDefault(TIME_SERIES_CHART_TYPE, new String[]{null})[0])?"selected": "").withValue(LineChartType.line.toString())
                         )
                 ),br(),
                 label("Max Chart Groups").with(br(),
-                        input().withClass("form-control").withType("number").withValue(defaultValues.getOrDefault(MAX_NUM_GROUPS, "15")).withName(MAX_NUM_GROUPS)
+                        input().withClass("form-control").withType("number").withValue(defaultValues.getOrDefault(MAX_NUM_GROUPS, new String[]{"15"})[0]).withName(MAX_NUM_GROUPS)
                 )
         );
     }
