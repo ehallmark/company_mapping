@@ -500,7 +500,7 @@ public class Main {
                         label("Discount Rate (%)").with(br(),
                                 input().withType("number").withValue(defaultValues.getOrDefault("discount_rate", new String[]{"10"})[0]).withName("discount_rate")
                         ),br(),
-                        label("Companies").with(
+                        label("Applicable Company").with(
                                 br(),
                                 select().withClass("multiselect-ajax")
                                         .withName(Constants.COMPANY_ID).attr("data-url", "/ajax/resources/Company/Market/-1")
