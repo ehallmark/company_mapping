@@ -704,7 +704,7 @@ public class Main {
                                                             ):span()
                                                     ),
                                                     div().withClass("col-12").with(
-                                                            h4("Company Mapping App")
+                                                            h4("Revenue Mapping App")
                                                     ),
                                                     div().withClass("col-12").withId("main-menu").with(
                                                             div().withClass("row").with( authorized ?
