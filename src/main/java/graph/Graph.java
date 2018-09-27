@@ -4,8 +4,7 @@ import com.google.common.util.concurrent.AtomicDouble;
 import controllers.Main;
 import database.Database;
 import lombok.NonNull;
-import models.Association;
-import models.Model;
+import models.*;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -62,6 +61,36 @@ public class Graph {
         } finally {
             lock.unlock();
         }
+    }
+
+    public Model findByName(Association.Model type, String name, boolean createIfNotPresent) {
+        Model model = getModelList(type).stream().filter(m->m.getName().equalsIgnoreCase(name)).findAny().orElse(null);
+        if(model==null && createIfNotPresent) {
+            // create
+            System.out.println("Creating "+type+": "+name);
+            Map<String,Object> data = new HashMap<>(Collections.singletonMap(Constants.NAME, name));
+            switch (type) {
+                case Company: {
+                    model = new Company(null,data);
+                    break;
+                }
+                case Market: {
+                    model = new Market(null,data);
+                    break;
+                }
+                case Product: {
+                    model = new Product(null,data);
+                    break;
+                } default: {
+                    throw new RuntimeException("Invalid creation of model by name: "+type);
+                }
+            }
+            model.createInDatabase();
+            addNode(type, model.getId(), new Node(model));
+        } else {
+            System.out.println("Found "+type+" in database: "+name);
+        }
+        return model;
     }
 
     public boolean areAlreadyConnected(@NonNull Association.Model model, int id, @NonNull Association.Model otherModel, int otherId) {

@@ -8,6 +8,7 @@ public class Seed {
        // SeedTestData.main(args);
         SeedMarketTaxonomy.main(args);
         Ingester.ingestAll(false);
+        IngestCompanyDataSheet.main(args);
         System.exit(0);
     }
 }

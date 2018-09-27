@@ -157,6 +157,7 @@ public class Ingester {
                         break;
                     }
                 }
+                rev /= 1000000L;
                 previousRevenues.add(rev);
                 Double cagr = null;
                 if(previousRevenues.size()>1) {

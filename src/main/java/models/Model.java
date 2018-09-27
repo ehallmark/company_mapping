@@ -1575,7 +1575,8 @@ public abstract class Model implements Serializable {
         if(Double.isNaN(revenue)) {
             throw new RuntimeException("Bad revenue calculation: "+revenue);
         }
-        return "$"+String.format("%.2f", revenue);
+
+        return "$"+String.format("%,.2f", revenue);
     }
 
     public void removeManyToOneAssociations(String associationName) {
