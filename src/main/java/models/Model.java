@@ -223,7 +223,7 @@ public abstract class Model implements Serializable {
                     }
                 } else {
                     // need to group
-                    models.stream().collect(Collectors.groupingBy(e -> e.getData().get(revenueGrouping))).forEach((group, list) -> {
+                    models.stream().collect(Collectors.groupingBy(e -> getTopLevelRevenueFor(e).getData().get(revenueGrouping))).forEach((group, list) -> {
                         String groupName = Graph.load().findNode(Association.Model.Market, (Integer)group).getModel().getName();
                         if(categories.contains(groupName)) {
                             double rev = list.stream().mapToDouble(assoc -> {
@@ -258,7 +258,7 @@ public abstract class Model implements Serializable {
             options.addSeries(series);
 
         } else {
-            models.stream().collect(Collectors.groupingBy(e -> e.getData().get(groupByField))).forEach((year, list) -> {
+            models.stream().collect(Collectors.groupingBy(e -> getTopLevelRevenueFor(e).getData().get(groupByField))).forEach((year, list) -> {
                 PointSeries series = new PointSeries();
                 series.setShowInLegend(true);
                 // get name of group by field by id
@@ -326,6 +326,17 @@ public abstract class Model implements Serializable {
 
     }
 
+    private static Model getTopLevelRevenueFor(Model revenueModel) {
+        if(revenueModel.isRevenueModel()) {
+            Model parent = revenueModel;
+            while (parent != null) {
+                revenueModel = parent;
+                parent = parent.getParentRevenue();
+            }
+        }
+        return revenueModel;
+    }
+
     public PointSeries buildPieSeries(String groupByField, String title,RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, List<Model> models, Options options, Association association, boolean sort) {
         // yearly timeline
         if(minYear==null || maxYear==null) return null;
@@ -360,7 +371,7 @@ public abstract class Model implements Serializable {
                 series.addPoint(new Point(name, rev).setId(assoc.getId().toString()));
             }
         } else {
-            models.stream().collect(Collectors.groupingBy(e -> e.getData().get(groupByField))).forEach((id, list) -> {
+            models.stream().collect(Collectors.groupingBy(e -> getTopLevelRevenueFor(e).getData().get(groupByField))).forEach((id, list) -> {
                 // get name of group by field by id
                 Model dataReference;
                 if(groupByField.equals(Constants.MARKET_ID)) {
@@ -1377,7 +1388,7 @@ public abstract class Model implements Serializable {
                 }
                 if (revenueAssociation && groupRevenuesBy != null) {
                     // group models by year
-                    groupedModels = models.stream().collect(Collectors.groupingBy(e -> (Integer) e.getData().get(groupRevenuesBy)));
+                    groupedModels = models.stream().collect(Collectors.groupingBy(e -> (Integer) getTopLevelRevenueFor(e).getData().get(groupRevenuesBy)));
                 } else {
                     groupedModels = Collections.singletonMap(null, models);
                 }
