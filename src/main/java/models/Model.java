@@ -178,13 +178,13 @@ public abstract class Model implements Serializable {
 
         options.setChartOptions(new ChartOptions().setType(column? SeriesType.COLUMN : SeriesType.LINE).setWidth(1000));
         options.setxAxis(new Axis().setCategories(categories).setType(AxisType.CATEGORY));
-        options.setyAxis(new Axis().setTitle(new Title().setText("Revenue ($)")));
+        options.setyAxis(new Axis().setTitle(new Title().setText("Revenue (in Millions)")));
         String title;
         if(groupByField==null) {
             title = "Revenue Timeline";
         } else {
             title = "Revenue Timeline by "+Constants.humanAttrFor(groupByField);
-            options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>{series.name}</b><br/><b>Revenue: ${point.y:.2f} </b><br/>{point.info}<br/>");
+            options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>{series.name}</b><br/><b>Revenue: ${point.y:,.2f} </b><br/>{point.info}<br/>");
         }
         options.setTooltip(null);
         options.setSubtitle(new Title().setText(title));
@@ -195,7 +195,7 @@ public abstract class Model implements Serializable {
                     .setRotation(0)
                     .setColor(Color.black)
                     .setAlign(HorizontalAlignment.CENTER)
-                    .setFormat("${point.y:.2f}")
+                    .setFormat("${point.y:,.2f}")
                     .setY(-5)
             );
             series.setShowInLegend(appendSeries);
@@ -339,7 +339,7 @@ public abstract class Model implements Serializable {
         options.setChartOptions(new ChartOptions().setWidth(1000).setType(SeriesType.PIE));
         options.setSubtitle(new Title().setText(title));
         options.setTitle(new Title().setText(getName()));
-        options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>Percentage: {point.percentage:.1f}%</b><br/><b>Revenue: ${point.y:.2f} </b><br/>");
+        options.getTooltip().setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b>Percentage: {point.percentage:.1f}%</b><br/><b>Revenue: ${point.y:,.2f} </b><br/>");
         PointSeries series = new PointSeries();
         series.setDataLabels(new DataLabels(true)
                 .setRotation(0)
@@ -508,7 +508,7 @@ public abstract class Model implements Serializable {
                 .setExporting(new ExportingOptions().setEnabled(true))
                 .setTooltip(new Tooltip().setEnabled(true)
                         .setHeaderFormat("{point.key}<br/>")
-                        .setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b> Revenue: ${point.y:.2f}</b><br/>"))
+                        .setPointFormat("<span style=\"color:{point.color}\">\u25CF</span> <b> Revenue: ${point.y:,.2f}</b><br/>"))
                 .setCreditOptions(new CreditOptions().setEnabled(true).setText("GTT Group").setHref("http://www.gttgrp.com/"));
     }
 
@@ -585,19 +585,17 @@ public abstract class Model implements Serializable {
                         buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Subsidiaries", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, options, association, null);
                         if(forComparison) {
                             Options timelineOptions = getDefaultChartOptions();
-                            List<Model> allRevenues = new ArrayList<>();
+                            allOptions.add(timelineOptions);
                             for(Model assoc : assocModels) {
                                 assoc.loadAssociations();
                                 List<Model> revenueModels = assoc.getAssociations().get(assoc.findAssociation("Market Share"));
                                 if (revenueModels != null) {
-                                    allRevenues.addAll(revenueModels);
                                     assoc.buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, revenueModels, timelineOptions, association, Constants.MARKET_ID, commonMarkets);
+                                    Options additionalOptions = getDefaultChartOptions();
+                                    assoc.buildMarketShare(Constants.MARKET_ID,"Revenues by Market", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, revenueModels, additionalOptions, association, null);
+                                    allOptions.add(additionalOptions);
                                 }
                             }
-                            allOptions.add(timelineOptions);
-                            Options additionalOptions = getDefaultChartOptions();
-                            buildMarketShare(Constants.COMPANY_ID,"Market Revenue by Company", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, allRevenues, additionalOptions, association, Collections.singletonMap("Market", Constants.MARKET_ID), "Market");
-                            allOptions.add(additionalOptions);
                      /*       Options additionalOptions2 = getDefaultChartOptions();
                             allRevenues = allRevenues.stream().collect(Collectors.groupingBy(rev->rev.getData().get(Constants.MARKET_ID))).entrySet()
                                     .stream().filter(e->e.getValue().stream().map(m->m.getData().get(Constants.COMPANY_ID)).collect(Collectors.toSet()).size()>1)

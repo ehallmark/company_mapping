@@ -61,7 +61,7 @@ public class Constants {
         ATTR_MAP.put(Association.Model.MarketShareRevenue.toString(), "Market Share");
         ATTR_MAP.put(PARENT_MARKET_ID, "Parent Market");
         ATTR_MAP.put(PARENT_COMPANY_ID, "Parent Company");
-        ATTR_MAP.put(VALUE, "Revenue ($)");
+        ATTR_MAP.put(VALUE, "Revenue (in Millions)");
         ATTR_MAP.put(SOURCE, "Source");
         ATTR_MAP.put(YEAR, "Applicable Year");
         ATTR_MAP.put(IS_ESTIMATE, "Is Estimate?");

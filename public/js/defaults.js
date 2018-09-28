@@ -25,6 +25,11 @@ var setupHighcharts = function(id, data) {
 
 
 $(document).ready(function() {
+    Highcharts.setOptions({
+        lang: {
+            thousandsSep: ','
+        }
+    });
     $('#main-menu .options button').each(function() {
         var $btn = $(this);
         var resource = $btn.attr('data-resource');
@@ -209,7 +214,8 @@ var showReportFunction = function(id,resourceId) {
 
 var formatRevenueString = function(revenue) {
     if(revenue===null) { return ""; }
-    return '$' + parseFloat(Math.round(revenue * 100) / 100).toFixed(2);
+    return '$' + revenue.toLocaleString(undefined, {maximumFractionDigits:2});
+    // return '$' + parseFloat(Math.round(revenue * 100) / 100).toFixed(2);
 };
 
 
