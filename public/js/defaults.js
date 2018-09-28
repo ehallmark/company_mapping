@@ -281,7 +281,7 @@ var updateResourceFormHelper = function($this) {
 var onShowResourceFunction = function($topElem) {
     updateAssociationTotals();
 
-    $('#main_reports_options_form').submit(function(e) {
+    $topElem.find('form.main_reports_options_form').submit(function(e) {
         e.preventDefault();
         e.stopPropagation();
         var $form = $(this);

@@ -489,7 +489,7 @@ public class Main {
         final boolean showRegion = true;
         String html = div().withClass("col-12").with(
                 h4("Report Generation"),
-                form().withId("main_reports_options_form").with(
+                form().withClass("main_reports_options_form").with(
                         label("Start Year (used for NPV)").with(br(),
                                 input().withType("number").withValue(defaultValues.getOrDefault("start_year", new String[]{String.valueOf(LocalDate.now().getYear())})[0]).withName("start_year")
                         ),
