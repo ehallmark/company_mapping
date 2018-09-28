@@ -223,7 +223,13 @@ public abstract class Model implements Serializable {
                     }
                 } else {
                     // need to group
-                    models.stream().collect(Collectors.groupingBy(e -> getTopLevelRevenueFor(e).getData().get(revenueGrouping))).forEach((group, list) -> {
+                    Map<Integer,List<Model>> groupedModels;
+                    if(revenueGrouping.equals(Constants.MARKET_ID)) {
+                        groupedModels = models.stream().collect(Collectors.groupingBy(e -> handleMarketDepthId((Integer) getTopLevelRevenueFor(e).getData().get(revenueGrouping), marketDepth)));
+                    } else {
+                        groupedModels = models.stream().collect(Collectors.groupingBy(e -> (Integer) getTopLevelRevenueFor(e).getData().get(revenueGrouping)));
+                    }
+                    groupedModels.forEach((group, list) -> {
                         String groupName = Graph.load().findNode(Association.Model.Market, (Integer)group).getModel().getName();
                         if(categories.contains(groupName)) {
                             double rev = list.stream().mapToDouble(assoc -> {
@@ -258,17 +264,23 @@ public abstract class Model implements Serializable {
             options.addSeries(series);
 
         } else {
-            models.stream().collect(Collectors.groupingBy(e -> getTopLevelRevenueFor(e).getData().get(groupByField))).forEach((year, list) -> {
+            Map<Integer,List<Model>> groupedModels;
+            if(groupByField.equals(Constants.MARKET_ID)) {
+                groupedModels = models.stream().collect(Collectors.groupingBy(e -> handleMarketDepthId((Integer) getTopLevelRevenueFor(e).getData().get(groupByField), marketDepth)));
+            } else {
+                groupedModels = models.stream().collect(Collectors.groupingBy(e -> (Integer) getTopLevelRevenueFor(e).getData().get(groupByField)));
+            }
+            groupedModels.forEach((assocId, list) -> {
                 PointSeries series = new PointSeries();
                 series.setShowInLegend(true);
                 // get name of group by field by id
                 Model dataReference;
                 if (groupByField.equals(Constants.MARKET_ID)) {
                     // find market
-                    dataReference = new Market((Integer) year, null);
+                    dataReference = new Market((Integer) assocId, null);
                 } else if (groupByField.equals(Constants.COMPANY_ID)) {
                     // find company
-                    dataReference = new Company((Integer) year, null);
+                    dataReference = new Company((Integer) assocId, null);
 
                 } else {
                     throw new RuntimeException("Unknown group by field in time line chart.");
@@ -276,14 +288,25 @@ public abstract class Model implements Serializable {
                 dataReference.loadAttributesFromDatabase();
                 series.setName(dataReference.getName());
                 Set<String> missingYears = new HashSet<>(categories);
-                for (Model assoc : list) {
-                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR,estimateCagr, option, revenue, true, discountRate, null, marketDepth);
-                    Double rev = assoc.revenue;
-                    assoc.getSimpleLink();
-                    Integer _year = (Integer) assoc.getData().get(Constants.YEAR);
-                    if (rev != null) {
-                        series.addPoint(new Point(_year.toString(), rev));
-                        missingYears.remove(_year.toString());
+                Map<Integer, List<Model>> yearlyGrouped = list.stream()
+                        .collect(Collectors.groupingBy(e->(Integer)e.getData().get(Constants.YEAR)));
+                for (int year : yearlyGrouped.keySet()) {
+                    List<Model> group = yearlyGrouped.get(year);
+                    Double totalRev = null;
+                    for(Model assoc : group) {
+                        assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null, marketDepth);
+                        Double rev = assoc.revenue;
+                        if(rev!=null) {
+                            if(totalRev==null) {
+                                totalRev = rev;
+                            } else {
+                                totalRev += rev;
+                            }
+                        }
+                    }
+                    if (totalRev != null) {
+                        series.addPoint(new Point(String.valueOf(year), totalRev));
+                        missingYears.remove(String.valueOf(year));
                     }
                 }
                 list = getSubRevenuesByRegionId(list, revenueDomain, regionId);
@@ -371,7 +394,13 @@ public abstract class Model implements Serializable {
                 series.addPoint(new Point(name, rev).setId(assoc.getId().toString()));
             }
         } else {
-            models.stream().collect(Collectors.groupingBy(e -> getTopLevelRevenueFor(e).getData().get(groupByField))).forEach((id, list) -> {
+            Map<Integer,List<Model>> groupedModels;
+            if(groupByField.equals(Constants.MARKET_ID)) {
+                groupedModels = models.stream().collect(Collectors.groupingBy(e -> handleMarketDepthId((Integer) getTopLevelRevenueFor(e).getData().get(groupByField), marketDepth)));
+            } else {
+                groupedModels = models.stream().collect(Collectors.groupingBy(e -> (Integer) getTopLevelRevenueFor(e).getData().get(groupByField)));
+            }
+            groupedModels.forEach((id, list) -> {
                 // get name of group by field by id
                 Model dataReference;
                 if(groupByField.equals(Constants.MARKET_ID)) {
@@ -607,13 +636,6 @@ public abstract class Model implements Serializable {
                                     allOptions.add(additionalOptions);
                                 }
                             }
-                     /*       Options additionalOptions2 = getDefaultChartOptions();
-                            allRevenues = allRevenues.stream().collect(Collectors.groupingBy(rev->rev.getData().get(Constants.MARKET_ID))).entrySet()
-                                    .stream().filter(e->e.getValue().stream().map(m->m.getData().get(Constants.COMPANY_ID)).collect(Collectors.toSet()).size()>1)
-                                    .flatMap(e->e.getValue().stream()).collect(Collectors.toList());
-
-                            buildMarketShare(Constants.MARKET_ID,"Company Revenue in Shared Markets", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, allRevenues, additionalOptions2, association, Collections.singletonMap("Company", Constants.COMPANY_ID), "Company");
-                            allOptions.add(additionalOptions2); */
                         }
                     } else {
                         // parent
