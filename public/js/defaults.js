@@ -212,10 +212,15 @@ var showReportFunction = function(id,resourceId) {
     });
 };
 
+function numberWithCommas(x) {
+  var parts = x.toString().split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.join(".");
+};
+
 var formatRevenueString = function(revenue) {
     if(revenue===null) { return ""; }
-    return '$' + revenue.toLocaleString(undefined, {maximumFractionDigits:2});
-    // return '$' + parseFloat(Math.round(revenue * 100) / 100).toFixed(2);
+    return '$' + numberWithCommas(parseFloat(Math.round(revenue * 100) / 100).toFixed(2));
 };
 
 
