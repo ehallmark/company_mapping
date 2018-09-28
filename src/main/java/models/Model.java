@@ -1291,6 +1291,26 @@ public abstract class Model implements Serializable {
                 .attr("data-resource", getType().toString());
     }
 
+    private static int handleMarketDepthId(int marketId, Integer marketDepth) {
+        if(marketDepth==null) return marketId;
+        Model model = Graph.load().findNode(Association.Model.Market, marketId).getModel();
+        List<Model> ancestry = new ArrayList<>();
+        while(model!=null) {
+            ancestry.add(0, model);
+            model.loadAssociations();
+            List<Model> parents = model.getAssociations().getOrDefault(model.findAssociation("Parent Market"), Collections.emptyList());
+            if(parents.size()>0) {
+                model = parents.get(0);
+            } else {
+                model = null;
+            }
+        }
+        if(ancestry.size()>marketDepth) {
+            return ancestry.get(marketDepth).getId();
+        }
+        throw new RuntimeException("Unable to find market depth...");
+    }
+
 
     /*
         To calculate revenue, use the latest attached revenue, unless one is not present, in which case
@@ -1388,7 +1408,11 @@ public abstract class Model implements Serializable {
                 }
                 if (revenueAssociation && groupRevenuesBy != null) {
                     // group models by year
-                    groupedModels = models.stream().collect(Collectors.groupingBy(e -> (Integer) getTopLevelRevenueFor(e).getData().get(groupRevenuesBy)));
+                    if (groupRevenuesBy.equals(Constants.MARKET_ID)) {
+                        groupedModels = models.stream().collect(Collectors.groupingBy(e -> handleMarketDepthId((Integer) getTopLevelRevenueFor(e).getData().get(groupRevenuesBy), marketDepth)));
+                    } else {
+                        groupedModels = models.stream().collect(Collectors.groupingBy(e -> (Integer) getTopLevelRevenueFor(e).getData().get(groupRevenuesBy)));
+                    }
                 } else {
                     groupedModels = Collections.singletonMap(null, models);
                 }
