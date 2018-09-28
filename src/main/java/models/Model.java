@@ -147,16 +147,16 @@ public abstract class Model implements Serializable {
                 .findAny().orElse(null);
     }
 
-    public void buildTimelineSeries(boolean column, int maxGroups, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, List<Model> models, Options options, Association association) {
-        buildTimelineSeries(column, maxGroups, getName(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, models, options, association, null, null);
+    public void buildTimelineSeries(boolean column, int maxGroups, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, Integer marketDepth, List<Model> models, Options options, Association association) {
+        buildTimelineSeries(column, maxGroups, getName(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, models, options, association, null, null);
     }
 
-    public void buildTimelineSeries(boolean column, int maxGroups, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, List<Model> models, Options options, Association association, String revenueGrouping, List<String> _categories) {
-        buildTimelineSeries(column, maxGroups, getName(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, models, options, association, revenueGrouping, _categories);
+    public void buildTimelineSeries(boolean column, int maxGroups, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, Integer marketDepth, List<Model> models, Options options, Association association, String revenueGrouping, List<String> _categories) {
+        buildTimelineSeries(column, maxGroups, getName(), getType(), id, revenue, groupByField, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, models, options, association, revenueGrouping, _categories);
     }
 
 
-    public void buildTimelineSeries(boolean column, int maxGroups, @NonNull String name, @NonNull Association.Model type, Integer id, Double revenue, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, List<Model> models, Options options, Association association, String revenueGrouping, List<String> _categories) {
+    public void buildTimelineSeries(boolean column, int maxGroups, @NonNull String name, @NonNull Association.Model type, Integer id, Double revenue, String groupByField, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, Integer marketDepth, List<Model> models, Options options, Association association, String revenueGrouping, List<String> _categories) {
         final boolean appendSeries = revenueGrouping!=null;
         // yearly timeline
         if(minYear==null || maxYear==null) return;
@@ -203,7 +203,7 @@ public abstract class Model implements Serializable {
             if(models==null) {
                 for (int year = minYear; year <= maxYear; year++) {
                     this.revenue=null;
-                    calculateRevenue(revenueDomain, regionId, year, year, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
+                    calculateRevenue(revenueDomain, regionId, year, year, useCAGR, estimateCagr, option, revenue, true, discountRate, null, marketDepth);
                     Double rev = this.revenue;
                     if (rev != null) {
                         series.addPoint(new CalculationPoint(String.valueOf(year), getCalculationInfoToString(), rev));
@@ -213,7 +213,7 @@ public abstract class Model implements Serializable {
             } else {
                 if(!appendSeries) {
                     for (Model assoc : models) {
-                        assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
+                        assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null, marketDepth);
                         Double rev = assoc.revenue;
                         Integer year = (Integer) assoc.getData().get(Constants.YEAR);
                         if (rev != null) {
@@ -227,7 +227,7 @@ public abstract class Model implements Serializable {
                         String groupName = Graph.load().findNode(Association.Model.Market, (Integer)group).getModel().getName();
                         if(categories.contains(groupName)) {
                             double rev = list.stream().mapToDouble(assoc -> {
-                                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
+                                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null, marketDepth);
                                 if (assoc.revenue == null) return 0d;
                                 return assoc.revenue;
                             }).sum();
@@ -277,7 +277,7 @@ public abstract class Model implements Serializable {
                 series.setName(dataReference.getName());
                 Set<String> missingYears = new HashSet<>(categories);
                 for (Model assoc : list) {
-                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR,estimateCagr, option, revenue, true, discountRate, null);
+                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR,estimateCagr, option, revenue, true, discountRate, null, marketDepth);
                     Double rev = assoc.revenue;
                     assoc.getSimpleLink();
                     Integer _year = (Integer) assoc.getData().get(Constants.YEAR);
@@ -337,7 +337,7 @@ public abstract class Model implements Serializable {
         return revenueModel;
     }
 
-    public PointSeries buildPieSeries(String groupByField, String title,RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, List<Model> models, Options options, Association association, boolean sort) {
+    public PointSeries buildPieSeries(String groupByField, String title,RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, Integer marketDepth, List<Model> models, Options options, Association association, boolean sort) {
         // yearly timeline
         if(minYear==null || maxYear==null) return null;
         if(maxYear - minYear <= 0) return null;
@@ -361,7 +361,7 @@ public abstract class Model implements Serializable {
         );
         if (groupByField == null) {
             for (Model assoc : models) {
-                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
+                assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null, marketDepth);
                 Double rev = assoc.revenue;
                 assoc.getSimpleLink();
                 String name = assoc.getName();
@@ -389,7 +389,7 @@ public abstract class Model implements Serializable {
                 Set<String> missingYears = new HashSet<>(categories);
                 Double y = null;
                 for (Model assoc : list) {
-                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null);
+                    assoc.calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, revenue, true, discountRate, null, marketDepth);
                     Double rev = assoc.revenue;
                     Integer year = (Integer) assoc.getData().get(Constants.YEAR);
                     if (rev != null) {
@@ -429,8 +429,8 @@ public abstract class Model implements Serializable {
         return series;
     }
 
-    public void buildMarketShare(String groupByField, String title, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, List<Model> models, Options options, Association association, Map<String,String> groupToFieldMap, String... groupByFields) {
-        final PointSeries series = buildPieSeries(groupByField, title,revenueDomain, regionId,  minYear, maxYear, useCAGR, estimateCagr, option, discountRate, models, options, association, true);
+    public void buildMarketShare(String groupByField, String title, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, Integer marketDepth, List<Model> models, Options options, Association association, Map<String,String> groupToFieldMap, String... groupByFields) {
+        final PointSeries series = buildPieSeries(groupByField, title,revenueDomain, regionId,  minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, models, options, association, true);
         if (series != null && series.getData()!=null) {
             options.addSeries(series);
             if (groupByFields.length > 0) {
@@ -442,7 +442,7 @@ public abstract class Model implements Serializable {
                     for(Point point : series.getData()) {
                         List<Model> assocs = models.stream().filter(m->m.getData().get(groupByField).equals(Integer.valueOf(point.getId())))
                                 .collect(Collectors.toList());
-                        PointSeries inner = buildPieSeries(groupToFieldMap.get(additionalGroup), title, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocs, options, association, true);
+                        PointSeries inner = buildPieSeries(groupToFieldMap.get(additionalGroup), title, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocs, options, association, true);
                         if (inner != null) {
                             groups.add(inner);
                         } else {
@@ -523,32 +523,32 @@ public abstract class Model implements Serializable {
                 .setCreditOptions(new CreditOptions().setEnabled(true).setText("GTT Group").setHref("http://www.gttgrp.com/"));
     }
 
-    public List<Options> buildCharts(boolean forComparison, boolean column, int maxGroups, @NonNull String associationName, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, List<String> commonMarkets) {
+    public List<Options> buildCharts(boolean forComparison, boolean column, int maxGroups, @NonNull String associationName, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, Integer marketDepth, List<String> commonMarkets) {
         Association association = findAssociation(associationName);
         if(association==null) {
             return null;
         }
         loadAssociations();
         List<Model> assocModels = associations.getOrDefault(association, Collections.emptyList());
-        return buildCharts(forComparison, column, maxGroups, assocModels, association, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, commonMarkets);
+        return buildCharts(forComparison, column, maxGroups, assocModels, association, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, commonMarkets);
     }
 
 
-    public List<Options> buildCharts(boolean forComparison, boolean column, int maxGroups, @NonNull List<Model> assocModels, @NonNull Association association, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, List<String> commonMarkets) {
+    public List<Options> buildCharts(boolean forComparison, boolean column, int maxGroups, @NonNull List<Model> assocModels, @NonNull Association association, RevenueDomain revenueDomain, Integer regionId, Integer minYear, Integer maxYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, Integer marketDepth, List<String> commonMarkets) {
         List<Options> allOptions = new ArrayList<>();
         Options options = getDefaultChartOptions();
         allOptions.add(options);
-        calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, null, false, discountRate, null);
+        calculateRevenue(revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, null, false, discountRate, null, marketDepth);
         if(this instanceof Market) {
             switch(association.getModel()) {
                 case MarketRevenue: {
-                    buildTimelineSeries(column, maxGroups, null,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, null, options, association);
+                    buildTimelineSeries(column, maxGroups, null,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, null, options, association);
                     break;
                 }
                 case Market: {
                     if(association.getAssociationName().startsWith("Sub")) {
                         // sub market
-                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Sub Markets", revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, options, association, null); //, Collections.singletonMap("Market Share",Constants.COMPANY_ID), "Market Share");
+                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Sub Markets", revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocModels, options, association, null); //, Collections.singletonMap("Market Share",Constants.COMPANY_ID), "Market Share");
                     } else {
                         options.setSubtitle(new Title().setText("Parent Market"));
                         // parent market
@@ -560,7 +560,7 @@ public abstract class Model implements Serializable {
                             if(subs!=null) {
                                 List<Model> associationSubs = parent.getAssociations().get(subs);
                                 if(associationSubs!=null) {
-                                    parent.buildMarketShare(null,"Parent Market",revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, associationSubs, options, association, null);
+                                    parent.buildMarketShare(null,"Parent Market",revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, associationSubs, options, association, null);
                                 }
                             }
                         }
@@ -569,16 +569,16 @@ public abstract class Model implements Serializable {
                 }
                 case MarketShareRevenue: {
                     // graph of all companies associated with this market
-                    buildMarketShare(Constants.COMPANY_ID,"Companies",revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, options, association, null);
+                    buildMarketShare(Constants.COMPANY_ID,"Companies",revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocModels, options, association, null);
                     if(maxYear - minYear > 0) {
                         Options timelineOptions = getDefaultChartOptions();
-                        buildTimelineSeries(column, maxGroups, Constants.COMPANY_ID,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, timelineOptions, association);
+                        buildTimelineSeries(column, maxGroups, Constants.COMPANY_ID,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocModels, timelineOptions, association);
                         allOptions.add(timelineOptions);
                     }
                     break;
                 }
                 case Product: {
-                    buildMarketShare(null,"Market Products",revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, options, association, null);
+                    buildMarketShare(null,"Market Products",revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocModels, options, association, null);
                     break;
                 }
             }
@@ -586,14 +586,14 @@ public abstract class Model implements Serializable {
             switch (association.getModel()) {
                 case CompanyRevenue: {
                     // yearly timeline
-                    buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, null, options, association);
+                    buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, null, options, association);
                     break;
                 }
                 case Company: {
                     // check sub company or parent company
                     if(association.getAssociationName().startsWith("Sub")) {
                         // children
-                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Subsidiaries", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, options, association, null);
+                        buildMarketShare(null,association.getReverseAssociationName().equals("All Revenue") ? "" : "Subsidiaries", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocModels, options, association, null);
                         if(forComparison) {
                             Options timelineOptions = getDefaultChartOptions();
                             allOptions.add(timelineOptions);
@@ -601,9 +601,9 @@ public abstract class Model implements Serializable {
                                 assoc.loadAssociations();
                                 List<Model> revenueModels = assoc.getAssociations().get(assoc.findAssociation("Market Share"));
                                 if (revenueModels != null) {
-                                    assoc.buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, revenueModels, timelineOptions, association, Constants.MARKET_ID, commonMarkets);
+                                    assoc.buildTimelineSeries(column, maxGroups, null, revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, revenueModels, timelineOptions, association, Constants.MARKET_ID, commonMarkets);
                                     Options additionalOptions = getDefaultChartOptions();
-                                    assoc.buildMarketShare(Constants.MARKET_ID,"Revenues by Market", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, revenueModels, additionalOptions, association, null);
+                                    assoc.buildMarketShare(Constants.MARKET_ID,"Revenues by Market", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, revenueModels, additionalOptions, association, null);
                                     allOptions.add(additionalOptions);
                                 }
                             }
@@ -626,7 +626,7 @@ public abstract class Model implements Serializable {
                             if(subs!=null) {
                                 List<Model> associationSubs = parent.getAssociations().get(subs);
                                 if(associationSubs!=null) {
-                                    parent.buildMarketShare(null,"Parent Company", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, associationSubs, options, association, null);
+                                    parent.buildMarketShare(null,"Parent Company", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, associationSubs, options, association, null);
                                 }
                             }
                         }
@@ -635,15 +635,15 @@ public abstract class Model implements Serializable {
                 }
                 case MarketShareRevenue: {
                     // graph of all markets associated with this company
-                    buildMarketShare(Constants.MARKET_ID,"Markets", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, options, association, null);
+                    buildMarketShare(Constants.MARKET_ID,"Markets", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocModels, options, association, null);
                     if(maxYear - minYear > 0) {
                         Options timelineOptions = getDefaultChartOptions();
-                        buildTimelineSeries(column, maxGroups, Constants.MARKET_ID,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, timelineOptions, association);
+                        buildTimelineSeries(column, maxGroups, Constants.MARKET_ID,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocModels, timelineOptions, association);
                         allOptions.add(timelineOptions);
                     }
                     break;
                 } case Product: {
-                    buildMarketShare(null,"Company Products", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, options, association, null);
+                    buildMarketShare(null,"Company Products", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocModels, options, association, null);
                     break;
                 }
             }
@@ -652,7 +652,7 @@ public abstract class Model implements Serializable {
             switch (association.getModel()) {
                 case ProductRevenue: {
                     // yearly timeline
-                    buildTimelineSeries(column, maxGroups, null,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, assocModels, options, association);
+                    buildTimelineSeries(column, maxGroups, null,revenueDomain, regionId, minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, assocModels, options, association);
                     break;
                 }
                 case Company: {
@@ -666,7 +666,7 @@ public abstract class Model implements Serializable {
                         if(subs!=null) {
                             List<Model> associationSubs = parent.getAssociations().get(subs);
                             if(associationSubs!=null) {
-                                parent.buildMarketShare(null,"Company Products", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, associationSubs, options, association, null);
+                                parent.buildMarketShare(null,"Company Products", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, associationSubs, options, association, null);
                             }
                         }
                     }
@@ -683,7 +683,7 @@ public abstract class Model implements Serializable {
                         if(subs!=null) {
                             List<Model> associationSubs = parent.getAssociations().get(subs);
                             if(associationSubs!=null) {
-                                parent.buildMarketShare(null,"Market Products", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, associationSubs, options, association, null);
+                                parent.buildMarketShare(null,"Market Products", revenueDomain, regionId,minYear, maxYear, useCAGR, estimateCagr, option, discountRate, marketDepth, associationSubs, options, association, null);
                             }
                         }
                     }
@@ -900,7 +900,7 @@ public abstract class Model implements Serializable {
         }
     }
 
-    public ContainerTag loadNestedAssociations(boolean nested, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes, Integer withinGroupId) {
+    public ContainerTag loadNestedAssociations(boolean nested, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes, Integer withinGroupId, Integer marketDepth) {
         RevenueDomain revenueDomain = RevenueDomain.global;
         if(data==null) {
             loadAttributesFromDatabase();
@@ -914,14 +914,14 @@ public abstract class Model implements Serializable {
             }
         }
         ContainerTag inner = ul();
-        calculateRevenue(revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, null, false, null, null);
+        calculateRevenue(revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, null, false, null, null, marketDepth);
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(getSimpleLink().attr("style", "display: inline;"),getRevenueAsSpan()).attr("style", "list-style: none;").with(
                         br(),inner
                 )
         );
         Set<String> allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, null),true, revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, null, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, expandAll, alwaysExpandNodes, withinGroupId);
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, null),true, revenueDomain, null, null, null, false, false, Constants.MissingRevenueOption.replace, null, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, expandAll, alwaysExpandNodes, withinGroupId, marketDepth);
         if(nested) return inner;
         return tag;
     };
@@ -945,7 +945,7 @@ public abstract class Model implements Serializable {
         return name;
     }
 
-    public ContainerTag loadReport(RevenueDomain revenueDomain, Integer regionId, int startYear, int endYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate) {
+    public ContainerTag loadReport(RevenueDomain revenueDomain, Integer regionId, int startYear, int endYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, Integer marketDepth) {
         final int maxDepth = 10;
         if(data==null) {
             loadAttributesFromDatabase();
@@ -958,7 +958,7 @@ public abstract class Model implements Serializable {
                 throw new RuntimeException("Error loading node cache...");
             }
         }
-        calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false, discountRate, null);
+        calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false, discountRate, null, marketDepth);
         ContainerTag inner = ul();
         ContainerTag tag = ul().attr("style", "text-align: left !important;").with(
                 li().with(h5(getSimpleLink()).attr("style", "display: inline;"),getRevenueAsSpan()).attr("style", "list-style: none;").with(
@@ -966,7 +966,7 @@ public abstract class Model implements Serializable {
                 )
         );
         Set<String> allReferences = new HashSet<>(Collections.singleton(this.getClass().getSimpleName()+id));
-        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, regionId),false, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, discountRate, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, false, Collections.emptySet(), null);
+        loadNestedAssociationHelper(getRegionDomainName(revenueDomain, regionId),false, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, discountRate, inner, new HashSet<>(allReferences), allReferences, new AtomicInteger(0), this, 0, maxDepth, false, Collections.emptySet(), null, marketDepth);
         return tag;
     };
 
@@ -1128,7 +1128,7 @@ public abstract class Model implements Serializable {
         return model;
     }
 
-    public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue, Double discountRate, Integer companyIdForMarketShares) {
+    public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue, Double discountRate, Integer companyIdForMarketShares, Integer marketDepth) {
         //if(revenue!=null && parentRevenue==null) return revenue;
         revenue = null;
         this.calculationInformation = new ArrayList<>();
@@ -1149,7 +1149,7 @@ public abstract class Model implements Serializable {
                         if (assocModels != null && assocModels.size() > 0) {
                             for (Model assoc : assocModels) {
                                 foundRevenueInSubMarket = true;
-                                totalRevenueOfLevel += assoc.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, isParentRevenue, discountRate, companyIdForMarketShares);
+                                totalRevenueOfLevel += assoc.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, isParentRevenue, discountRate, companyIdForMarketShares, marketDepth);
                             }
                         }
                     }
@@ -1298,7 +1298,7 @@ public abstract class Model implements Serializable {
          If no revenue is present for a company, do nothing. If no revenue is present for a product, do nothing.
          Eventually, we can calculate revenues of markets for other years using the defined CAGR of a recent period.
      */
-    private void loadNestedAssociationHelper(@NonNull String regionDomainName, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes, Integer withinGroupId) {
+    private void loadNestedAssociationHelper(@NonNull String regionDomainName, boolean allowEdit, RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, Constants.MissingRevenueOption option, Double discountRate, ContainerTag container, Set<String> alreadySeen, Set<String> references, AtomicInteger cnt, Model original, int depth, int maxDepth, boolean expandAll, Set<Node> alwaysExpandNodes, Integer withinGroupId, Integer marketDepth) {
         if(depth > maxDepth && !alwaysExpandNodes.contains(new Node(this))) return;
         final boolean withinGroup = withinGroupId != null;
         System.out.println("Load nested... "+this.getClass().getSimpleName()+id);
@@ -1327,7 +1327,7 @@ public abstract class Model implements Serializable {
             }
             modelMap.put(association, assocModels);
         }
-        calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, true, discountRate, null);
+        calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, true, discountRate, null, marketDepth);
         //if(modelMap.size()>0) {
             // recurse
             String display = "block;";
@@ -1435,7 +1435,7 @@ public abstract class Model implements Serializable {
                             }
                         }
                         groupedModelList.stream().filter(m -> !(m instanceof ProjectedRevenue)).forEach(Model::loadAttributesFromDatabase);
-                        double rev = groupedModelList.stream().mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false, discountRate, null)).sum();
+                        double rev = groupedModelList.stream().mapToDouble(d -> d.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, null, false, discountRate, null, marketDepth)).sum();
                         groupToRevenueMap.put(e.getKey(), rev);
                         return groupedModelList;
                     }));
@@ -1512,7 +1512,7 @@ public abstract class Model implements Serializable {
                             isParentRevenue = true;
                         }
                         if (!(model instanceof ProjectedRevenue)) {
-                            model.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, revToUse, isParentRevenue, discountRate, null);
+                            model.calculateRevenue(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, revToUse, isParentRevenue, discountRate, null, marketDepth);
                         }
                     }
 
@@ -1555,7 +1555,7 @@ public abstract class Model implements Serializable {
                                         model.getExpandLink()
                                 );
                             } else {
-                                model.loadNestedAssociationHelper(regionDomainName, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, discountRate, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth, false, alwaysExpandNodes, null);
+                                model.loadNestedAssociationHelper(regionDomainName, allowEdit, revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, option, discountRate, inner, new HashSet<>(alreadySeen), references, cnt, original, depth + 1, maxDepth, false, alwaysExpandNodes, null, marketDepth);
                             }
                         }
                         references.add(_id);

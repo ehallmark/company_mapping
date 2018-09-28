@@ -376,6 +376,19 @@ public class Main {
                         label("Discount Rate (%)").with(br(),
                                 input().withType("number").withValue(defaultValues.getOrDefault("discount_rate", new String[]{"10"})[0]).withName("discount_rate")
                         ),br(),
+                        label("Market Depth").with(br(),
+                                select().withClass("multiselect").withName("market_depth").with(
+                                        option("Top Level")
+                                                .attr(Arrays.asList("0", null).contains(defaultValues.getOrDefault("market_depth", new String[]{null})[0])?"selected":"")
+                                                .withValue("0"),
+                                        option("Second Level")
+                                                .attr("1".equals(defaultValues.getOrDefault("market_depth", new String[]{null})[0])?"selected":"")
+                                                .withValue("1"),
+                                        option("Third Level")
+                                                .attr("2".equals(defaultValues.getOrDefault("market_depth", new String[]{null})[0])?"selected":"")
+                                                .withValue("2")
+                                )
+                        ),br(),
                         label("Revenue Domain").with(br(),
                                 select().withClass("multiselect revenue_domain").withName("revenue_domain").with(
                                         option("Global").withValue("global").attr(!showCountry&&!showRegion?"selected":""),
@@ -500,6 +513,19 @@ public class Main {
                         label("Discount Rate (%)").with(br(),
                                 input().withType("number").withValue(defaultValues.getOrDefault("discount_rate", new String[]{"10"})[0]).withName("discount_rate")
                         ),br(),
+                        label("Market Depth").with(br(),
+                                select().withClass("multiselect").withName("market_depth").with(
+                                        option("Top Level")
+                                                .attr(Arrays.asList("0", null).contains(defaultValues.getOrDefault("market_depth", new String[]{null})[0])?"selected":"")
+                                                .withValue("0"),
+                                        option("Second Level")
+                                                .attr("1".equals(defaultValues.getOrDefault("market_depth", new String[]{null})[0])?"selected":"")
+                                                .withValue("1"),
+                                        option("Third Level")
+                                                .attr("2".equals(defaultValues.getOrDefault("market_depth", new String[]{null})[0])?"selected":"")
+                                                .withValue("2")
+                                )
+                        ),br(),
                         label("Applicable Company").with(
                                 br(),
                                 select().withClass("multiselect-ajax")
@@ -536,13 +562,13 @@ public class Main {
                         label("Missing Revenue Options").with(br(),
                                 select().withClass("multiselect").withName("missing_revenue").with(
                                         option("Exclude missing")
-                                                .attr(Constants.MissingRevenueOption.exclude.toString().equals(defaultValues.get("missing_revenue"))?"selected":"")
+                                                .attr(Constants.MissingRevenueOption.exclude.toString().equals(defaultValues.getOrDefault("missing_revenue", new String[]{null})[0])?"selected":"")
                                                 .withValue(Constants.MissingRevenueOption.exclude.toString()),
                                         option("Replace with zeros")
-                                                .attr(Constants.MissingRevenueOption.replace.toString().equals(defaultValues.get("missing_revenue"))?"selected":"")
+                                                .attr(Constants.MissingRevenueOption.replace.toString().equals(defaultValues.getOrDefault("missing_revenue", new String[]{null})[0])?"selected":"")
                                                 .withValue(Constants.MissingRevenueOption.replace.toString()),
                                         option("Raise error")
-                                                .attr(Constants.MissingRevenueOption.error.toString().equals(defaultValues.get("missing_revenue"))?"selected":"")
+                                                .attr(Constants.MissingRevenueOption.error.toString().equals(defaultValues.getOrDefault("missing_revenue", new String[]{null})[0])?"selected":"")
                                                 .withValue(Constants.MissingRevenueOption.error.toString())
                                 )
                         ),br()
@@ -1004,7 +1030,7 @@ public class Main {
             Integer withinGroupId = DataTable.extractInt(req, "group_id", null);
             if(model!=null) {
                 Set<Node> expandedNodes = getRegisteredExpandedResourcesForShowPage(req, res);
-                ContainerTag diagram = model.loadNestedAssociations(true, 0, false, expandedNodes, withinGroupId);
+                ContainerTag diagram = model.loadNestedAssociations(true, 0, false, expandedNodes, withinGroupId, null);
                 registerExpandedResourceForShowPage(req, res);
                 return new Gson().toJson(Collections.singletonMap("result", diagram.render()));
             }
@@ -1080,6 +1106,7 @@ public class Main {
                 boolean column = extractString(req, ChartHelper.TIME_SERIES_CHART_TYPE, ChartHelper.LineChartType.column.toString()).equals(ChartHelper.LineChartType.column.toString());
                 int maxGroups = DataTable.extractInt(req, ChartHelper.MAX_NUM_GROUPS, 15);
                 int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                int marketDepth = DataTable.extractInt(req, "market_depth", 1);
                 boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                 Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
                 Map<String, Object> results = new HashMap<>();
@@ -1117,7 +1144,7 @@ public class Main {
                     Association fakeAssoc = new Association("Sub "+Model.capitalize(model.getType().toString()), model.getType(), model.getTableName(),  model.getTableName(), null, Association.Type.OneToMany,  "parent_"+model.getType().toString()+"_id", model.getType().toString()+"_id", false, "All Revenue");
                     fakeParents.setAssociations(Collections.singletonMap(fakeAssoc, allComparables));
                     List<Options> parentOptions = fakeParents.buildCharts(true, column, maxGroups, allComparables, fakeAssoc,
-                            revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, commonElements);
+                            revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, marketDepth, commonElements);
                     for(Options options : parentOptions) {
                         String json = new JsonRenderer().toJson(options);
                         results.put("chart_" + idx.getAndIncrement(), json);
@@ -1164,7 +1191,7 @@ public class Main {
                                                 // convert to regions
                                                 marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
                                                 if (marketShares.size() > 0) {
-                                                    List<Options> allOptions = assoc.buildCharts(true, column, maxGroups, marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, null);
+                                                    List<Options> allOptions = assoc.buildCharts(true, column, maxGroups, marketShares, assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, marketDepth, null);
                                                     return allOptions;
                                                 }
                                             }
@@ -1222,7 +1249,7 @@ public class Main {
                     boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                     boolean column = extractString(req, ChartHelper.TIME_SERIES_CHART_TYPE, ChartHelper.LineChartType.column.toString()).equals(ChartHelper.LineChartType.column.toString());
                     int maxGroups = DataTable.extractInt(req, ChartHelper.MAX_NUM_GROUPS, 15);
-
+                    int marketDepth = DataTable.extractInt(req, "market_depth", 1);
                     Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
                     Integer regionId = DataTable.extractInt(req, Constants.REGION_ID, null);
                     Model.RevenueDomain revenueDomain;
@@ -1234,7 +1261,7 @@ public class Main {
                     Map<String, Object> results = new HashMap<>();
                     AtomicInteger idx = new AtomicInteger(0);
                     for(Association association : model.getAssociationsMeta()) {
-                        List<Options> allOptions = model.buildCharts(false, column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, null);
+                        List<Options> allOptions = model.buildCharts(false, column, maxGroups, association.getAssociationName(), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, marketDepth, null);
                         if(allOptions!=null) {
                             for(Options options : allOptions) {
                                 if(options.getSeries()!=null && options.getSeries().size()>0 && options.getSeries().get(0).getData()!=null &&
@@ -1265,6 +1292,7 @@ public class Main {
                 boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR)!=null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                 int startYear = DataTable.extractInt(req, "start_year", LocalDate.now().getYear());
                 int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
+                int marketDepth = DataTable.extractInt(req, "market_depth", 1);
                 Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
                 try {
                     Integer regionId = DataTable.extractInt(req, Constants.REGION_ID, null);
@@ -1275,7 +1303,7 @@ public class Main {
                         throw new RuntimeException("Please select a valid Revenue Domain.");
                     }
 
-                    ContainerTag diagram = model.loadReport(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate);
+                    ContainerTag diagram = model.loadReport(revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, marketDepth);
 
                     ContainerTag html = div().withClass("col-12").with(h4("Date Range: "+startYear+" - "+endYear), br(), diagram);
                     return new Gson().toJson(Collections.singletonMap("result", html.render()));
@@ -1331,7 +1359,7 @@ public class Main {
                 model.loadAssociations();
                 Set<Node> expanded = getRegisteredExpandedResourcesForShowPage(req, res);
                 if(expanded==null) expanded = Collections.emptySet();
-                model.loadShowTemplate(getBackButton(req), "Diagram", h5("Diagram"), model.loadNestedAssociations(false, 0, false, expanded, null));
+                model.loadShowTemplate(getBackButton(req), "Diagram", h5("Diagram"), model.loadNestedAssociations(false, 0, false, expanded, null, null));
                 String html = new Gson().toJson(model);
                 registerNextPage(req, res);
                 if(!stayedOnSameShowPage) {
@@ -1513,6 +1541,7 @@ public class Main {
                 int endYear = DataTable.extractInt(req, "end_year", LocalDate.now().getYear());
                 boolean estimateCagr = req.queryParams(Constants.ESTIMATE_CAGR) != null && req.queryParams(Constants.ESTIMATE_CAGR).trim().toLowerCase().startsWith("t");
                 Constants.MissingRevenueOption missingRevenueOption = Constants.MissingRevenueOption.valueOf(req.queryParams("missing_revenue"));
+                int marketDepth = DataTable.extractInt(req, "market_depth", 1);
                 // get all global markets
                 Model company = Graph.load().findNode(Association.Model.Company, companyId).getModel();
                 List<Model> globalMarkets = Graph.load().getModelList(Association.Model.Market)
@@ -1536,7 +1565,7 @@ public class Main {
                                         )
                                 ), tbody().with(
                                         globalMarkets.stream().flatMap(market -> {
-                                            double revenue = market.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null, false, discountRate, companyId);
+                                            double revenue = market.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, null, false, discountRate, companyId, marketDepth);
                                             List<ContainerTag> rows = new ArrayList<>();
                                             rows.add(
                                                     tr().with(
@@ -1558,7 +1587,7 @@ public class Main {
                                                 subMarkets = subMarkets.stream().sorted(Comparator.comparing(e -> e.getName()))
                                                         .collect(Collectors.toList());
                                                 for (Model subMarket : subMarkets) {
-                                                    double subRevenue = subMarket.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, revenue, true, discountRate, companyId);
+                                                    double subRevenue = subMarket.calculateRevenue(Model.RevenueDomain.global, null, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, revenue, true, discountRate, companyId, marketDepth);
                                                     rows.add(tr().with(
                                                             td(),
                                                             td(),
