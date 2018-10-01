@@ -1167,49 +1167,52 @@ public class Main {
                         if(modelGroups.containsKey(type)) {
                             List<Model> models = modelGroups.get(type);
                             for(Model assoc : models) {
-                                if (assoc instanceof Market) {
-                                    Integer depthId = Model.handleMarketDepthId(assoc.getId(), marketDepth);
-                                    if (depthId != null && !assoc.getId().equals(depthId)) {
-                                        assoc = Graph.load().findNode(Association.Model.Market, depthId).getModel();
-                                    }
-                                }
-                                final int index = idx.getAndIncrement();
-                                select.with(
-                                        option().with(assoc.getSimpleLink()).withValue(String.valueOf(index))
-                                );
-                                final Model _assoc = assoc;
-                                if(!alreadySeen.contains(_assoc.getType().toString()+_assoc.getId())) {
-                                    alreadySeen.add(assoc.getType().toString() + assoc.getId());
-                                    RecursiveTask<List<Options>> task = new RecursiveTask<List<Options>>() {
-                                        @Override
-                                        protected List<Options> compute() {
-                                            _assoc.loadAssociations();
-                                            // get associations relevant to model and compareModel
-                                            Association association = _assoc.findAssociation("Market Share");
-                                            if (association != null) {
-                                                List<Model> marketShares = _assoc.getAssociations().get(association);
-                                                if (marketShares != null) {
-                                                    marketShares = marketShares.stream().filter(share -> {
-                                                        if (resource.equals(Association.Model.Market)) {
-                                                            return modelIds.contains(share.getData().get(Constants.MARKET_ID));
-                                                        } else if (resource.equals(Association.Model.Company)) {
-                                                            return modelIds.contains(share.getData().get(Constants.COMPANY_ID));
-                                                        } else {
-                                                            return false;
-                                                        }
-                                                    }).collect(Collectors.toList());
-                                                    // convert to regions
-                                                    marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
-                                                    if (marketShares.size() > 0) {
-                                                        List<Options> allOptions = _assoc.buildCharts(true, column, maxGroups, marketShares, _assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, marketDepth, null);
-                                                        return allOptions;
-                                                    }
+                                assoc.loadAssociations();
+                                Association association = assoc.findAssociation("Market Share");
+                                if (association != null) {
+                                    List<Model> marketShares = assoc.getAssociations().get(association);
+                                    if (marketShares != null) {
+                                        marketShares = marketShares.stream().filter(share -> {
+                                            if (resource.equals(Association.Model.Market)) {
+                                                return modelIds.contains(share.getData().get(Constants.MARKET_ID));
+                                            } else if (resource.equals(Association.Model.Company)) {
+                                                return modelIds.contains(share.getData().get(Constants.COMPANY_ID));
+                                            } else {
+                                                return false;
+                                            }
+                                        }).collect(Collectors.toList());
+                                        // convert to regions
+                                        marketShares = Model.getSubRevenuesByRegionId(marketShares, revenueDomain, regionId);
+                                        final List<Model> _marketShares = marketShares;
+                                        if (_marketShares.size() > 0) {
+                                            if (assoc instanceof Market) {
+                                                Integer depthId = Model.handleMarketDepthId(assoc.getId(), marketDepth);
+                                                if (depthId != null && !assoc.getId().equals(depthId)) {
+                                                    assoc = Graph.load().findNode(Association.Model.Market, depthId).getModel();
                                                 }
                                             }
-                                            return Collections.emptyList();
+                                            final Model _assoc = assoc;
+                                            if(!alreadySeen.contains(_assoc.getType().toString()+_assoc.getId())) {
+                                                alreadySeen.add(assoc.getType().toString() + assoc.getId());
+                                                final int index = idx.get();
+                                                select.with(
+                                                        option().with(_assoc.getSimpleLink()).withValue(String.valueOf(index))
+                                                );
+
+                                                RecursiveTask<List<Options>> task = new RecursiveTask<List<Options>>() {
+                                                    @Override
+                                                    protected List<Options> compute() {
+                                                        _assoc.loadAssociations();
+                                                        // get associations relevant to model and compareModel
+                                                        List<Options> allOptions = _assoc.buildCharts(true, column, maxGroups, _marketShares, _assoc.findAssociation("Market Share"), revenueDomain, regionId, startYear, endYear, useCAGR, estimateCagr, missingRevenueOption, discountRate, marketDepth, null);
+                                                        return allOptions;
+                                                    }
+                                                };
+                                                idxToChartTaskMap.put(index, task);
+                                                idx.getAndIncrement();
+                                            }
                                         }
-                                    };
-                                    idxToChartTaskMap.put(index, task);
+                                    }
                                 }
                             }
                         }
