@@ -191,7 +191,7 @@ public class Graph {
         Node node1 = findNode(model1.getType(), model1.getId());
         Node node2 = findNode(model2.getType(), model2.getId());
         Set<Node> mutualRelatives = new HashSet<>();
-        Function<String,Boolean> recursiveIf =  key -> (key.contains("Revenue")||key.contains("Market Share"));
+        Function<String,Boolean> recursiveIf =  key -> (key.contains("Revenue")||key.contains("Market Share")||key.equals("Market")||key.equals("Parent Market"));
         if(node1!=null && node2!=null) {
             mutualRelatives.add(node1);
             mutualRelatives.add(node2);

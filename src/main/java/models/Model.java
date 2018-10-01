@@ -1313,7 +1313,7 @@ public abstract class Model implements Serializable {
                 .attr("data-resource", getType().toString());
     }
 
-    private static int handleMarketDepthId(int marketId, Integer marketDepth) {
+    public static int handleMarketDepthId(int marketId, Integer marketDepth) {
         if(marketDepth==null) return marketId;
         Model model = Graph.load().findNode(Association.Model.Market, marketId).getModel();
         List<Model> ancestry = new ArrayList<>();
