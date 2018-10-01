@@ -37,7 +37,8 @@ public abstract class Model implements Serializable {
         national
     }
 
-
+    @Getter
+    private Double unaccountedRevenue;
     @Getter
     private final String tableName;
     @Getter
@@ -998,7 +999,14 @@ public abstract class Model implements Serializable {
             double percentageFull = percentage * 100;
             revStr += " - " + String.format("%.1f", percentageFull)+"%";
         }
-        ContainerTag calculationInfoSpan = span().attr("style", "margin-left: 10px;").withText(getCalculationInfoToString());
+        String infoStr;
+        if(this instanceof Company && (calculationInformation==null || calculationInformation.stream().noneMatch(info->info.isCalculatedFromMarketShares()||info.isCalculatedFromSubmarkets()))) {
+            infoStr = " (Unaccounted Market Share Revenue: "+ formatRevenueString(unaccountedRevenue) +")";
+        } else {
+            infoStr = getCalculationInfoToString();
+        }
+        ContainerTag calculationInfoSpan = span().attr("style", "margin-left: 10px;").withText(infoStr);
+
         return span(revStr).with(calculationInfoSpan).attr("data-val", revenue).withClass("resource-data-field").attr("style","margin-left: 10px;");
     }
 
@@ -1153,6 +1161,7 @@ public abstract class Model implements Serializable {
     public synchronized double calculateRevenue(@NonNull RevenueDomain revenueDomain, Integer regionId, Integer startYear, Integer endYear, boolean useCAGR, boolean estimateCagr, @NonNull Constants.MissingRevenueOption option, Double previousRevenue, boolean isParentRevenue, Double discountRate, Integer companyIdForMarketShares, Integer marketDepth) {
         //if(revenue!=null && parentRevenue==null) return revenue;
         revenue = null;
+        unaccountedRevenue = null;
         this.calculationInformation = new ArrayList<>();
         if(isRevenueModel) {
             calculateSubRevenueForRevenueModel(revenueDomain, regionId, startYear, endYear, discountRate);
@@ -1275,6 +1284,11 @@ public abstract class Model implements Serializable {
                         }
                     }
                 }
+            }
+            if(foundRevenueInMarketShares && revenue!=null) {
+                unaccountedRevenue = revenue - totalRevenueFromMarketShares;
+            } else {
+                unaccountedRevenue = 0d;
             }
             if(foundRevenueInMarketShares && foundRevenueInSubMarket && getType().equals(Association.Model.Market) && revenue==null) {
                 if(totalRevenueOfLevel > totalRevenueFromMarketShares) {
