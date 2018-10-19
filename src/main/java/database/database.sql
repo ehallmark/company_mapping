@@ -174,3 +174,7 @@ create table companies_markets (
     check ((parent_revenue_id is null and region_id is null) or (parent_revenue_id is not null and region_id is not null))
 );
 
+pg_dump -Fc --dbname=postgresql://postgres:password@127.0.0.1:5432/companydb > companydb.dump
+
+pg_restore -Fc --dbname=postgresql://postgres:password@127.0.0.1:5432/companydb companydb.dump
+
